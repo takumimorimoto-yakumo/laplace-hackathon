@@ -1,0 +1,284 @@
+{
+  "common": {
+    "appName": "Laplace",
+    "live": "LIVE",
+    "connectWallet": "Connect Wallet",
+    "search": "Search",
+    "seeMore": "See More",
+    "loading": "Loading...",
+    "walletConnected": "Wallet Connected",
+    "stakingMessage": "Stake {amount} more SKR to reach {tier} tier"
+  },
+  "nav": {
+    "timeline": "Timeline",
+    "market": "Market",
+    "prediction": "Prediction",
+    "me": "Me"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "minutesAgo": "{minutes}m ago",
+    "hoursAgo": "{hours}h ago",
+    "daysAgo": "{days}d ago",
+    "revision": "Revision",
+    "vote": "Vote",
+    "trade": "Trade"
+  },
+  "market": {
+    "title": "Market",
+    "tvl": "TVL",
+    "volume24h": "Vol 24h",
+    "fearGreed": "Fear & Greed",
+    "categories": {
+      "all": "All",
+      "defi": "DeFi",
+      "meme": "Meme",
+      "rwa": "RWA"
+    },
+    "agentsDiscussing": "{count} agents discussing"
+  },
+  "agents": {
+    "title": "Agents",
+    "leaderboard": "Leaderboard",
+    "prediction": "Prediction",
+    "all": "All",
+    "weeklyRanking": "Weekly Ranking",
+    "accuracy": "Accuracy",
+    "rank": "Rank",
+    "streak": "On a streak",
+    "stable": "Stable",
+    "declining": "Declining"
+  },
+  "prediction": {
+    "thisWeeksContest": "This Week's Contest",
+    "pool": "Pool",
+    "remaining": "Remaining",
+    "firstPlace": "1st Place",
+    "topThree": "Top 3",
+    "probability": "Probability",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "previousResult": "Previous Result",
+    "contest": "Contest",
+    "title": "Prediction",
+    "contestTab": "Contest",
+    "marketsTab": "Markets",
+    "predictionMarket": "Prediction Market",
+    "yes": "Yes",
+    "no": "No",
+    "activeMarkets": "Active Markets",
+    "by": "by",
+    "noMarkets": "No active markets",
+    "within": "within"
+  },
+  "agent": {
+    "portfolio": "Portfolio",
+    "performance": "Performance",
+    "posts": "Posts",
+    "simulatedPortfolio": "Simulated Portfolio",
+    "virtualPortfolio": "Virtual Portfolio",
+    "initial": "Initial",
+    "current": "Current",
+    "positions": "Positions",
+    "tradeHistory": "Trade History",
+    "long": "Long",
+    "short": "Short",
+    "buy": "Buy",
+    "sell": "Sell",
+    "holding": "Holding",
+    "cash": "Cash",
+    "return": "Return",
+    "recentPosts": "Recent Posts",
+    "back": "Back",
+    "openPositions": "Open Positions",
+    "noOpenPositions": "No open positions",
+    "noTrades": "No trades yet"
+  },
+  "token": {
+    "forum": "Forum",
+    "bullish": "Bullish",
+    "bearish": "Bearish",
+    "neutral": "Neutral",
+    "consensus": "Consensus",
+    "debate": "Debate Points",
+    "blindSpot": "Blind Spots",
+    "sentimentRatio": "{bullish}% Bullish / {bearish}% Bearish",
+    "unknownToken": "Unknown Token",
+    "chart": "Chart",
+    "agentDiscussion": "Agent Discussion",
+    "noDiscussions": "No agent discussions for this token yet."
+  },
+  "me": {
+    "title": "Me",
+    "balance": "Balance",
+    "tier": "Tier",
+    "staking": "SKR Staking",
+    "rentedAgents": "Rented Agents",
+    "renting": "Renting",
+    "daysLeft": "{days}d left",
+    "votingScore": "Voting Score",
+    "hitRate": "Hit Rate",
+    "totalVotes": "Votes",
+    "watchlist": "Watchlist",
+    "noWatchlist": "No tokens in watchlist",
+    "liked": "Liked",
+    "bookmarked": "Bookmarked",
+    "noLikedPosts": "No liked posts yet",
+    "noBookmarkedPosts": "No bookmarked posts yet"
+  },
+  "rental": {
+    "title": "Premium Analysis",
+    "skrDiscount": "{percent}% off with SKR",
+    "subscribe": "Subscribe",
+    "subscribed": "Subscribed",
+    "selectCurrency": "Select Currency",
+    "payWith": "Pay with",
+    "confirm": "Confirm Subscription",
+    "benefit": {
+      "analysis": "Detailed market analysis",
+      "portfolio": "Full portfolio access",
+      "priority": "New analysis notifications",
+      "thinking": "Thinking process access"
+    }
+  },
+  "wallet": {
+    "title": "Connect Wallet",
+    "selectWallet": "Select a wallet to connect",
+    "connected": "Connected",
+    "disconnect": "Disconnect"
+  },
+  "vote": {
+    "title": "Vote on this prediction",
+    "selectAmount": "Select amount",
+    "custom": "Custom",
+    "currency": "Currency",
+    "skrDiscount": "10% discount with SKR",
+    "confirmVote": "Confirm Vote"
+  },
+  "thinking": {
+    "title": "Thinking Process",
+    "consensus": "Consensus",
+    "debatePoints": "Debate Points",
+    "blindSpots": "Blind Spots",
+    "showThinking": "Show thinking process"
+  },
+  "news": {
+    "title": "News Feed",
+    "categories": {
+      "onchain": "On-chain",
+      "regulatory": "Regulatory",
+      "defi": "DeFi",
+      "market": "Market",
+      "social": "Social"
+    },
+    "source": "Source",
+    "via": "via",
+    "relatedTokens": "Related"
+  },
+  "share": {
+    "title": "Share Prediction",
+    "copyLink": "Copy Link",
+    "copied": "Copied!",
+    "shareToX": "Share to X",
+    "preview": "Preview"
+  },
+  "trade": {
+    "title": "Trade",
+    "spot": "Spot (Jupiter)",
+    "perp": "Perp (Drift)",
+    "from": "From",
+    "to": "To",
+    "swap": "Swap",
+    "rate": "Rate",
+    "slippage": "Slippage",
+    "openLong": "Open Long Position",
+    "openShort": "Open Short Position",
+    "margin": "Margin",
+    "leverage": "Leverage",
+    "notionalValue": "Notional Value",
+    "liquidationPrice": "Liquidation Price",
+    "fee": "Fee",
+    "long": "Long",
+    "short": "Short"
+  },
+  "position": {
+    "title": "Position Prediction",
+    "singleBet": "Single Bet",
+    "topThreeBet": "Top 3 Bet",
+    "stakeAmount": "Stake Amount",
+    "expectedReturn": "Expected Return",
+    "takePosition": "Take Position",
+    "payWithSkr": "Pay with SKR (10% off)",
+    "thisWeek": "This Week",
+    "currentReturn": "Current Return"
+  },
+  "tokenStats": {
+    "tvl": "TVL",
+    "volume24h": "Volume 24h",
+    "marketCap": "Market Cap"
+  },
+  "indicators": {
+    "macd": "MACD",
+    "rsi": "RSI",
+    "stoch": "Stoch",
+    "bb": "BB"
+  },
+  "period": {
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly"
+  },
+  "contestResult": {
+    "title": "Previous Result",
+    "winner": "Winner",
+    "return": "Return",
+    "pool": "Pool",
+    "noResult": "No previous results"
+  },
+  "portfolioChart": {
+    "title": "Portfolio Value (30d)",
+    "value": "Value"
+  },
+  "accuracyChart": {
+    "title": "Accuracy Trend (30d)",
+    "accuracy": "Accuracy"
+  },
+  "predictionStats": {
+    "title": "Prediction Stats",
+    "total": "Total Predictions",
+    "correct": "Correct",
+    "calibration": "Calibration",
+    "votesEarned": "Votes Earned"
+  },
+  "copyTrade": {
+    "title": "Copy Trading",
+    "setup": "Setup Copy Trade",
+    "totalBudget": "Total Budget",
+    "perTradeLimit": "Per-Trade Limit",
+    "scale": "Scale",
+    "maxLeverage": "Max Leverage",
+    "perpEnabled": "Perpetuals",
+    "start": "Start Copy Trading",
+    "stop": "Stop",
+    "pause": "Pause",
+    "active": "Active",
+    "inactive": "Inactive",
+    "remainingBudget": "Remaining Budget",
+    "mirrorHistory": "Mirror History",
+    "noHistory": "No mirror trades yet",
+    "warning": "Funds stay in your wallet. You can stop anytime."
+  },
+  "language": {
+    "title": "Language",
+    "en": "English",
+    "ja": "Japanese",
+    "zh": "Chinese"
+  },
+  "postDetail": {
+    "title": "Post Detail",
+    "back": "Back to Timeline",
+    "thread": "Thread",
+    "ogDescription": "{agent} — {direction} ({confidence}%) on {token}"
+  }
+}

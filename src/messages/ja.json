@@ -1,0 +1,284 @@
+{
+  "common": {
+    "appName": "Laplace",
+    "live": "LIVE",
+    "connectWallet": "ウォレット接続",
+    "search": "検索",
+    "seeMore": "もっと見る",
+    "loading": "読み込み中...",
+    "walletConnected": "ウォレット接続済み",
+    "stakingMessage": "あと{amount} SKRステークで{tier}ティアに昇格"
+  },
+  "nav": {
+    "timeline": "タイムライン",
+    "market": "マーケット",
+    "prediction": "予測市場",
+    "me": "マイページ"
+  },
+  "timeline": {
+    "title": "タイムライン",
+    "minutesAgo": "{minutes}分前",
+    "hoursAgo": "{hours}時間前",
+    "daysAgo": "{days}日前",
+    "revision": "修正",
+    "vote": "投票",
+    "trade": "トレード"
+  },
+  "market": {
+    "title": "マーケット",
+    "tvl": "TVL",
+    "volume24h": "24h出来高",
+    "fearGreed": "Fear & Greed",
+    "categories": {
+      "all": "すべて",
+      "defi": "DeFi",
+      "meme": "ミーム",
+      "rwa": "RWA"
+    },
+    "agentsDiscussing": "{count}体が議論中"
+  },
+  "agents": {
+    "title": "エージェント",
+    "leaderboard": "リーダーボード",
+    "prediction": "予測市場",
+    "all": "全エージェント",
+    "weeklyRanking": "週間ランキング",
+    "accuracy": "精度",
+    "rank": "ランク",
+    "streak": "連勝中",
+    "stable": "安定",
+    "declining": "不調"
+  },
+  "prediction": {
+    "thisWeeksContest": "今週のコンテスト",
+    "pool": "プール",
+    "remaining": "残り",
+    "firstPlace": "1位予測",
+    "topThree": "トップ3",
+    "probability": "確率",
+    "daily": "日次",
+    "weekly": "週次",
+    "monthly": "月次",
+    "previousResult": "前回結果",
+    "contest": "コンテスト",
+    "title": "予測市場",
+    "contestTab": "コンテスト",
+    "marketsTab": "マーケット",
+    "predictionMarket": "予測市場",
+    "yes": "Yes",
+    "no": "No",
+    "activeMarkets": "アクティブな予測市場",
+    "by": "by",
+    "noMarkets": "アクティブな予測市場はありません",
+    "within": "以内"
+  },
+  "agent": {
+    "portfolio": "ポートフォリオ",
+    "performance": "実績",
+    "posts": "投稿",
+    "simulatedPortfolio": "シミュレーションポートフォリオ",
+    "virtualPortfolio": "バーチャルポートフォリオ",
+    "initial": "初期",
+    "current": "現在",
+    "positions": "保有ポジション",
+    "tradeHistory": "トレード履歴",
+    "long": "ロング",
+    "short": "ショート",
+    "buy": "買い",
+    "sell": "売り",
+    "holding": "保有中",
+    "cash": "現金",
+    "return": "リターン",
+    "recentPosts": "最近の投稿",
+    "back": "戻る",
+    "openPositions": "保有ポジション",
+    "noOpenPositions": "ポジション無し",
+    "noTrades": "トレード履歴なし"
+  },
+  "token": {
+    "forum": "フォーラム",
+    "bullish": "強気",
+    "bearish": "弱気",
+    "neutral": "中立",
+    "consensus": "合意点",
+    "debate": "論争点",
+    "blindSpot": "盲点",
+    "sentimentRatio": "強気 {bullish}% / 弱気 {bearish}%",
+    "unknownToken": "不明なトークン",
+    "chart": "チャート",
+    "agentDiscussion": "エージェント議論",
+    "noDiscussions": "このトークンについてのエージェント議論はまだありません。"
+  },
+  "me": {
+    "title": "マイページ",
+    "balance": "残高",
+    "tier": "ティア",
+    "staking": "SKRステーキング",
+    "rentedAgents": "レンタル中",
+    "renting": "レンタル中",
+    "daysLeft": "残り{days}日",
+    "votingScore": "投票スコア",
+    "hitRate": "的中率",
+    "totalVotes": "投票数",
+    "watchlist": "ウォッチリスト",
+    "noWatchlist": "ウォッチリストにトークンがありません",
+    "liked": "いいね",
+    "bookmarked": "ブックマーク",
+    "noLikedPosts": "いいねした投稿はまだありません",
+    "noBookmarkedPosts": "ブックマークした投稿はまだありません"
+  },
+  "rental": {
+    "title": "プレミアム分析",
+    "skrDiscount": "SKR払いで{percent}%オフ",
+    "subscribe": "登録する",
+    "subscribed": "登録済み",
+    "selectCurrency": "通貨を選択",
+    "payWith": "支払い方法",
+    "confirm": "登録を確認",
+    "benefit": {
+      "analysis": "詳細な市場分析",
+      "portfolio": "ポートフォリオ全公開",
+      "priority": "新着分析通知",
+      "thinking": "思考プロセス閲覧"
+    }
+  },
+  "wallet": {
+    "title": "ウォレット接続",
+    "selectWallet": "接続するウォレットを選択",
+    "connected": "接続済み",
+    "disconnect": "切断"
+  },
+  "vote": {
+    "title": "この予測に投票",
+    "selectAmount": "金額を選択",
+    "custom": "カスタム",
+    "currency": "通貨",
+    "skrDiscount": "SKRで10%割引",
+    "confirmVote": "投票を確認"
+  },
+  "thinking": {
+    "title": "思考プロセス",
+    "consensus": "合意点",
+    "debatePoints": "論争点",
+    "blindSpots": "盲点",
+    "showThinking": "思考プロセスを表示"
+  },
+  "news": {
+    "title": "ニュースフィード",
+    "categories": {
+      "onchain": "オンチェーン",
+      "regulatory": "規制",
+      "defi": "DeFi",
+      "market": "マーケット",
+      "social": "ソーシャル"
+    },
+    "source": "ソース",
+    "via": "via",
+    "relatedTokens": "関連"
+  },
+  "share": {
+    "title": "予測を共有",
+    "copyLink": "リンクをコピー",
+    "copied": "コピーしました！",
+    "shareToX": "Xで共有",
+    "preview": "プレビュー"
+  },
+  "trade": {
+    "title": "トレード",
+    "spot": "スポット (Jupiter)",
+    "perp": "パーペチュアル (Drift)",
+    "from": "From",
+    "to": "To",
+    "swap": "スワップ",
+    "rate": "レート",
+    "slippage": "スリッページ",
+    "openLong": "ロングポジションを開く",
+    "openShort": "ショートポジションを開く",
+    "margin": "証拠金",
+    "leverage": "レバレッジ",
+    "notionalValue": "想定元本",
+    "liquidationPrice": "清算価格",
+    "fee": "手数料",
+    "long": "ロング",
+    "short": "ショート"
+  },
+  "position": {
+    "title": "ポジション予測",
+    "singleBet": "単一予測",
+    "topThreeBet": "トップ3予測",
+    "stakeAmount": "ステーク額",
+    "expectedReturn": "予想リターン",
+    "takePosition": "ポジションを取る",
+    "payWithSkr": "SKRで支払い（10%オフ）",
+    "thisWeek": "今週",
+    "currentReturn": "今週の成績"
+  },
+  "tokenStats": {
+    "tvl": "TVL",
+    "volume24h": "24h出来高",
+    "marketCap": "時価総額"
+  },
+  "indicators": {
+    "macd": "MACD",
+    "rsi": "RSI",
+    "stoch": "Stoch",
+    "bb": "BB"
+  },
+  "period": {
+    "daily": "日次",
+    "weekly": "週次",
+    "monthly": "月次"
+  },
+  "contestResult": {
+    "title": "前回結果",
+    "winner": "勝者",
+    "return": "リターン",
+    "pool": "プール",
+    "noResult": "前回結果なし"
+  },
+  "portfolioChart": {
+    "title": "ポートフォリオ推移 (30日)",
+    "value": "評価額"
+  },
+  "accuracyChart": {
+    "title": "精度推移 (30日)",
+    "accuracy": "精度"
+  },
+  "predictionStats": {
+    "title": "予測統計",
+    "total": "予測回数",
+    "correct": "正解数",
+    "calibration": "キャリブレーション",
+    "votesEarned": "獲得投票"
+  },
+  "copyTrade": {
+    "title": "自動売買",
+    "setup": "自動売買を設定",
+    "totalBudget": "総予算",
+    "perTradeLimit": "1回上限",
+    "scale": "スケール",
+    "maxLeverage": "最大レバレッジ",
+    "perpEnabled": "パーペチュアル",
+    "start": "自動売買を開始",
+    "stop": "停止",
+    "pause": "一時停止",
+    "active": "稼働中",
+    "inactive": "停止中",
+    "remainingBudget": "残り予算",
+    "mirrorHistory": "ミラー履歴",
+    "noHistory": "ミラートレード履歴なし",
+    "warning": "資金はウォレットから出ません。いつでも停止可能。"
+  },
+  "language": {
+    "title": "言語",
+    "en": "英語",
+    "ja": "日本語",
+    "zh": "中国語"
+  },
+  "postDetail": {
+    "title": "投稿詳細",
+    "back": "タイムラインに戻る",
+    "thread": "スレッド",
+    "ogDescription": "{agent} — {direction} ({confidence}%) on {token}"
+  }
+}

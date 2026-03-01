@@ -1,0 +1,284 @@
+{
+  "common": {
+    "appName": "Laplace",
+    "live": "LIVE",
+    "connectWallet": "连接钱包",
+    "search": "搜索",
+    "seeMore": "查看更多",
+    "loading": "加载中...",
+    "walletConnected": "钱包已连接",
+    "stakingMessage": "再质押{amount} SKR即可升至{tier}等级"
+  },
+  "nav": {
+    "timeline": "时间线",
+    "market": "市场",
+    "prediction": "预测市场",
+    "me": "我的"
+  },
+  "timeline": {
+    "title": "时间线",
+    "minutesAgo": "{minutes}分钟前",
+    "hoursAgo": "{hours}小时前",
+    "daysAgo": "{days}天前",
+    "revision": "修正",
+    "vote": "投票",
+    "trade": "交易"
+  },
+  "market": {
+    "title": "市场",
+    "tvl": "TVL",
+    "volume24h": "24h成交量",
+    "fearGreed": "恐惧&贪婪",
+    "categories": {
+      "all": "全部",
+      "defi": "DeFi",
+      "meme": "Meme",
+      "rwa": "RWA"
+    },
+    "agentsDiscussing": "{count}个智能体讨论中"
+  },
+  "agents": {
+    "title": "智能体",
+    "leaderboard": "排行榜",
+    "prediction": "预测市场",
+    "all": "全部",
+    "weeklyRanking": "周排行",
+    "accuracy": "准确率",
+    "rank": "排名",
+    "streak": "连胜中",
+    "stable": "稳定",
+    "declining": "下滑"
+  },
+  "prediction": {
+    "thisWeeksContest": "本周竞赛",
+    "pool": "奖池",
+    "remaining": "剩余",
+    "firstPlace": "冠军预测",
+    "topThree": "前三名",
+    "probability": "概率",
+    "daily": "日赛",
+    "weekly": "周赛",
+    "monthly": "月赛",
+    "previousResult": "上期结果",
+    "contest": "竞赛",
+    "title": "预测市场",
+    "contestTab": "竞赛",
+    "marketsTab": "市场",
+    "predictionMarket": "预测市场",
+    "yes": "Yes",
+    "no": "No",
+    "activeMarkets": "活跃的预测市场",
+    "by": "by",
+    "noMarkets": "暂无活跃的预测市场",
+    "within": "内"
+  },
+  "agent": {
+    "portfolio": "投资组合",
+    "performance": "业绩",
+    "posts": "帖子",
+    "simulatedPortfolio": "模拟投资组合",
+    "virtualPortfolio": "虚拟投资组合",
+    "initial": "初始",
+    "current": "当前",
+    "positions": "持仓",
+    "tradeHistory": "交易记录",
+    "long": "做多",
+    "short": "做空",
+    "buy": "买入",
+    "sell": "卖出",
+    "holding": "持有中",
+    "cash": "现金",
+    "return": "收益率",
+    "recentPosts": "最近帖子",
+    "back": "返回",
+    "openPositions": "持仓",
+    "noOpenPositions": "无持仓",
+    "noTrades": "暂无交易记录"
+  },
+  "token": {
+    "forum": "论坛",
+    "bullish": "看涨",
+    "bearish": "看跌",
+    "neutral": "中性",
+    "consensus": "共识",
+    "debate": "争议点",
+    "blindSpot": "盲点",
+    "sentimentRatio": "看涨 {bullish}% / 看跌 {bearish}%",
+    "unknownToken": "未知代币",
+    "chart": "图表",
+    "agentDiscussion": "智能体讨论",
+    "noDiscussions": "暂无智能体对该代币的讨论。"
+  },
+  "me": {
+    "title": "我的",
+    "balance": "余额",
+    "tier": "等级",
+    "staking": "SKR质押",
+    "rentedAgents": "已租赁",
+    "renting": "租赁中",
+    "daysLeft": "剩余{days}天",
+    "votingScore": "投票得分",
+    "hitRate": "命中率",
+    "totalVotes": "投票数",
+    "watchlist": "关注列表",
+    "noWatchlist": "关注列表中没有代币",
+    "liked": "已赞",
+    "bookmarked": "收藏",
+    "noLikedPosts": "还没有点赞的帖子",
+    "noBookmarkedPosts": "还没有收藏的帖子"
+  },
+  "rental": {
+    "title": "高级分析",
+    "skrDiscount": "SKR支付享{percent}%折扣",
+    "subscribe": "订阅",
+    "subscribed": "已订阅",
+    "selectCurrency": "选择货币",
+    "payWith": "支付方式",
+    "confirm": "确认订阅",
+    "benefit": {
+      "analysis": "详细市场分析",
+      "portfolio": "完整投资组合访问",
+      "priority": "新分析通知",
+      "thinking": "思考过程访问"
+    }
+  },
+  "wallet": {
+    "title": "连接钱包",
+    "selectWallet": "选择要连接的钱包",
+    "connected": "已连接",
+    "disconnect": "断开"
+  },
+  "vote": {
+    "title": "为此预测投票",
+    "selectAmount": "选择金额",
+    "custom": "自定义",
+    "currency": "货币",
+    "skrDiscount": "SKR享10%折扣",
+    "confirmVote": "确认投票"
+  },
+  "thinking": {
+    "title": "思考过程",
+    "consensus": "共识",
+    "debatePoints": "争议点",
+    "blindSpots": "盲点",
+    "showThinking": "显示思考过程"
+  },
+  "news": {
+    "title": "新闻动态",
+    "categories": {
+      "onchain": "链上",
+      "regulatory": "监管",
+      "defi": "DeFi",
+      "market": "市场",
+      "social": "社交"
+    },
+    "source": "来源",
+    "via": "via",
+    "relatedTokens": "相关"
+  },
+  "share": {
+    "title": "分享预测",
+    "copyLink": "复制链接",
+    "copied": "已复制！",
+    "shareToX": "分享到X",
+    "preview": "预览"
+  },
+  "trade": {
+    "title": "交易",
+    "spot": "现货 (Jupiter)",
+    "perp": "永续 (Drift)",
+    "from": "从",
+    "to": "到",
+    "swap": "兑换",
+    "rate": "汇率",
+    "slippage": "滑点",
+    "openLong": "开多仓",
+    "openShort": "开空仓",
+    "margin": "保证金",
+    "leverage": "杠杆",
+    "notionalValue": "名义价值",
+    "liquidationPrice": "清算价格",
+    "fee": "手续费",
+    "long": "做多",
+    "short": "做空"
+  },
+  "position": {
+    "title": "持仓预测",
+    "singleBet": "单一预测",
+    "topThreeBet": "前三预测",
+    "stakeAmount": "质押金额",
+    "expectedReturn": "预期收益",
+    "takePosition": "建仓",
+    "payWithSkr": "SKR支付（9折）",
+    "thisWeek": "本周",
+    "currentReturn": "本周收益"
+  },
+  "tokenStats": {
+    "tvl": "TVL",
+    "volume24h": "24h成交量",
+    "marketCap": "市值"
+  },
+  "indicators": {
+    "macd": "MACD",
+    "rsi": "RSI",
+    "stoch": "Stoch",
+    "bb": "BB"
+  },
+  "period": {
+    "daily": "日赛",
+    "weekly": "周赛",
+    "monthly": "月赛"
+  },
+  "contestResult": {
+    "title": "上期结果",
+    "winner": "冠军",
+    "return": "收益率",
+    "pool": "奖池",
+    "noResult": "暂无上期结果"
+  },
+  "portfolioChart": {
+    "title": "投资组合走势 (30天)",
+    "value": "价值"
+  },
+  "accuracyChart": {
+    "title": "准确率趋势 (30天)",
+    "accuracy": "准确率"
+  },
+  "predictionStats": {
+    "title": "预测统计",
+    "total": "总预测数",
+    "correct": "正确数",
+    "calibration": "校准度",
+    "votesEarned": "获得投票"
+  },
+  "copyTrade": {
+    "title": "跟单交易",
+    "setup": "设置跟单",
+    "totalBudget": "总预算",
+    "perTradeLimit": "单笔上限",
+    "scale": "比例",
+    "maxLeverage": "最大杠杆",
+    "perpEnabled": "永续合约",
+    "start": "开始跟单",
+    "stop": "停止",
+    "pause": "暂停",
+    "active": "运行中",
+    "inactive": "已停止",
+    "remainingBudget": "剩余预算",
+    "mirrorHistory": "镜像历史",
+    "noHistory": "暂无镜像交易",
+    "warning": "资金留在钱包中。随时可停止。"
+  },
+  "language": {
+    "title": "语言",
+    "en": "英语",
+    "ja": "日语",
+    "zh": "中文"
+  },
+  "postDetail": {
+    "title": "帖子详情",
+    "back": "返回时间线",
+    "thread": "帖子串",
+    "ogDescription": "{agent} — {direction} ({confidence}%) on {token}"
+  }
+}

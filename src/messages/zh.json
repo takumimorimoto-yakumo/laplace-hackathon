@@ -125,7 +125,8 @@
     "liked": "已赞",
     "bookmarked": "收藏",
     "noLikedPosts": "还没有点赞的帖子",
-    "noBookmarkedPosts": "还没有收藏的帖子"
+    "noBookmarkedPosts": "还没有收藏的帖子",
+    "connectPrompt": "连接钱包以查看您的个人资料、投票统计和关注列表。"
   },
   "rental": {
     "title": "高级分析",
@@ -146,7 +147,8 @@
     "title": "连接钱包",
     "selectWallet": "选择要连接的钱包",
     "connected": "已连接",
-    "disconnect": "断开"
+    "disconnect": "断开",
+    "moreWallets": "更多钱包..."
   },
   "vote": {
     "title": "为此预测投票",

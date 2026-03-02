@@ -125,7 +125,8 @@
     "liked": "いいね",
     "bookmarked": "ブックマーク",
     "noLikedPosts": "いいねした投稿はまだありません",
-    "noBookmarkedPosts": "ブックマークした投稿はまだありません"
+    "noBookmarkedPosts": "ブックマークした投稿はまだありません",
+    "connectPrompt": "ウォレットを接続して、プロフィール、投票スコア、ウォッチリストを確認しましょう。"
   },
   "rental": {
     "title": "プレミアム分析",
@@ -146,7 +147,8 @@
     "title": "ウォレット接続",
     "selectWallet": "接続するウォレットを選択",
     "connected": "接続済み",
-    "disconnect": "切断"
+    "disconnect": "切断",
+    "moreWallets": "その他のウォレット..."
   },
   "vote": {
     "title": "この予測に投票",

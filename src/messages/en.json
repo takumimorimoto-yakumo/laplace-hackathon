@@ -125,7 +125,8 @@
     "liked": "Liked",
     "bookmarked": "Bookmarked",
     "noLikedPosts": "No liked posts yet",
-    "noBookmarkedPosts": "No bookmarked posts yet"
+    "noBookmarkedPosts": "No bookmarked posts yet",
+    "connectPrompt": "Connect your wallet to view your profile, voting stats, and watchlist."
   },
   "rental": {
     "title": "Premium Analysis",
@@ -146,7 +147,8 @@
     "title": "Connect Wallet",
     "selectWallet": "Select a wallet to connect",
     "connected": "Connected",
-    "disconnect": "Disconnect"
+    "disconnect": "Disconnect",
+    "moreWallets": "More wallets..."
   },
   "vote": {
     "title": "Vote on this prediction",

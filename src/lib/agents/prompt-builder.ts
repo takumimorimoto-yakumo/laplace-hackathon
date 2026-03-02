@@ -2,10 +2,21 @@
 // Prompt Builder — Agent Config → LLM Prompts
 // ============================================================
 
-import type { Agent, TimelinePost } from "@/lib/types";
-import { marketTokens } from "@/lib/tokens";
+import type { Agent, MarketToken, TimelinePost } from "@/lib/types";
+import { seedTokens } from "@/lib/tokens";
 import type { AgentPostOutput } from "./response-schema";
 import type { ChatMessage } from "./llm-client";
+
+// ---------- Real Market Data Interface ----------
+
+export interface RealMarketData {
+  symbol: string;
+  price: number;
+  change24h: number;
+  volume24h: number;
+  tvl: number | null;
+  marketCap: number | null;
+}
 
 // ---------- Three Laws of the Agent World ----------
 
@@ -36,19 +47,40 @@ Respond with a single JSON object (no markdown, no extra text):
 
 // ---------- Token List ----------
 
-function buildTokenList(): string {
-  return marketTokens
+function buildTokenList(tokens: MarketToken[] = seedTokens): string {
+  return tokens
     .map((t) => `- ${t.symbol} (${t.name}): ${t.address}`)
     .join("\n");
 }
 
 // ---------- Market Summary ----------
 
-export function buildMarketSummary(): string {
-  return marketTokens
+export function buildMarketSummary(tokens: MarketToken[] = seedTokens): string {
+  return tokens
     .map((t) => {
       const dir = t.change24h >= 0 ? "+" : "";
       return `${t.symbol}: $${t.price} (${dir}${t.change24h}% 24h) | Vol: $${(t.volume24h / 1e6).toFixed(0)}M | Bullish: ${t.bullishPercent}%`;
+    })
+    .join("\n");
+}
+
+// ---------- Real Market Summary ----------
+
+export function buildRealMarketSummary(data: RealMarketData[]): string {
+  return data
+    .map((d) => {
+      const dir = d.change24h >= 0 ? "+" : "";
+      const parts = [
+        `${d.symbol}: $${d.price} (${dir}${d.change24h}% 24h)`,
+        `Vol: $${(d.volume24h / 1e6).toFixed(0)}M`,
+      ];
+      if (d.marketCap !== null) {
+        parts.push(`MCap: $${(d.marketCap / 1e6).toFixed(0)}M`);
+      }
+      if (d.tvl !== null) {
+        parts.push(`TVL: $${(d.tvl / 1e6).toFixed(0)}M`);
+      }
+      return parts.join(" | ");
     })
     .join("\n");
 }
@@ -70,7 +102,7 @@ function formatRecentPosts(posts: TimelinePost[]): string {
 
 // ---------- System Prompt ----------
 
-export function buildSystemPrompt(agent: Agent): string {
+export function buildSystemPrompt(agent: Agent, tokens?: MarketToken[]): string {
   return `
 You are "${agent.name}", an AI crypto analyst agent in Laplace.
 
@@ -85,7 +117,7 @@ You are "${agent.name}", an AI crypto analyst agent in Laplace.
 ${THREE_LAWS}
 
 ## Available Tokens (Solana)
-${buildTokenList()}
+${buildTokenList(tokens)}
 
 ${OUTPUT_SCHEMA}
 `.trim();
@@ -94,11 +126,16 @@ ${OUTPUT_SCHEMA}
 // ---------- User Prompt ----------
 
 export function buildUserPrompt(
-  recentPosts: TimelinePost[]
+  recentPosts: TimelinePost[],
+  realMarketData?: RealMarketData[]
 ): string {
+  const marketSummary = realMarketData
+    ? buildRealMarketSummary(realMarketData)
+    : buildMarketSummary();
+
   return `
 ## Current Market Data
-${buildMarketSummary()}
+${marketSummary}
 
 ## Recent Agent Posts
 ${formatRecentPosts(recentPosts)}
@@ -111,11 +148,13 @@ Based on your analysis style and modules, pick a token and make your prediction.
 
 export function buildMessages(
   agent: Agent,
-  recentPosts: TimelinePost[]
+  recentPosts: TimelinePost[],
+  realMarketData?: RealMarketData[],
+  tokens?: MarketToken[]
 ): ChatMessage[] {
   return [
-    { role: "system", content: buildSystemPrompt(agent) },
-    { role: "user", content: buildUserPrompt(recentPosts) },
+    { role: "system", content: buildSystemPrompt(agent, tokens) },
+    { role: "user", content: buildUserPrompt(recentPosts, realMarketData) },
   ];
 }
 

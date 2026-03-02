@@ -11,9 +11,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { chatCompletion } from "../src/lib/agents/llm-client";
 import { buildMessages } from "../src/lib/agents/prompt-builder";
+import type { RealMarketData } from "../src/lib/agents/prompt-builder";
 import { parseAgentResponse } from "../src/lib/agents/response-schema";
 import { translatePost } from "../src/lib/agents/translate";
-import type { Agent, TimelinePost, Direction, LocalizedContent } from "../src/lib/types";
+import type { Agent, TimelinePost, Direction, LocalizedContent, LLMModel } from "../src/lib/types";
 
 // ---------- Environment Checks ----------
 
@@ -204,6 +205,40 @@ async function fetchRecentPosts(excludeAgentId: string, limit = 10): Promise<Tim
 
 // ---------- Run Single Agent ----------
 
+// ---------- Fetch Market Data ----------
+
+async function fetchMarketData(): Promise<RealMarketData[]> {
+  try {
+    const baseUrl = process.env.API_BASE_URL ?? "http://localhost:3000";
+    const res = await fetch(`${baseUrl}/api/market-data`);
+    if (!res.ok) return [];
+
+    const json = (await res.json()) as {
+      tokens: Array<{
+        symbol: string;
+        price: number;
+        change24h: number;
+        volume24h: number;
+        tvl: number | null;
+      }>;
+    };
+
+    return json.tokens.map(
+      (t): RealMarketData => ({
+        symbol: t.symbol,
+        price: t.price,
+        change24h: t.change24h,
+        volume24h: t.volume24h,
+        tvl: t.tvl,
+        marketCap: null,
+      })
+    );
+  } catch {
+    console.warn("  Market data fetch failed, using static data");
+    return [];
+  }
+}
+
 async function runAgent(agent: Agent): Promise<void> {
   console.log(`\n--- Running: ${agent.name} (${agent.id}) ---`);
 
@@ -211,17 +246,48 @@ async function runAgent(agent: Agent): Promise<void> {
   const recentPosts = await fetchRecentPosts(agent.id);
   console.log(`  Context: ${recentPosts.length} recent posts`);
 
+  // 1b. Fetch real market data
+  const marketData = await fetchMarketData();
+  console.log(`  Market data: ${marketData.length} tokens`);
+
   // 2. Build prompt & call LLM
-  const messages = buildMessages(agent, recentPosts);
-  console.log(`  Calling Gemini (temp=${agent.temperature})...`);
+  const messages = buildMessages(
+    agent,
+    recentPosts,
+    marketData.length > 0 ? marketData : undefined
+  );
+  console.log(`  Calling ${agent.llm} (temp=${agent.temperature})...`);
 
-  const raw = await chatCompletion(messages, {
-    temperature: agent.temperature,
-    maxTokens: 1024,
-  });
+  let raw: string;
+  const MAX_RETRIES = 2;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      raw = await chatCompletion(messages, {
+        temperature: agent.temperature,
+        maxTokens: 1024,
+        llmModel: agent.llm as LLMModel,
+      });
+      break;
+    } catch (err) {
+      if (attempt === MAX_RETRIES) throw err;
+      console.warn(`  LLM attempt ${attempt + 1} failed, retrying...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
 
-  // 3. Parse response
-  const output = parseAgentResponse(raw);
+  // 3. Parse response (with retry on JSON parse failure)
+  let output;
+  try {
+    output = parseAgentResponse(raw!);
+  } catch {
+    console.warn("  JSON parse failed, retrying LLM...");
+    const retryRaw = await chatCompletion(messages, {
+      temperature: Math.max(0, agent.temperature - 0.2),
+      maxTokens: 1024,
+      llmModel: agent.llm as LLMModel,
+    });
+    output = parseAgentResponse(retryRaw);
+  }
   console.log(`  Parsed: ${output.token_symbol} ${output.direction} (${(output.confidence * 100).toFixed(0)}%)`);
 
   // 4. Post to API
@@ -271,7 +337,6 @@ async function main() {
   // Validate environment
   requireEnv("NEXT_PUBLIC_SUPABASE_URL");
   requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-  requireEnv("GOOGLE_API_KEY");
 
   const args = process.argv.slice(2);
   let agents: Agent[];

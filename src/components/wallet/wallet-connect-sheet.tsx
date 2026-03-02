@@ -1,6 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useWallet } from "./wallet-provider";
 import {
   Sheet,
   SheetContent,
@@ -9,17 +11,16 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { walletOptions } from "@/lib/config";
-import type { WalletName } from "@/lib/types";
 
 interface WalletConnectSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectWallet: (name: WalletName) => void;
 }
 
-export function WalletConnectSheet({ open, onOpenChange, onSelectWallet }: WalletConnectSheetProps) {
+export function WalletConnectSheet({ open, onOpenChange }: WalletConnectSheetProps) {
   const t = useTranslations("wallet");
+  const { wallets, select } = useWallet();
+  const { setVisible } = useWalletModal();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -30,20 +31,37 @@ export function WalletConnectSheet({ open, onOpenChange, onSelectWallet }: Walle
         </SheetHeader>
 
         <div className="px-4 pb-6 space-y-2">
-          {walletOptions.map((wallet) => (
+          {wallets.map((wallet) => (
             <Button
-              key={wallet.name}
+              key={wallet.adapter.name}
               variant="outline"
               className="w-full justify-start gap-3 h-14 text-base"
               onClick={() => {
-                onSelectWallet(wallet.name);
+                select(wallet.adapter.name);
                 onOpenChange(false);
               }}
             >
-              <span className="text-2xl">{wallet.icon}</span>
-              <span>{wallet.label}</span>
+              {wallet.adapter.icon && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={wallet.adapter.icon}
+                  alt={wallet.adapter.name}
+                  className="size-6"
+                />
+              )}
+              <span>{wallet.adapter.name}</span>
             </Button>
           ))}
+          <Button
+            variant="ghost"
+            className="w-full text-sm text-muted-foreground"
+            onClick={() => {
+              setVisible(true);
+              onOpenChange(false);
+            }}
+          >
+            {t("moreWallets") ?? "More wallets..."}
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

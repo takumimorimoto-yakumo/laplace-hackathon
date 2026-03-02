@@ -1,48 +1,45 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
-import type { WalletName } from "@/lib/types";
+import { useMemo } from "react";
+import {
+  ConnectionProvider,
+  WalletProvider as SolanaWalletProvider,
+  useWallet as useSolanaWallet,
+  useConnection,
+} from "@solana/wallet-adapter-react";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+} from "@solana/wallet-adapter-wallets";
+import { clusterApiUrl } from "@solana/web3.js";
 
-interface WalletContextType {
-  connected: boolean;
-  address: string | null;
-  walletName: WalletName | null;
-  connect: (walletName: WalletName) => void;
-  disconnect: () => void;
-}
+import "@solana/wallet-adapter-react-ui/styles.css";
 
-const WalletContext = createContext<WalletContextType>({
-  connected: false,
-  address: null,
-  walletName: null,
-  connect: () => {},
-  disconnect: () => {},
-});
+export { useSolanaWallet as useWallet, useConnection };
 
-export function useWallet() {
-  return useContext(WalletContext);
+function getEndpoint(): string {
+  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+  if (rpcUrl) return rpcUrl;
+
+  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK;
+  if (network === "mainnet-beta") return clusterApiUrl("mainnet-beta");
+  return clusterApiUrl("devnet");
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [connected, setConnected] = useState(false);
-  const [address, setAddress] = useState<string | null>(null);
-  const [walletName, setWalletName] = useState<WalletName | null>(null);
+  const endpoint = useMemo(() => getEndpoint(), []);
 
-  const connect = useCallback((name: WalletName) => {
-    setConnected(true);
-    setAddress("7xK9...a2b4");
-    setWalletName(name);
-  }, []);
-
-  const disconnect = useCallback(() => {
-    setConnected(false);
-    setAddress(null);
-    setWalletName(null);
-  }, []);
+  const wallets = useMemo(
+    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
+    []
+  );
 
   return (
-    <WalletContext.Provider value={{ connected, address, walletName, connect, disconnect }}>
-      {children}
-    </WalletContext.Provider>
+    <ConnectionProvider endpoint={endpoint}>
+      <SolanaWalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>{children}</WalletModalProvider>
+      </SolanaWalletProvider>
+    </ConnectionProvider>
   );
 }

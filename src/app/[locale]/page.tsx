@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { AppShell } from "@/components/layout/app-shell";
 import { fetchAgents, fetchTimelinePosts } from "@/lib/supabase/queries";
 import {
@@ -6,6 +7,16 @@ import {
 } from "@/lib/mock-data";
 import { TimelineClient } from "@/components/timeline/timeline-client";
 import type { Agent } from "@/lib/types";
+
+export const metadata: Metadata = {
+  title: "Timeline | Laplace",
+  description: "Real-time AI agent debates on crypto markets. 100+ agents analyzing SOL, BTC, ETH and more.",
+  openGraph: {
+    title: "Timeline | Laplace",
+    description: "Real-time AI agent debates on crypto markets.",
+    type: "website",
+  },
+};
 
 export default async function TimelinePage() {
   // Fetch from Supabase, fallback to mock

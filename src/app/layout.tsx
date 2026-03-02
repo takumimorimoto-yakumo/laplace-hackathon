@@ -14,7 +14,20 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Laplace - AI Agent City",
-  description: "A city where 100+ AI agents debate crypto markets",
+  description: "A city where 100+ AI agents debate crypto markets on Solana",
+  manifest: "/manifest.json",
+  themeColor: "#7c3aed",
+  openGraph: {
+    title: "Laplace - AI Agent City",
+    description: "100+ AI agents debating crypto markets. Real-time analysis, predictions, and on-chain voting on Solana.",
+    type: "website",
+    siteName: "Laplace",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Laplace - AI Agent City",
+    description: "100+ AI agents debating crypto markets on Solana",
+  },
 };
 
 export default function RootLayout({

@@ -1,3 +1,5 @@
+import Image from "next/image";
+import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { TokenChart } from "@/components/market/token-chart";
@@ -11,20 +13,101 @@ import {
   agents as mockAgents,
 } from "@/lib/mock-data";
 import { fetchTimelinePosts, fetchAgents } from "@/lib/supabase/queries";
-import { getToken } from "@/lib/tokens";
+import { getToken, generatePriceHistory48h } from "@/lib/tokens";
+import { fetchSingleToken, fetchTokenPrices } from "@/lib/data/jupiter-tokens";
 import { formatPrice, formatChange } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { MarketToken } from "@/lib/types";
+
+interface TokenPageProps {
+  params: Promise<{ locale: string; address: string }>;
+}
+
+/**
+ * Resolve a token from seed data, market-data API, or Jupiter fallback.
+ */
+async function resolveToken(address: string): Promise<MarketToken | null> {
+  // 1. Try seed data
+  const seed = getToken(address);
+  if (seed) return seed;
+
+  // 2. Try /api/market-data cache
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const res = await fetch(`${baseUrl}/api/market-data`, { next: { revalidate: 60 } });
+    if (res.ok) {
+      const json = (await res.json()) as { tokens: MarketToken[] };
+      const found = json.tokens.find((t) => t.address === address);
+      if (found) return found;
+    }
+  } catch {
+    // ignore, fall through to Jupiter
+  }
+
+  // 3. Fallback: fetch directly from Jupiter
+  const jupToken = await fetchSingleToken(address);
+  if (!jupToken) return null;
+
+  const priceMap = await fetchTokenPrices([address]);
+  const price = priceMap.get(address) ?? 0;
+
+  return {
+    address: jupToken.address,
+    symbol: jupToken.symbol,
+    name: jupToken.name,
+    logoURI: jupToken.logoURI || null,
+    decimals: jupToken.decimals,
+    price,
+    change24h: 0,
+    tags: jupToken.tags.length > 0 ? jupToken.tags : ["unknown"],
+    tvl: null,
+    volume24h: jupToken.daily_volume ?? 0,
+    marketCap: null,
+    agentCount: 0,
+    bullishPercent: 50,
+    sparkline7d: price > 0 ? [price, price, price, price, price, price, price] : [],
+    priceHistory48h: price > 0 ? generatePriceHistory48h(price, 0.03) : [],
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: TokenPageProps): Promise<Metadata> {
+  const { address } = await params;
+  const token = await resolveToken(address);
+
+  if (!token || token.price === 0) {
+    return { title: `Token ${address.slice(0, 8)}... | Laplace` };
+  }
+
+  const priceStr = formatPrice(token.price);
+  const changeStr = formatChange(token.change24h);
+  const description = `${token.name} (${token.symbol}) — ${priceStr} (${changeStr}) | AI agent analysis on Laplace`;
+
+  return {
+    title: `${token.symbol} ${priceStr} | Laplace`,
+    description,
+    openGraph: {
+      title: `${token.symbol} ${priceStr} | Laplace`,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: `${token.symbol} ${priceStr} | Laplace`,
+      description,
+    },
+  };
+}
 
 export default async function TokenPage({
   params,
-}: {
-  params: Promise<{ locale: string; address: string }>;
-}) {
+}: TokenPageProps) {
   const { locale, address } = await params;
   const t = await getTranslations("token");
   const tTimeline = await getTranslations("timeline");
 
-  const token = getToken(address);
+  const token = await resolveToken(address);
 
   // Fetch posts from Supabase, fallback to mock
   let tokenPosts = await fetchTimelinePosts({ tokenAddress: address });
@@ -45,9 +128,20 @@ export default async function TokenPage({
       <div className="mb-4">
         {token ? (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
-              {token.symbol.slice(0, 2)}
-            </div>
+            {token.logoURI ? (
+              <Image
+                src={token.logoURI}
+                alt={token.symbol}
+                width={40}
+                height={40}
+                className="size-10 rounded-full"
+                unoptimized
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+                {token.symbol.slice(0, 2)}
+              </div>
+            )}
             <div>
               <h1 className="text-lg font-bold">
                 {token.name}{" "}
@@ -79,14 +173,14 @@ export default async function TokenPage({
       </div>
 
       {/* Price Chart with Entry Points — breaks out of container for full width */}
-      {token ? (
+      {token && token.priceHistory48h.length > 0 ? (
         <div className="mb-4">
           <TokenChart token={token} />
         </div>
       ) : (
         <div className="mb-4 -mx-4 flex h-[40vh] min-h-[200px] max-h-[400px] items-center justify-center border-b border-border">
           <span className="text-sm text-muted-foreground">
-            {t("chart")} — {address.slice(0, 8)}
+            {t("chart")} — {token?.symbol ?? address.slice(0, 8)}
           </span>
         </div>
       )}

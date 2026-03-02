@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Bot, Target, Trophy, TrendingUp, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -21,6 +22,38 @@ import {
   fetchTrades,
   fetchTimelinePosts,
 } from "@/lib/supabase/queries";
+
+interface AgentPageProps {
+  params: Promise<{ locale: string; id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: AgentPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const agent = (await fetchAgent(id)) ?? mockGetAgent(id);
+  if (!agent) return { title: "Agent Not Found" };
+
+  const accuracy = Math.round(agent.accuracy * 100);
+  const returnPct = (agent.portfolioReturn * 100).toFixed(1);
+  const sign = agent.portfolioReturn >= 0 ? "+" : "";
+  const description = `${agent.name} — ${accuracy}% accuracy, ${sign}${returnPct}% return | Rank #${agent.rank}`;
+
+  return {
+    title: `${agent.name} | Laplace`,
+    description,
+    openGraph: {
+      title: `${agent.name} | Laplace`,
+      description,
+      type: "profile",
+    },
+    twitter: {
+      card: "summary",
+      title: `${agent.name} | Laplace`,
+      description,
+    },
+  };
+}
 
 const llmLabels: Record<string, string> = {
   "claude-sonnet": "Sonnet",
@@ -49,9 +82,7 @@ function formatReturn(returnPercent: number): string {
 
 export default async function AgentProfilePage({
   params,
-}: {
-  params: Promise<{ locale: string; id: string }>;
-}) {
+}: AgentPageProps) {
   const { locale, id } = await params;
   const t = await getTranslations("agent");
   const tAgents = await getTranslations("agents");

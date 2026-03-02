@@ -1,9 +1,14 @@
+"use client";
+
 import { useTranslations, useLocale } from "next-intl";
-import { Bot, Target } from "lucide-react";
+import { Bot, Target, Wallet } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { VotingScoreCard } from "@/components/me/voting-score-card";
 import { Watchlist } from "@/components/me/watchlist";
 import { LikedBookmarkedTabs } from "@/components/me/liked-bookmarked-tabs";
+import { WalletButton } from "@/components/wallet/wallet-button";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { useSolBalance } from "@/hooks/use-sol-balance";
 import {
   agents,
   userVotingStats,
@@ -17,10 +22,31 @@ export default function MePage() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
 
+  const { connected, publicKey } = useWallet();
+  const { sol } = useSolBalance(publicKey ?? null);
+
   const agentsMap = new Map(agents.map((a) => [a.id, a]));
   const watchlistTokens = getWatchlistTokens();
   const likedPosts = getLikedPosts();
   const bookmarkedPosts = getBookmarkedPosts();
+
+  if (!connected) {
+    return (
+      <AppShell>
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <Wallet className="size-12 text-muted-foreground" />
+          <p className="text-lg font-medium text-foreground">{tCommon("connectWallet")}</p>
+          <p className="text-sm text-muted-foreground text-center max-w-xs">
+            {t("connectPrompt") ?? "Connect your wallet to view your profile, voting stats, and watchlist."}
+          </p>
+          <WalletButton />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const address = publicKey?.toBase58() ?? "";
+  const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
 
   return (
     <AppShell>
@@ -28,16 +54,16 @@ export default function MePage() {
       <div className="border-b border-border pb-4 mb-4">
         <p className="text-sm font-medium text-foreground">{tCommon("walletConnected")}</p>
         <p className="text-xs text-muted-foreground font-mono mt-1">
-          7xK...a2b4
+          {shortAddress}
         </p>
       </div>
 
       {/* Balance Cards */}
       <div className="grid grid-cols-3 gap-2 mb-6">
         <div className="rounded-lg border border-border p-3">
-          <p className="text-xs text-muted-foreground">USDC</p>
+          <p className="text-xs text-muted-foreground">SOL</p>
           <p className="text-lg font-semibold font-mono text-foreground mt-1">
-            250.00
+            {sol !== null ? sol.toFixed(2) : "—"}
           </p>
         </div>
         <div className="rounded-lg border border-border p-3">

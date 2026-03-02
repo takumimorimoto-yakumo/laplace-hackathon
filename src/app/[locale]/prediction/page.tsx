@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { AppShell } from "@/components/layout/app-shell";
 import { AgentCard } from "@/components/agent/agent-card";
@@ -12,7 +12,16 @@ import { PositionSheet } from "@/components/prediction/position-sheet";
 import { ExactOrderSheet } from "@/components/prediction/exact-order-sheet";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { agents, predictionContest, previousContest, getPredictionMarkets } from "@/lib/mock-data";
+import {
+  agents as mockAgents,
+  predictionContest,
+  previousContest,
+  getPredictionMarkets,
+} from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
+import { dbAgentToAgent } from "@/lib/supabase/mappers";
+import type { DbAgent } from "@/lib/supabase/mappers";
+import type { Agent } from "@/lib/types";
 
 export default function PredictionPage() {
   const tPrediction = useTranslations("prediction");
@@ -22,6 +31,20 @@ export default function PredictionPage() {
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [positionSheetOpen, setPositionSheetOpen] = useState(false);
   const [exactOrderSheetOpen, setExactOrderSheetOpen] = useState(false);
+  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("agents")
+      .select("*")
+      .order("leaderboard_rank", { ascending: true })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setAgents((data as DbAgent[]).map(dbAgentToAgent));
+        }
+      });
+  }, []);
 
   const sortedAgents = [...agents].sort((a, b) => a.rank - b.rank);
   const activeMarkets = getPredictionMarkets();

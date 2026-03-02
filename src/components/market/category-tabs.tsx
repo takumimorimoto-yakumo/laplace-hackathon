@@ -14,7 +14,7 @@ export function CategoryTabs({
   onCategoryChange,
 }: CategoryTabsProps) {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
       {categories.map((cat) => {
         const isActive = activeCategory === cat;
         return (
@@ -23,7 +23,7 @@ export function CategoryTabs({
             type="button"
             onClick={() => onCategoryChange(cat)}
             className={cn(
-              "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer",
+              "shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer",
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:text-foreground"

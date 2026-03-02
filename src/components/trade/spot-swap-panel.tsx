@@ -1,28 +1,104 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowDownUp } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ArrowDownUp, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { VersionedTransaction } from "@solana/web3.js";
 import { Button } from "@/components/ui/button";
+import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
+import { getQuote, getSwapTransaction } from "@/lib/jupiter/client";
+import type { JupiterQuote } from "@/lib/jupiter/client";
+import { getTokenBySymbol } from "@/lib/tokens";
 import { cn } from "@/lib/utils";
 
 interface SpotSwapPanelProps {
   tokenSymbol: string;
+  tokenAddress?: string;
   currentPrice: number;
   className?: string;
 }
 
-export function SpotSwapPanel({ tokenSymbol, currentPrice, className }: SpotSwapPanelProps) {
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+const LAMPORTS_PER_SOL = 1_000_000_000;
+
+export function SpotSwapPanel({ tokenSymbol, tokenAddress, currentPrice, className }: SpotSwapPanelProps) {
   const t = useTranslations("trade");
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+
   const [fromAmount, setFromAmount] = useState("");
   const [swapped, setSwapped] = useState(false);
+  const [quote, setQuote] = useState<JupiterQuote | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+
+  const token = getTokenBySymbol(tokenSymbol);
+  const tokenMint = tokenAddress ?? token?.address ?? "";
 
   const fromToken = swapped ? tokenSymbol : "SOL";
   const toToken = swapped ? "SOL" : tokenSymbol;
+  const inputMint = swapped ? tokenMint : SOL_MINT;
+  const outputMint = swapped ? SOL_MINT : tokenMint;
+
   const rate = tokenSymbol === "SOL" ? 1 : currentPrice;
-  const toAmount = fromAmount
-    ? (swapped ? Number(fromAmount) * rate : Number(fromAmount) / rate).toFixed(4)
-    : "";
+
+  // Fetch Jupiter quote when amount changes
+  const fetchQuote = useCallback(async () => {
+    const amountNum = Number(fromAmount);
+    if (!fromAmount || amountNum <= 0 || !tokenMint) {
+      setQuote(null);
+      return;
+    }
+
+    setLoading(true);
+    // Convert to lamports/smallest unit
+    const lamports = Math.round(amountNum * LAMPORTS_PER_SOL);
+    const result = await getQuote({
+      inputMint,
+      outputMint,
+      amount: lamports,
+    });
+    setQuote(result);
+    setLoading(false);
+  }, [fromAmount, inputMint, outputMint, tokenMint]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchQuote, 500);
+    return () => clearTimeout(timer);
+  }, [fetchQuote]);
+
+  const toAmount = quote
+    ? (Number(quote.outAmount) / LAMPORTS_PER_SOL).toFixed(4)
+    : fromAmount
+      ? (swapped ? Number(fromAmount) * rate : Number(fromAmount) / rate).toFixed(4)
+      : "";
+
+  const handleSwap = async () => {
+    if (!publicKey || !quote) return;
+
+    setSwapping(true);
+    try {
+      const swapResult = await getSwapTransaction({
+        quoteResponse: quote,
+        userPublicKey: publicKey.toBase58(),
+      });
+
+      if (!swapResult) {
+        console.error("Failed to get swap transaction");
+        return;
+      }
+
+      const swapTransactionBuf = Buffer.from(swapResult.swapTransaction, "base64");
+      const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+
+      const signature = await sendTransaction(transaction, connection);
+      console.log("Swap TX:", signature);
+    } catch (err) {
+      console.error("Swap failed:", err);
+    } finally {
+      setSwapping(false);
+    }
+  };
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -48,7 +124,10 @@ export function SpotSwapPanel({ tokenSymbol, currentPrice, className }: SpotSwap
       <div className="flex justify-center">
         <button
           type="button"
-          onClick={() => setSwapped((prev) => !prev)}
+          onClick={() => {
+            setSwapped((prev) => !prev);
+            setQuote(null);
+          }}
           className="rounded-full border border-border bg-card p-2 text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowDownUp className="size-4" />
@@ -64,20 +143,29 @@ export function SpotSwapPanel({ tokenSymbol, currentPrice, className }: SpotSwap
           </div>
           <span className="text-sm font-medium text-foreground">{toToken}</span>
           <span className="ml-auto text-sm font-mono text-muted-foreground">
-            {toAmount || "0.00"}
+            {loading ? "..." : toAmount || "0.00"}
           </span>
         </div>
       </div>
 
       {/* Rate & Slippage */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{t("rate")}: 1 {fromToken} = {(swapped ? 1 / rate : rate).toFixed(4)} {toToken}</span>
-        <span>{t("slippage")}: 0.5%</span>
+        <span>
+          {t("rate")}: 1 {fromToken} = {(swapped ? 1 / rate : rate).toFixed(4)} {toToken}
+        </span>
+        <span>
+          {quote ? `Impact: ${quote.priceImpactPct}%` : `${t("slippage")}: 0.5%`}
+        </span>
       </div>
 
       {/* Swap Button */}
-      <Button className="w-full" disabled={!fromAmount || Number(fromAmount) <= 0}>
-        {t("swap")}
+      <Button
+        className="w-full"
+        disabled={!fromAmount || Number(fromAmount) <= 0 || swapping || !publicKey}
+        onClick={handleSwap}
+      >
+        {swapping && <Loader2 className="size-4 mr-2 animate-spin" />}
+        {publicKey ? t("swap") : t("from")}
       </Button>
     </div>
   );

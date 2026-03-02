@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
+import { Transaction } from "@solana/web3.js";
 import {
   Sheet,
   SheetContent,
@@ -11,6 +13,8 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
+import { buildCastVote, getVotePoolAddress } from "@/lib/solana/voting";
 import { cn } from "@/lib/utils";
 
 interface VoteSheetProps {
@@ -18,17 +22,59 @@ interface VoteSheetProps {
   onOpenChange: (open: boolean) => void;
   direction: "up" | "down";
   agentName: string;
+  agentId?: string;
+  postId?: string;
+  discussionId?: string;
   tokenSymbol: string | null;
 }
 
 const presets = [10, 50, 100] as const;
 
-export function VoteSheet({ open, onOpenChange, direction, agentName, tokenSymbol }: VoteSheetProps) {
+export function VoteSheet({ open, onOpenChange, direction, agentName, agentId, postId, discussionId, tokenSymbol }: VoteSheetProps) {
   const t = useTranslations("vote");
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const [amount, setAmount] = useState<number>(10);
   const [currency, setCurrency] = useState<"USDC" | "SKR">("USDC");
+  const [signing, setSigning] = useState(false);
 
   const effectiveAmount = currency === "SKR" ? amount * 0.9 : amount;
+
+  const handleVote = async () => {
+    if (!publicKey || !postId || !agentId || !discussionId) {
+      onOpenChange(false);
+      return;
+    }
+
+    setSigning(true);
+    try {
+      const lamports = BigInt(Math.round(effectiveAmount * 1_000_000)); // USDC 6 decimals
+      const [votePoolPda] = getVotePoolAddress(discussionId);
+
+      const ix = buildCastVote({
+        discussionId,
+        agentId,
+        postId,
+        amount: lamports,
+        direction: direction === "up" ? 1 : 0,
+        voter: publicKey,
+        voterTokenAccount: publicKey, // placeholder — resolved at TX time
+        vault: votePoolPda, // placeholder
+      });
+
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+      const sig = await sendTransaction(tx, connection);
+      console.log("Vote TX:", sig);
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Vote failed:", err);
+    } finally {
+      setSigning(false);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -107,9 +153,11 @@ export function VoteSheet({ open, onOpenChange, direction, agentName, tokenSymbo
               "w-full",
               direction === "up" ? "bg-bullish hover:bg-bullish/90" : "bg-bearish hover:bg-bearish/90"
             )}
-            onClick={() => onOpenChange(false)}
+            disabled={signing || !publicKey}
+            onClick={handleVote}
           >
-            {t("confirmVote")}
+            {signing && <Loader2 className="size-4 mr-2 animate-spin" />}
+            {publicKey ? t("confirmVote") : "Connect Wallet"}
           </Button>
         </SheetFooter>
       </SheetContent>

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import {
   Sheet,
   SheetContent,
@@ -9,6 +11,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
+import { buildPlacePosition } from "@/lib/solana/market";
 import type { Agent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -16,17 +20,22 @@ interface ExactOrderSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agents: Agent[];
+  contestId?: string;
 }
 
 export function ExactOrderSheet({
   open,
   onOpenChange,
   agents,
+  contestId,
 }: ExactOrderSheetProps) {
   const t = useTranslations("position");
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const [first, setFirst] = useState("");
   const [second, setSecond] = useState("");
   const [third, setThird] = useState("");
+  const [signing, setSigning] = useState(false);
   const [stake, setStake] = useState("");
 
   const stakeNum = Number(stake) || 0;
@@ -105,8 +114,38 @@ export function ExactOrderSheet({
           </div>
 
           {/* Submit */}
-          <Button className="w-full" disabled={!valid}>
-            {t("takePosition")}
+          <Button
+            className="w-full"
+            disabled={!valid || signing || !publicKey}
+            onClick={async () => {
+              if (!publicKey || !contestId || !valid) return;
+              setSigning(true);
+              try {
+                const pad = (id: string) => new PublicKey(id.padEnd(32, "0").slice(0, 32));
+                const ix = buildPlacePosition({
+                  contestId,
+                  positionType: 4, // exact_order
+                  agentSelections: [pad(first), pad(second), pad(third)],
+                  amount: BigInt(Math.round(stakeNum * 1_000_000)),
+                  predictor: publicKey,
+                  predictorTokenAccount: publicKey,
+                  vault: publicKey,
+                });
+                const tx = new Transaction().add(ix);
+                tx.feePayer = publicKey;
+                tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+                const sig = await sendTransaction(tx, connection);
+                console.log("Exact order TX:", sig);
+                onOpenChange(false);
+              } catch (err) {
+                console.error("Exact order bet failed:", err);
+              } finally {
+                setSigning(false);
+              }
+            }}
+          >
+            {signing && <Loader2 className="size-4 mr-2 animate-spin" />}
+            {publicKey ? t("takePosition") : "Connect Wallet"}
           </Button>
         </div>
       </SheetContent>

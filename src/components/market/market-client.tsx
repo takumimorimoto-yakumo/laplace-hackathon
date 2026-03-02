@@ -23,7 +23,7 @@ export function MarketClient({ tokens }: MarketClientProps) {
 
     const matchesCategory =
       activeCategory === "All" ||
-      token.category === activeCategory.toLowerCase();
+      (token.tags ?? []).some((tag) => tag.toLowerCase() === activeCategory.toLowerCase());
 
     return matchesSearch && matchesCategory;
   });

@@ -19,13 +19,29 @@ export function PostEntryChart({ post, agent: agentProp }: PostEntryChartProps) 
   }
 
   const token = getToken(post.tokenAddress);
-  if (!token) {
-    return null;
-  }
 
   const resolvedAgent = agentProp ?? getAgent(post.agentId);
   if (!resolvedAgent) {
     return null;
+  }
+
+  // Fallback: if token not in seed data, show price-only (no chart)
+  if (!token) {
+    return (
+      <Link
+        href={`/token/${post.tokenAddress}`}
+        className="block rounded-lg border border-border/40 p-2 mt-1.5 transition-colors hover:bg-muted/30"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-primary">
+            {post.tokenSymbol ?? post.tokenAddress.slice(0, 6)}
+          </span>
+          <span className="text-xs font-mono text-muted-foreground">
+            {formatPrice(post.priceAtPrediction)}
+          </span>
+        </div>
+      </Link>
+    );
   }
 
   const entryPoint: EntryPoint = {

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Target } from "lucide-react";
+import { Target, Loader2 } from "lucide-react";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import {
   Sheet,
   SheetContent,
@@ -11,6 +12,8 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
+import { buildPlacePosition } from "@/lib/solana/market";
 import type { Agent, ContestEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +23,7 @@ interface PositionSheetProps {
   agent: Agent;
   entry: ContestEntry;
   betType: "single" | "topThree";
+  contestId?: string;
 }
 
 const STAKE_PRESETS = [10, 50, 100, 500];
@@ -30,12 +34,16 @@ export function PositionSheet({
   agent,
   entry,
   betType,
+  contestId,
 }: PositionSheetProps) {
   const t = useTranslations("position");
   const tPrediction = useTranslations("prediction");
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const [stake, setStake] = useState(50);
   const [customStake, setCustomStake] = useState("");
   const [currency, setCurrency] = useState<"usdc" | "skr">("usdc");
+  const [signing, setSigning] = useState(false);
 
   const probability = betType === "single"
     ? entry.firstPlaceProbability
@@ -144,8 +152,39 @@ export function PositionSheet({
           </div>
 
           {/* Submit */}
-          <Button className="w-full" disabled={effectiveStake <= 0}>
-            {t("takePosition")}
+          <Button
+            className="w-full"
+            disabled={effectiveStake <= 0 || signing || !publicKey}
+            onClick={async () => {
+              if (!publicKey || !contestId) return;
+              setSigning(true);
+              try {
+                const positionType = betType === "single" ? 0 : 1;
+                const agentPk = new PublicKey(agent.id.padEnd(32, "0").slice(0, 32));
+                const ix = buildPlacePosition({
+                  contestId,
+                  positionType,
+                  agentSelections: [agentPk, agentPk, agentPk],
+                  amount: BigInt(Math.round(cost * 1_000_000)),
+                  predictor: publicKey,
+                  predictorTokenAccount: publicKey,
+                  vault: publicKey,
+                });
+                const tx = new Transaction().add(ix);
+                tx.feePayer = publicKey;
+                tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+                const sig = await sendTransaction(tx, connection);
+                console.log("Position TX:", sig);
+                onOpenChange(false);
+              } catch (err) {
+                console.error("Position failed:", err);
+              } finally {
+                setSigning(false);
+              }
+            }}
+          >
+            {signing && <Loader2 className="size-4 mr-2 animate-spin" />}
+            {publicKey ? t("takePosition") : "Connect Wallet"}
           </Button>
         </div>
       </SheetContent>

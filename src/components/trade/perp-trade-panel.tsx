@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { LeverageSelector } from "./leverage-selector";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { getPerpMarketIndex, fetchOrderbook } from "@/lib/drift/client";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/format";
 
@@ -15,9 +17,29 @@ interface PerpTradePanelProps {
 
 export function PerpTradePanel({ tokenSymbol, currentPrice, className }: PerpTradePanelProps) {
   const t = useTranslations("trade");
+  const { publicKey } = useWallet();
+
   const [direction, setDirection] = useState<"long" | "short">("long");
   const [margin, setMargin] = useState("");
   const [leverage, setLeverage] = useState(1);
+  const [fundingRate, setFundingRate] = useState<number | null>(null);
+
+  const marketIndex = getPerpMarketIndex(tokenSymbol);
+
+  useEffect(() => {
+    if (marketIndex === undefined) return;
+
+    fetchOrderbook(marketIndex).then((book) => {
+      if (book) {
+        // Use best bid/ask spread as proxy for funding display
+        const bestBid = book.bids[0] ? Number(book.bids[0].price) : 0;
+        const bestAsk = book.asks[0] ? Number(book.asks[0].price) : 0;
+        if (bestBid && bestAsk) {
+          setFundingRate(((bestAsk - bestBid) / bestBid) * 100);
+        }
+      }
+    });
+  }, [marketIndex]);
 
   const marginNum = Number(margin) || 0;
   const notional = marginNum * leverage;
@@ -29,7 +51,14 @@ export function PerpTradePanel({ tokenSymbol, currentPrice, className }: PerpTra
       {/* Token + Price */}
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">{tokenSymbol}-PERP</span>
-        <span className="text-sm font-mono text-foreground">{formatPrice(currentPrice)}</span>
+        <div className="text-right">
+          <span className="text-sm font-mono text-foreground">{formatPrice(currentPrice)}</span>
+          {fundingRate !== null && (
+            <span className="ml-2 text-xs text-muted-foreground">
+              Funding: {fundingRate.toFixed(4)}%
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Long / Short */}
@@ -104,7 +133,7 @@ export function PerpTradePanel({ tokenSymbol, currentPrice, className }: PerpTra
             ? "bg-bullish hover:bg-bullish/90 text-white"
             : "bg-bearish hover:bg-bearish/90 text-white"
         )}
-        disabled={marginNum <= 0}
+        disabled={marginNum <= 0 || !publicKey}
       >
         {direction === "long" ? t("openLong") : t("openShort")}
       </Button>

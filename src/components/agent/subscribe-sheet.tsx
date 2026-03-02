@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
+import { Transaction } from "@solana/web3.js";
 import {
   Sheet,
   SheetContent,
@@ -11,23 +13,60 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
+import { buildSubscribe } from "@/lib/solana/rental";
 import type { AgentRentalPlan } from "@/lib/types";
 
 interface SubscribeSheetProps {
   plan: AgentRentalPlan | null;
+  agentId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function SubscribeSheet({ plan, open, onOpenChange }: SubscribeSheetProps) {
+export function SubscribeSheet({ plan, agentId, open, onOpenChange }: SubscribeSheetProps) {
   const t = useTranslations("rental");
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const [currency, setCurrency] = useState<"USDC" | "SKR">("USDC");
+  const [signing, setSigning] = useState(false);
 
   if (!plan) return null;
 
   const price = currency === "SKR"
     ? plan.monthlyPriceUsdc * (1 - plan.skrDiscountPercent / 100)
     : plan.monthlyPriceUsdc;
+
+  const handleSubscribe = async () => {
+    if (!publicKey || !agentId) {
+      onOpenChange(false);
+      return;
+    }
+
+    setSigning(true);
+    try {
+      const lamports = BigInt(Math.round(price * 1_000_000));
+      const ix = buildSubscribe({
+        agentId,
+        paymentAmount: lamports,
+        subscriber: publicKey,
+        subscriberTokenAccount: publicKey, // placeholder
+        vault: publicKey, // placeholder
+      });
+
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+      const sig = await sendTransaction(tx, connection);
+      console.log("Subscribe TX:", sig);
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Subscribe failed:", err);
+    } finally {
+      setSigning(false);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -65,8 +104,13 @@ export function SubscribeSheet({ plan, open, onOpenChange }: SubscribeSheetProps
         </div>
 
         <SheetFooter>
-          <Button className="w-full" onClick={() => onOpenChange(false)}>
-            {t("confirm")}
+          <Button
+            className="w-full"
+            disabled={signing || !publicKey}
+            onClick={handleSubscribe}
+          >
+            {signing && <Loader2 className="size-4 mr-2 animate-spin" />}
+            {publicKey ? t("confirm") : "Connect Wallet"}
           </Button>
         </SheetFooter>
       </SheetContent>

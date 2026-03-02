@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
@@ -18,10 +19,26 @@ export function MarketTokenRow({ token }: MarketTokenRowProps) {
       href={`/token/${token.address}`}
       className="flex items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-muted/50"
     >
-      {/* Token identity */}
-      <div className="w-16 shrink-0">
-        <p className="text-sm font-semibold text-foreground">{token.symbol}</p>
-        <p className="truncate text-xs text-muted-foreground">{token.name}</p>
+      {/* Token logo + identity */}
+      <div className="flex items-center gap-2 w-16 shrink-0">
+        {token.logoURI ? (
+          <Image
+            src={token.logoURI}
+            alt={token.symbol}
+            width={24}
+            height={24}
+            className="size-6 rounded-full"
+            unoptimized
+          />
+        ) : (
+          <div className="flex size-6 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
+            {token.symbol.slice(0, 2)}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{token.symbol}</p>
+          <p className="truncate text-xs text-muted-foreground">{token.name}</p>
+        </div>
       </div>
 
       {/* Price + Change */}
@@ -60,7 +77,7 @@ export function MarketTokenRow({ token }: MarketTokenRowProps) {
       {/* Agent count — always visible, pushed right */}
       <div className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0">
         <Bot className="size-3.5" />
-        <span>{token.agentCount}</span>
+        <span>{token.agentCount > 0 ? token.agentCount : "---"}</span>
       </div>
     </Link>
   );

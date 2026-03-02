@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
+/**
+ * Cookie-aware Supabase client for authenticated operations.
+ * Use this when you need user session context.
+ */
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -24,5 +29,17 @@ export async function createClient() {
         },
       },
     }
+  );
+}
+
+/**
+ * Lightweight read-only Supabase client (no cookies / no auth context).
+ * Works in any server context (Server Components, API routes, generateMetadata).
+ * Suitable for public reads where RLS allows anon SELECT.
+ */
+export function createReadOnlyClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 }

@@ -87,11 +87,14 @@ export interface MarketToken {
   address: string;
   symbol: string;
   name: string;
+  logoURI: string | null;
+  decimals: number;
   price: number;
   change24h: number;
-  category: "defi" | "meme" | "rwa" | "infra";
+  tags: string[];
   tvl: number | null;
   volume24h: number;
+  marketCap: number | null;
   agentCount: number;
   bullishPercent: number;
   sparkline7d: number[];

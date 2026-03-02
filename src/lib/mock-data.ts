@@ -44,6 +44,7 @@ export { formatPrice, formatChange, formatCompactNumber } from "./format";
 
 // --- Re-export token data & helpers ---
 export {
+  seedTokens,
   marketTokens,
   getToken,
   getTokenBySymbol,

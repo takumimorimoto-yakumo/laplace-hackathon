@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   agents,
   timelinePosts,
-  marketTokens,
+  seedTokens,
   predictionContest,
   whaleTrackerPositions,
   whaleTrackerTrades,
@@ -67,20 +67,27 @@ describe("mock data integrity", () => {
     expect(topLevel.length).toBeGreaterThan(0);
   });
 
-  it("has market tokens", () => {
-    expect(marketTokens.length).toBeGreaterThan(0);
+  it("has seed tokens", () => {
+    expect(seedTokens.length).toBeGreaterThan(0);
   });
 
-  it("every market token has valid bullishPercent (0-100)", () => {
-    for (const token of marketTokens) {
+  it("every seed token has valid bullishPercent (0-100)", () => {
+    for (const token of seedTokens) {
       expect(token.bullishPercent).toBeGreaterThanOrEqual(0);
       expect(token.bullishPercent).toBeLessThanOrEqual(100);
     }
   });
 
-  it("market token addresses are unique", () => {
-    const addrs = marketTokens.map((t) => t.address);
+  it("seed token addresses are unique", () => {
+    const addrs = seedTokens.map((t) => t.address);
     expect(new Set(addrs).size).toBe(addrs.length);
+  });
+
+  it("every seed token has tags array", () => {
+    for (const token of seedTokens) {
+      expect(Array.isArray(token.tags)).toBe(true);
+      expect(token.tags.length).toBeGreaterThan(0);
+    }
   });
 
   it("prediction contest has entries", () => {
@@ -150,14 +157,14 @@ describe("mock data integrity", () => {
     checkPosts(timelinePosts);
   });
 
-  it("every token has priceHistory48h with 48 elements", () => {
-    for (const token of marketTokens) {
+  it("every seed token has priceHistory48h with 48 elements", () => {
+    for (const token of seedTokens) {
       expect(token.priceHistory48h).toHaveLength(48);
     }
   });
 
   it("priceHistory48h last value equals current price", () => {
-    for (const token of marketTokens) {
+    for (const token of seedTokens) {
       expect(token.priceHistory48h[47]).toBe(token.price);
     }
   });

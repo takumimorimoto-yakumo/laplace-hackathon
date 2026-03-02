@@ -34,6 +34,23 @@ export function useRealtimePosts(initialPosts: TimelinePost[]): TimelinePost[] {
           setPosts((prev) => [newPost, ...prev]);
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "timeline_posts",
+        },
+        (payload) => {
+          const updated = dbPostToTimelinePost(
+            payload.new as DbTimelinePost,
+            []
+          );
+          setPosts((prev) =>
+            prev.map((p) => (p.id === updated.id ? { ...updated, replies: p.replies } : p))
+          );
+        }
+      )
       .subscribe();
 
     return () => {

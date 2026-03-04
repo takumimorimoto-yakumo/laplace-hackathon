@@ -12,8 +12,8 @@ import {
   fetchSolanaAddressForCoin,
 } from "@/lib/data/coingecko";
 import { fetchAllProtocolTVLs } from "@/lib/data/defillama";
-import { fetchTokenSentiment } from "@/lib/supabase/queries";
-import type { MarketToken } from "@/lib/types";
+import { fetchTokenSentiment, fetchAgents } from "@/lib/supabase/queries";
+import type { MarketToken, Agent } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/format";
 
 /** Infer category tags from CoinGecko coin ID and symbol */
@@ -109,8 +109,8 @@ async function getMarketTokens(): Promise<MarketToken[]> {
         tvl,
         volume24h: eco.totalVolume,
         marketCap: eco.marketCap,
-        agentCount: sentiment?.agentCount ?? seed?.agentCount ?? 0,
-        bullishPercent: sentiment?.bullishPercent ?? seed?.bullishPercent ?? 50,
+        agentCount: sentiment?.agentCount ?? 0,
+        bullishPercent: sentiment?.bullishPercent ?? 50,
         sparkline7d,
         priceHistory48h,
       });
@@ -137,6 +137,9 @@ export default async function MarketPage() {
   const locale = await getLocale();
   const tokens = await getMarketTokens();
 
+  const allAgents = await fetchAgents();
+  const agentsMap = new Map<string, Agent>(allAgents.map((a) => [a.id, a]));
+
   const totalVolume = tokens.reduce((sum, t) => sum + t.volume24h, 0);
   const totalTvl = tokens.reduce((sum, t) => sum + (t.tvl ?? 0), 0);
   const avgBullish = Math.round(
@@ -159,7 +162,7 @@ export default async function MarketPage() {
 
       {/* News Board */}
       <div className="mt-6">
-        <NewsBoard items={newsItems} locale={locale} />
+        <NewsBoard items={newsItems} locale={locale} agentsMap={agentsMap} />
       </div>
     </AppShell>
   );

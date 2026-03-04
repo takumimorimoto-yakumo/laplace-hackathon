@@ -7,29 +7,71 @@ import { TokenStats } from "@/components/market/token-stats";
 import { IndicatorToggle } from "@/components/market/indicator-toggle";
 import { PostCard } from "@/components/post/post-card";
 import { SentimentBar } from "@/components/market/sentiment-bar";
-import {
-  timelinePosts as mockTimelinePosts,
-  getAgent as mockGetAgent,
-  agents as mockAgents,
-} from "@/lib/mock-data";
 import { fetchTimelinePosts, fetchAgents } from "@/lib/supabase/queries";
 import { getToken, generatePriceHistory48h } from "@/lib/tokens";
 import { fetchSingleToken, fetchTokenPrices } from "@/lib/data/jupiter-tokens";
+import { resolveCoingeckoId, fetchMarketData } from "@/lib/data/coingecko";
 import { formatPrice, formatChange } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { MarketToken } from "@/lib/types";
+import type { MarketToken, Agent } from "@/lib/types";
 
 interface TokenPageProps {
   params: Promise<{ locale: string; address: string }>;
 }
 
 /**
+ * Fetch live price data from CoinGecko for a known address.
+ * Returns null if address is unknown or API fails.
+ */
+async function fetchLivePrice(address: string): Promise<{
+  price: number;
+  change24h: number;
+  volume24h: number;
+  marketCap: number | null;
+  sparkline7d: number[];
+} | null> {
+  const cgId = resolveCoingeckoId(address);
+  if (!cgId) return null;
+
+  try {
+    const data = await fetchMarketData([cgId]);
+    if (!data || data.length === 0) return null;
+    const d = data[0];
+    return {
+      price: d.currentPrice,
+      change24h: d.priceChangePercentage24h,
+      volume24h: d.totalVolume,
+      marketCap: d.marketCap || null,
+      sparkline7d: d.sparklineIn7d,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve a token from seed data, market-data API, or Jupiter fallback.
+ * For seed tokens, overlays live CoinGecko price data when available.
  */
 async function resolveToken(address: string): Promise<MarketToken | null> {
-  // 1. Try seed data
+  // 1. Try seed data (has metadata like tags, symbol, etc.)
   const seed = getToken(address);
-  if (seed) return seed;
+  if (seed) {
+    // Overlay live price data on top of seed metadata
+    const live = await fetchLivePrice(address);
+    if (live) {
+      return {
+        ...seed,
+        price: live.price,
+        change24h: live.change24h,
+        volume24h: live.volume24h,
+        marketCap: live.marketCap,
+        sparkline7d: live.sparkline7d.length > 0 ? live.sparkline7d : seed.sparkline7d,
+        priceHistory48h: generatePriceHistory48h(live.price, Math.abs(live.change24h / 100) || 0.03),
+      };
+    }
+    return seed;
+  }
 
   // 2. Try /api/market-data cache
   try {
@@ -109,18 +151,10 @@ export default async function TokenPage({
 
   const token = await resolveToken(address);
 
-  // Fetch posts from Supabase, fallback to mock
-  let tokenPosts = await fetchTimelinePosts({ tokenAddress: address });
-  if (tokenPosts.length === 0) {
-    tokenPosts = mockTimelinePosts.filter(
-      (post) => post.tokenAddress === address && post.parentId === null
-    );
-  }
+  const tokenPosts = await fetchTimelinePosts({ tokenAddress: address });
 
-  // Fetch agents for lookup
-  let allAgents = await fetchAgents();
-  if (allAgents.length === 0) allAgents = mockAgents;
-  const agentsMap = new Map(allAgents.map((a) => [a.id, a]));
+  const allAgents = await fetchAgents();
+  const agentsMap = new Map<string, Agent>(allAgents.map((a) => [a.id, a]));
 
   return (
     <AppShell>
@@ -175,7 +209,7 @@ export default async function TokenPage({
       {/* Price Chart with Entry Points — breaks out of container for full width */}
       {token && token.priceHistory48h.length > 0 ? (
         <div className="mb-4">
-          <TokenChart token={token} />
+          <TokenChart token={token} posts={tokenPosts} agentsMap={agentsMap} />
         </div>
       ) : (
         <div className="mb-4 -mx-4 flex h-[40vh] min-h-[200px] max-h-[400px] items-center justify-center border-b border-border">
@@ -211,7 +245,7 @@ export default async function TokenPage({
       <div>
         {tokenPosts.length > 0 ? (
           tokenPosts.map((post) => {
-            const agent = agentsMap.get(post.agentId) ?? mockGetAgent(post.agentId);
+            const agent = agentsMap.get(post.agentId);
             if (!agent) return null;
             return (
               <PostCard

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
-import type { NewsItem, Locale } from "@/lib/types";
-import { getAgent } from "@/lib/mock-data";
+import type { NewsItem, Locale, Agent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const categoryColors: Record<string, string> = {
@@ -18,9 +17,10 @@ const categoryColors: Record<string, string> = {
 interface NewsBoardProps {
   items: NewsItem[];
   locale: string;
+  agentsMap?: Map<string, Agent>;
 }
 
-export function NewsBoard({ items, locale }: NewsBoardProps) {
+export function NewsBoard({ items, locale, agentsMap = new Map() }: NewsBoardProps) {
   const t = useTranslations("news");
 
   return (
@@ -28,7 +28,7 @@ export function NewsBoard({ items, locale }: NewsBoardProps) {
       <h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
       <div className="space-y-2">
         {items.map((item) => {
-          const author = getAgent(item.authorAgentId);
+          const author = agentsMap.get(item.authorAgentId);
           return (
             <article
               key={item.id}
@@ -36,7 +36,7 @@ export function NewsBoard({ items, locale }: NewsBoardProps) {
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-medium text-foreground leading-tight flex-1">
-                  {item.title[locale as Locale] ?? item.title.en}
+                  {item.title[locale as Locale] || item.title.en}
                 </p>
                 <Badge
                   variant="secondary"

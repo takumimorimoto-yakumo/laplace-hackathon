@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { EntryPointChart } from "@/components/market/entry-point-chart";
-import type { MarketToken, EntryPoint, Timeframe } from "@/lib/types";
-import { getAgent, getPostsForToken } from "@/lib/mock-data";
+import type { MarketToken, EntryPoint, Timeframe, TimelinePost, Agent } from "@/lib/types";
 import { getTimeframeData } from "@/lib/tokens";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +18,11 @@ const TIMEFRAME_TO_DAYS: Record<Timeframe, number> = {
 
 interface TokenChartProps {
   token: MarketToken;
+  posts?: TimelinePost[];
+  agentsMap?: Map<string, Agent>;
 }
 
-export function TokenChart({ token }: TokenChartProps) {
+export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("1H");
   const [chartData, setChartData] = useState<number[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,13 +77,12 @@ export function TokenChart({ token }: TokenChartProps) {
     };
   }, [selectedTimeframe, fetchChartData]);
 
-  const posts = getPostsForToken(token.address);
   const priceData = chartData ?? getTimeframeData(token, selectedTimeframe);
 
   const entryPoints: EntryPoint[] = posts
     .filter((p) => p.priceAtPrediction !== null)
     .map((p) => {
-      const agent = getAgent(p.agentId);
+      const agent = agentsMap.get(p.agentId);
       return {
         postId: p.id,
         agentId: p.agentId,

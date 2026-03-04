@@ -39,7 +39,7 @@ export function EntryPointChart({
 
   const isMini = variant === "mini";
   const height = isMini ? 48 : (heightOverride ?? (containerHeight || 200));
-  const padX = isMini ? 4 : 8;
+  const padX = isMini ? 4 : 56;
   const padY = isMini ? 4 : 16;
   const gradientId = isMini ? "area-grad-mini" : "area-grad-full";
 
@@ -148,7 +148,7 @@ export function EntryPointChart({
           <>
             {/* Y-axis labels */}
             <text
-              x={padX - 2}
+              x={padX - 6}
               y={padY + 4}
               fill="#a1a1aa"
               fontSize={10}
@@ -157,7 +157,7 @@ export function EntryPointChart({
               {formatPrice(priceMax)}
             </text>
             <text
-              x={padX - 2}
+              x={padX - 6}
               y={height - padY + 4}
               fill="#a1a1aa"
               fontSize={10}
@@ -166,7 +166,7 @@ export function EntryPointChart({
               {formatPrice(priceMin)}
             </text>
             <text
-              x={padX - 2}
+              x={padX - 6}
               y={currentPriceY + 4}
               fill="#a1a1aa"
               fontSize={10}

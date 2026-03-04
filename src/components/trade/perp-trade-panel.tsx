@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LeverageSelector } from "./leverage-selector";
 import { useWallet } from "@/components/wallet/wallet-provider";
@@ -134,6 +135,7 @@ export function PerpTradePanel({ tokenSymbol, currentPrice, className }: PerpTra
             : "bg-bearish hover:bg-bearish/90 text-white"
         )}
         disabled={marginNum <= 0 || !publicKey}
+        onClick={() => toast.info(t("perpComingSoon"))}
       >
         {direction === "long" ? t("openLong") : t("openShort")}
       </Button>

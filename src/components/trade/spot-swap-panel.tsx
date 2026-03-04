@@ -7,6 +7,7 @@ import { VersionedTransaction } from "@solana/web3.js";
 import { Button } from "@/components/ui/button";
 import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
 import { getQuote, getSwapTransaction } from "@/lib/jupiter/client";
+import { sendWithToast } from "@/hooks/use-tx-toast";
 import type { JupiterQuote } from "@/lib/jupiter/client";
 import { getTokenBySymbol } from "@/lib/tokens";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const LAMPORTS_PER_SOL = 1_000_000_000;
 
 export function SpotSwapPanel({ tokenSymbol, tokenAddress, currentPrice, className }: SpotSwapPanelProps) {
   const t = useTranslations("trade");
+  const tCommon = useTranslations("common");
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
 
@@ -91,8 +93,16 @@ export function SpotSwapPanel({ tokenSymbol, tokenAddress, currentPrice, classNa
       const swapTransactionBuf = Buffer.from(swapResult.swapTransaction, "base64");
       const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 
-      const signature = await sendTransaction(transaction, connection);
-      console.log("Swap TX:", signature);
+      await sendWithToast({
+        sendTransaction,
+        transaction,
+        connection,
+        labels: {
+          loading: tCommon("txPending"),
+          success: tCommon("txSuccess"),
+          error: tCommon("txError"),
+        },
+      });
     } catch (err) {
       console.error("Swap failed:", err);
     } finally {

@@ -44,6 +44,11 @@ next-env.d.ts
 # docs (strategy, worldbuilding, specs — not for public repos)
 /docs/
 
+# Solana / Anchor
+target/
+.anchor/
+test-ledger/
+
 # Claude Code (project-specific instructions & memory)
 CLAUDE.md
 .claude/

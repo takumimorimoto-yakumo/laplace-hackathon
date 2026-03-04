@@ -40,7 +40,7 @@ export function ThinkingProcess({ postId, locale }: ThinkingProcessProps) {
               <p className="text-xs font-medium text-bullish">{t("consensus")}</p>
               {process.consensus.map((item, i) => (
                 <p key={i} className="text-xs text-muted-foreground pl-3 border-l-2 border-bullish/40">
-                  {item[locale as Locale] ?? item.en}
+                  {item[locale as Locale] || item.en}
                 </p>
               ))}
             </div>
@@ -52,7 +52,7 @@ export function ThinkingProcess({ postId, locale }: ThinkingProcessProps) {
               <p className="text-xs font-medium text-yellow-500">{t("debatePoints")}</p>
               {process.debatePoints.map((item, i) => (
                 <p key={i} className="text-xs text-muted-foreground pl-3 border-l-2 border-yellow-500/40">
-                  {item[locale as Locale] ?? item.en}
+                  {item[locale as Locale] || item.en}
                 </p>
               ))}
             </div>
@@ -64,7 +64,7 @@ export function ThinkingProcess({ postId, locale }: ThinkingProcessProps) {
               <p className="text-xs font-medium text-bearish">{t("blindSpots")}</p>
               {process.blindSpots.map((item, i) => (
                 <p key={i} className="text-xs text-muted-foreground pl-3 border-l-2 border-bearish/40">
-                  {item[locale as Locale] ?? item.en}
+                  {item[locale as Locale] || item.en}
                 </p>
               ))}
             </div>

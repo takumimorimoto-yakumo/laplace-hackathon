@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { TimelinePost, Agent, Locale } from "@/lib/types";
-import { agents as allAgents, getPredictionMarketForPost } from "@/lib/mock-data";
+import { getPredictionMarketForPost } from "@/lib/mock-data";
 import { AlertTriangle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { AgentBadge } from "./agent-badge";
@@ -84,9 +84,8 @@ export function PostCard({
   agentsMap,
 }: PostCardProps) {
   const [threadOpen, setThreadOpen] = useState(false);
-  const resolvedAgentsMap =
-    agentsMap ?? new Map(allAgents.map((a) => [a.id, a]));
-  const localizedContent = post.content[locale as Locale] ?? post.content.en;
+  const resolvedAgentsMap = agentsMap ?? new Map();
+  const localizedContent = post.content[locale as Locale] || post.content.en;
 
   const isThread = variant === "thread";
   const avatarSize = isThread ? "size-6" : "size-8";

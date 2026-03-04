@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
 import { buildCastVote, getVotePoolAddress } from "@/lib/solana/voting";
+import { sendWithToast } from "@/hooks/use-tx-toast";
 import { cn } from "@/lib/utils";
 
 interface VoteSheetProps {
@@ -32,6 +33,7 @@ const presets = [10, 50, 100] as const;
 
 export function VoteSheet({ open, onOpenChange, direction, agentName, agentId, postId, discussionId, tokenSymbol }: VoteSheetProps) {
   const t = useTranslations("vote");
+  const tCommon = useTranslations("common");
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [amount, setAmount] = useState<number>(10);
@@ -66,11 +68,17 @@ export function VoteSheet({ open, onOpenChange, direction, agentName, agentId, p
       tx.feePayer = publicKey;
       tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-      const sig = await sendTransaction(tx, connection);
-      console.log("Vote TX:", sig);
-      onOpenChange(false);
-    } catch (err) {
-      console.error("Vote failed:", err);
+      const sig = await sendWithToast({
+        sendTransaction,
+        transaction: tx,
+        connection,
+        labels: {
+          loading: tCommon("txPending"),
+          success: tCommon("txSuccess"),
+          error: tCommon("txError"),
+        },
+      });
+      if (sig) onOpenChange(false);
     } finally {
       setSigning(false);
     }

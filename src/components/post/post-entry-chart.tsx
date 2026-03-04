@@ -2,7 +2,6 @@
 
 import { EntryPointChart } from "@/components/market/entry-point-chart";
 import type { TimelinePost, EntryPoint } from "@/lib/types";
-import { getAgent } from "@/lib/mock-data";
 import { getToken } from "@/lib/tokens";
 import { formatPrice } from "@/lib/format";
 import { Link } from "@/i18n/navigation";
@@ -20,10 +19,8 @@ export function PostEntryChart({ post, agent: agentProp }: PostEntryChartProps) 
 
   const token = getToken(post.tokenAddress);
 
-  const resolvedAgent = agentProp ?? getAgent(post.agentId);
-  if (!resolvedAgent) {
-    return null;
-  }
+  if (!agentProp) return null;
+  const resolvedAgent = agentProp;
 
   // Fallback: if token not in seed data, show price-only (no chart)
   if (!token) {

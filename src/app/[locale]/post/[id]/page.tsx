@@ -4,12 +4,15 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { PostCard } from "@/components/post/post-card";
-import {
-  getPostById as mockGetPostById,
-  getAgent as mockGetAgent,
-  getRootPost as mockGetRootPost,
-} from "@/lib/mock-data";
 import { fetchPostById, fetchAgent } from "@/lib/supabase/queries";
+import type { TimelinePost } from "@/lib/types";
+
+async function findRootPost(post: TimelinePost): Promise<TimelinePost> {
+  if (!post.parentId) return post;
+  const parent = await fetchPostById(post.parentId);
+  if (!parent) return post;
+  return findRootPost(parent);
+}
 
 interface PostPageProps {
   params: Promise<{ locale: string; id: string }>;
@@ -19,10 +22,10 @@ export async function generateMetadata({
   params,
 }: PostPageProps): Promise<Metadata> {
   const { id } = await params;
-  const post = (await fetchPostById(id)) ?? mockGetPostById(id);
+  const post = await fetchPostById(id);
   if (!post) return { title: "Post Not Found" };
 
-  const agent = (await fetchAgent(post.agentId)) ?? mockGetAgent(post.agentId);
+  const agent = await fetchAgent(post.agentId);
   const agentName = agent?.name ?? "Agent";
   const direction = post.direction;
   const confidence = Math.round(post.confidence * 100);
@@ -50,8 +53,7 @@ export default async function PostPage({ params }: PostPageProps) {
   const t = await getTranslations("postDetail");
   const tTimeline = await getTranslations("timeline");
 
-  // Fetch post from Supabase, fallback to mock
-  const post = (await fetchPostById(id)) ?? mockGetPostById(id);
+  const post = await fetchPostById(id);
 
   if (!post) {
     return (
@@ -69,17 +71,16 @@ export default async function PostPage({ params }: PostPageProps) {
     );
   }
 
-  // Fetch agent from Supabase, fallback to mock
-  const agent = (await fetchAgent(post.agentId)) ?? mockGetAgent(post.agentId);
+  const agent = await fetchAgent(post.agentId);
   if (!agent) return null;
 
   // Get root post if this is a reply
   let rootPost = post;
   let showAsThread = false;
   if (post.parentId) {
-    const parentPost = (await fetchPostById(post.parentId)) ?? mockGetPostById(post.parentId);
+    const parentPost = await fetchPostById(post.parentId);
     if (parentPost) {
-      rootPost = mockGetRootPost(parentPost);
+      rootPost = await findRootPost(parentPost);
       showAsThread = rootPost.id !== post.id;
     }
   }
@@ -99,7 +100,7 @@ export default async function PostPage({ params }: PostPageProps) {
       {showAsThread && (
         <div className="mb-2 opacity-60">
           {await (async () => {
-            const rootAgent = (await fetchAgent(rootPost.agentId)) ?? mockGetAgent(rootPost.agentId);
+            const rootAgent = await fetchAgent(rootPost.agentId);
             if (!rootAgent) return null;
             return (
               <PostCard

@@ -9,13 +9,7 @@ import { AgentProfileTabs } from "@/components/agent/agent-profile-tabs";
 import { RentalSection } from "@/components/agent/rental-section";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
-import {
-  agents,
-  getAgent as mockGetAgent,
-  whaleTrackerPositions,
-  whaleTrackerTrades,
-  timelinePosts as mockTimelinePosts,
-} from "@/lib/mock-data";
+import { computeRentalPlan } from "@/lib/agent-stats";
 import {
   fetchAgent,
   fetchPositions,
@@ -31,7 +25,7 @@ export async function generateMetadata({
   params,
 }: AgentPageProps): Promise<Metadata> {
   const { id } = await params;
-  const agent = (await fetchAgent(id)) ?? mockGetAgent(id);
+  const agent = await fetchAgent(id);
   if (!agent) return { title: "Agent Not Found" };
 
   const accuracy = Math.round(agent.accuracy * 100);
@@ -87,30 +81,27 @@ export default async function AgentProfilePage({
   const t = await getTranslations("agent");
   const tAgents = await getTranslations("agents");
 
-  // Fetch agent from Supabase, fallback to mock
-  const dbAgent = await fetchAgent(id);
-  const agent = dbAgent ?? mockGetAgent(id) ?? agents[0];
-  const isRented = agent.id === "agent-001" || agent.id === "agent-002";
+  const agent = await fetchAgent(id);
+  if (!agent) {
+    return (
+      <AppShell>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <p className="text-lg font-semibold text-foreground">Agent Not Found</p>
+        </div>
+      </AppShell>
+    );
+  }
+  const isRented = false;
 
   const initialValue = Math.round(
     agent.portfolioValue / (1 + agent.portfolioReturn)
   );
 
-  // Fetch positions from Supabase, fallback to mock (only for whale tracker)
-  let positions = await fetchPositions(agent.id);
-  if (positions.length === 0) positions = whaleTrackerPositions;
+  const positions = await fetchPositions(agent.id);
 
-  // Fetch trades from Supabase, fallback to mock
-  let trades = await fetchTrades(agent.id);
-  if (trades.length === 0) trades = whaleTrackerTrades;
+  const trades = await fetchTrades(agent.id);
 
-  // Fetch posts from Supabase, fallback to mock
-  let agentPosts = await fetchTimelinePosts({ agentId: agent.id });
-  if (agentPosts.length === 0) {
-    agentPosts = mockTimelinePosts.filter(
-      (post) => post.agentId === agent.id && post.parentId === null
-    );
-  }
+  const agentPosts = await fetchTimelinePosts({ agentId: agent.id });
 
   return (
     <AppShell>
@@ -191,7 +182,7 @@ export default async function AgentProfilePage({
 
       {/* Rental */}
       <div className="mb-6">
-        <RentalSection agentId={agent.id} isRented={isRented} />
+        <RentalSection plan={computeRentalPlan(agent)} isRented={isRented} />
       </div>
 
       <AgentProfileTabs

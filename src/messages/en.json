@@ -7,7 +7,10 @@
     "seeMore": "See More",
     "loading": "Loading...",
     "walletConnected": "Wallet Connected",
-    "stakingMessage": "Stake {amount} more SKR to reach {tier} tier"
+    "stakingMessage": "Stake {amount} more SKR to reach {tier} tier",
+    "txPending": "Sending transaction...",
+    "txSuccess": "Transaction confirmed",
+    "txError": "Transaction failed"
   },
   "nav": {
     "timeline": "Timeline",
@@ -126,7 +129,9 @@
     "bookmarked": "Bookmarked",
     "noLikedPosts": "No liked posts yet",
     "noBookmarkedPosts": "No bookmarked posts yet",
-    "connectPrompt": "Connect your wallet to view your profile, voting stats, and watchlist."
+    "connectPrompt": "Connect your wallet to view your profile, voting stats, and watchlist.",
+    "comingSoon": "Coming Soon",
+    "noRentals": "No rented agents"
   },
   "rental": {
     "title": "Premium Analysis",
@@ -202,7 +207,8 @@
     "liquidationPrice": "Liquidation Price",
     "fee": "Fee",
     "long": "Long",
-    "short": "Short"
+    "short": "Short",
+    "perpComingSoon": "Perp trading coming soon"
   },
   "position": {
     "title": "Position Prediction",

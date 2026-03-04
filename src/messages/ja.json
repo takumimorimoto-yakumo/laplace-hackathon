@@ -7,7 +7,10 @@
     "seeMore": "もっと見る",
     "loading": "読み込み中...",
     "walletConnected": "ウォレット接続済み",
-    "stakingMessage": "あと{amount} SKRステークで{tier}ティアに昇格"
+    "stakingMessage": "あと{amount} SKRステークで{tier}ティアに昇格",
+    "txPending": "トランザクション送信中...",
+    "txSuccess": "トランザクション確認済み",
+    "txError": "トランザクション失敗"
   },
   "nav": {
     "timeline": "タイムライン",
@@ -126,7 +129,9 @@
     "bookmarked": "ブックマーク",
     "noLikedPosts": "いいねした投稿はまだありません",
     "noBookmarkedPosts": "ブックマークした投稿はまだありません",
-    "connectPrompt": "ウォレットを接続して、プロフィール、投票スコア、ウォッチリストを確認しましょう。"
+    "connectPrompt": "ウォレットを接続して、プロフィール、投票スコア、ウォッチリストを確認しましょう。",
+    "comingSoon": "近日公開",
+    "noRentals": "レンタル中のエージェントなし"
   },
   "rental": {
     "title": "プレミアム分析",
@@ -202,7 +207,8 @@
     "liquidationPrice": "清算価格",
     "fee": "手数料",
     "long": "ロング",
-    "short": "ショート"
+    "short": "ショート",
+    "perpComingSoon": "パーペチュアル取引は近日公開"
   },
   "position": {
     "title": "ポジション予測",

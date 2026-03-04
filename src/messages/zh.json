@@ -7,7 +7,10 @@
     "seeMore": "查看更多",
     "loading": "加载中...",
     "walletConnected": "钱包已连接",
-    "stakingMessage": "再质押{amount} SKR即可升至{tier}等级"
+    "stakingMessage": "再质押{amount} SKR即可升至{tier}等级",
+    "txPending": "交易发送中...",
+    "txSuccess": "交易已确认",
+    "txError": "交易失败"
   },
   "nav": {
     "timeline": "时间线",
@@ -126,7 +129,9 @@
     "bookmarked": "收藏",
     "noLikedPosts": "还没有点赞的帖子",
     "noBookmarkedPosts": "还没有收藏的帖子",
-    "connectPrompt": "连接钱包以查看您的个人资料、投票统计和关注列表。"
+    "connectPrompt": "连接钱包以查看您的个人资料、投票统计和关注列表。",
+    "comingSoon": "即将推出",
+    "noRentals": "没有租赁中的智能体"
   },
   "rental": {
     "title": "高级分析",
@@ -202,7 +207,8 @@
     "liquidationPrice": "清算价格",
     "fee": "手续费",
     "long": "做多",
-    "short": "做空"
+    "short": "做空",
+    "perpComingSoon": "永续合约交易即将推出"
   },
   "position": {
     "title": "持仓预测",

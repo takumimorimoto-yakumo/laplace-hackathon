@@ -66,9 +66,11 @@ export async function fetchMarketData(
     });
 
     if (!response.ok) {
-      console.error(
-        `CoinGecko markets API error: ${response.status} ${response.statusText}`
-      );
+      if (response.status === 429) {
+        console.warn(`[CoinGecko] Rate limited (429) on markets API, falling back`);
+      } else {
+        console.error(`CoinGecko markets API error: ${response.status} ${response.statusText}`);
+      }
       return null;
     }
 
@@ -113,13 +115,13 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-const CACHE_TTL_MS = 120_000; // 2 minutes
+const CACHE_TTL_MS = 300_000; // 5 minutes (extended to reduce 429s on free tier)
 let ecosystemCache: CacheEntry<SolanaEcosystemToken[]> | null = null;
 
 /**
  * Fetch top Solana ecosystem tokens from CoinGecko (up to 200).
  * Includes price, change24h, volume, marketCap, sparkline, and image.
- * No API key required. Cached for 2 minutes.
+ * No API key required. Cached for 5 minutes.
  */
 export async function fetchSolanaEcosystemTokens(): Promise<SolanaEcosystemToken[]> {
   if (ecosystemCache && Date.now() < ecosystemCache.expiresAt) {
@@ -128,8 +130,12 @@ export async function fetchSolanaEcosystemTokens(): Promise<SolanaEcosystemToken
 
   const results: SolanaEcosystemToken[] = [];
 
-  // Fetch 2 pages of 100 tokens each
+  // Fetch 2 pages of 100 tokens each (with delay to avoid 429)
   for (const page of [1, 2]) {
+    if (page > 1) {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
     try {
       const url = new URL(`${BASE_URL}/coins/markets`);
       url.searchParams.set("vs_currency", "usd");
@@ -144,6 +150,10 @@ export async function fetchSolanaEcosystemTokens(): Promise<SolanaEcosystemToken
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          console.warn(`[CoinGecko] Rate limited (429) on ecosystem page ${page}, using fallback`);
+          break;
+        }
         console.error(`CoinGecko ecosystem page ${page} error: ${response.status}`);
         break;
       }
@@ -347,10 +357,10 @@ interface MarketChartCacheEntry {
 const marketChartCache = new Map<string, MarketChartCacheEntry>();
 
 const CHART_TTL_MS: Record<MarketChartDays, number> = {
-  1: 5 * 60_000,    // 5 min
-  7: 10 * 60_000,   // 10 min
+  1: 10 * 60_000,   // 10 min (extended from 5min to reduce 429s)
+  7: 15 * 60_000,   // 15 min
   30: 30 * 60_000,  // 30 min
-  365: 30 * 60_000, // 30 min
+  365: 60 * 60_000, // 60 min
 };
 
 /**
@@ -382,9 +392,11 @@ export async function fetchMarketChart(
     });
 
     if (!response.ok) {
-      console.error(
-        `CoinGecko market_chart error: ${response.status} ${response.statusText}`
-      );
+      if (response.status === 429) {
+        console.warn(`[CoinGecko] Rate limited (429) on market_chart for ${coingeckoId}, falling back`);
+      } else {
+        console.error(`CoinGecko market_chart error: ${response.status} ${response.statusText}`);
+      }
       return null;
     }
 

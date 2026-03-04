@@ -6,6 +6,7 @@ import {
   fetchSolanaAddressForCoin,
 } from "@/lib/data/coingecko";
 import { fetchAllProtocolTVLs } from "@/lib/data/defillama";
+import { fetchVerifiedTokens, fetchTokenPrices } from "@/lib/data/jupiter-tokens";
 import { fetchTokenSentiment } from "@/lib/supabase/queries";
 import { seedTokens, generatePriceHistory48h } from "@/lib/tokens";
 import type { MarketToken } from "@/lib/types";
@@ -51,8 +52,11 @@ export async function GET(): Promise<NextResponse> {
     const ecosystemTokens = await fetchSolanaEcosystemTokens();
 
     if (ecosystemTokens.length === 0) {
+      // CoinGecko unavailable (429 etc.) — enrich seedTokens with Jupiter prices
+      console.warn("[market-data] CoinGecko unavailable, using Jupiter price fallback");
+      const enriched = await enrichSeedTokensWithJupiter();
       return NextResponse.json(
-        { tokens: seedTokens },
+        { tokens: enriched },
         { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=300" } }
       );
     }
@@ -123,8 +127,8 @@ export async function GET(): Promise<NextResponse> {
         tvl,
         volume24h: eco.totalVolume,
         marketCap: eco.marketCap,
-        agentCount: sentiment?.agentCount ?? seed?.agentCount ?? 0,
-        bullishPercent: sentiment?.bullishPercent ?? seed?.bullishPercent ?? 50,
+        agentCount: sentiment?.agentCount ?? 0,
+        bullishPercent: sentiment?.bullishPercent ?? 50,
         sparkline7d,
         priceHistory48h,
       });
@@ -151,5 +155,40 @@ export async function GET(): Promise<NextResponse> {
         },
       }
     );
+  }
+}
+
+// ---------- Jupiter price fallback ----------
+
+/**
+ * Enrich seedTokens with live prices from Jupiter.
+ * Used when CoinGecko is unavailable (429 rate limit etc.).
+ */
+async function enrichSeedTokensWithJupiter(): Promise<MarketToken[]> {
+  try {
+    const addresses = seedTokens.map((t) => t.address);
+    const [jupiterPrices, jupiterTokens] = await Promise.all([
+      fetchTokenPrices(addresses),
+      fetchVerifiedTokens(),
+    ]);
+
+    // Build a logo lookup from Jupiter verified tokens
+    const logoMap = new Map<string, string>();
+    for (const jt of jupiterTokens) {
+      if (jt.logoURI) logoMap.set(jt.address, jt.logoURI);
+    }
+
+    return seedTokens.map((seed) => {
+      const jupPrice = jupiterPrices.get(seed.address);
+      return {
+        ...seed,
+        price: jupPrice ?? seed.price,
+        logoURI: logoMap.get(seed.address) ?? seed.logoURI,
+      };
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Jupiter fallback failed: ${message}`);
+    return seedTokens;
   }
 }

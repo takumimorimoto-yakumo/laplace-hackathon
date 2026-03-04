@@ -82,6 +82,29 @@ export async function fetchTokenPrice(
   }
 }
 
+// ---------- OHLCV → price pairs conversion ----------
+
+/** Convert OHLCV candles to [timestamp_ms, price][] pairs (using close price). */
+export function ohlcvToPricePairs(candles: OHLCV[]): [number, number][] {
+  return candles.map((c) => [c.time * 1000, c.close]);
+}
+
+/**
+ * Map chart days to Birdeye OHLCV timeframe type.
+ * - days=1  → "15m" (96 candles)
+ * - days=7  → "1H"  (168 candles)
+ * - days=30 → "4H"  (180 candles)
+ * - days≥365 → "1D" (365 candles)
+ */
+export function daysToOhlcvType(days: number): string {
+  if (days <= 1) return "15m";
+  if (days <= 7) return "1H";
+  if (days <= 30) return "4H";
+  return "1D";
+}
+
+// ---------- Fetch OHLCV ----------
+
 export async function fetchTokenOHLCV(
   address: string,
   timeframe: string

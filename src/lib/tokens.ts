@@ -20,12 +20,24 @@ export function generatePriceHistory(
   const points: number[] = [];
   const drift = volatility * driftMultiplier;
   let price = currentPrice * (1 - drift * 0.5);
+
+  // Use a seeded PRNG for deterministic but natural-looking noise
+  let seed = Math.abs(Math.round(currentPrice * 1000)) % 10000;
+  const nextRand = () => {
+    seed = (seed * 16807 + 0) % 2147483647;
+    return (seed / 2147483647) * 2 - 1; // range: -1 to 1
+  };
+
+  // Smooth noise accumulator (random walk with mean reversion)
+  let noiseAccum = 0;
+
   for (let i = 0; i < count; i++) {
-    const trend = ((currentPrice - price) / (count - i)) * 0.3;
-    const noise =
-      (Math.sin(i * 1.7) * 0.4 + Math.cos(i * 0.8) * 0.3) *
-      volatility *
-      currentPrice;
+    const trend = ((currentPrice - price) / (count - i + 1)) * 0.3;
+
+    // Random walk with mean reversion for smoother movement
+    noiseAccum = noiseAccum * 0.85 + nextRand() * 0.15;
+    const noise = noiseAccum * volatility * currentPrice * driftMultiplier;
+
     price = price + trend + noise;
     price = Math.max(price, currentPrice * (1 - drift));
     price = Math.min(price, currentPrice * (1 + drift));
@@ -62,8 +74,8 @@ export const seedTokens: MarketToken[] = [
     tvl: null,
     volume24h: 1_800_000_000,
     marketCap: null,
-    agentCount: 23,
-    bullishPercent: 72,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [170, 172, 168, 175, 178, 180, 185],
     priceHistory48h: generatePriceHistory48h(185.32, 0.04),
   },
@@ -79,8 +91,8 @@ export const seedTokens: MarketToken[] = [
     tvl: 1_800_000_000,
     volume24h: 180_000_000,
     marketCap: null,
-    agentCount: 18,
-    bullishPercent: 65,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [1.60, 1.55, 1.65, 1.70, 1.68, 1.75, 1.82],
     priceHistory48h: generatePriceHistory48h(1.82, 0.05),
   },
@@ -96,8 +108,8 @@ export const seedTokens: MarketToken[] = [
     tvl: 950_000_000,
     volume24h: 85_000_000,
     marketCap: null,
-    agentCount: 15,
-    bullishPercent: 58,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [3.90, 3.95, 4.00, 3.85, 4.05, 4.10, 4.15],
     priceHistory48h: generatePriceHistory48h(4.15, 0.03),
   },
@@ -113,8 +125,8 @@ export const seedTokens: MarketToken[] = [
     tvl: null,
     volume24h: 320_000_000,
     marketCap: null,
-    agentCount: 20,
-    bullishPercent: 45,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [18.0, 19.5, 17.5, 21.0, 20.0, 22.5, 23.4],
     priceHistory48h: generatePriceHistory48h(0.0000234, 0.08),
   },
@@ -130,8 +142,8 @@ export const seedTokens: MarketToken[] = [
     tvl: 500_000_000,
     volume24h: 42_000_000,
     marketCap: null,
-    agentCount: 8,
-    bullishPercent: 70,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [1.38, 1.40, 1.42, 1.39, 1.43, 1.44, 1.45],
     priceHistory48h: generatePriceHistory48h(1.45, 0.02),
   },
@@ -147,8 +159,8 @@ export const seedTokens: MarketToken[] = [
     tvl: 620_000_000,
     volume24h: 38_000_000,
     marketCap: null,
-    agentCount: 12,
-    bullishPercent: 48,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [4.00, 3.95, 3.98, 3.90, 3.85, 3.88, 3.87],
     priceHistory48h: generatePriceHistory48h(3.87, 0.03),
   },
@@ -164,8 +176,8 @@ export const seedTokens: MarketToken[] = [
     tvl: null,
     volume24h: 56_000_000,
     marketCap: null,
-    agentCount: 10,
-    bullishPercent: 62,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [0.38, 0.39, 0.37, 0.40, 0.41, 0.40, 0.42],
     priceHistory48h: generatePriceHistory48h(0.42, 0.04),
   },
@@ -181,8 +193,8 @@ export const seedTokens: MarketToken[] = [
     tvl: 1_200_000_000,
     volume24h: 72_000_000,
     marketCap: null,
-    agentCount: 14,
-    bullishPercent: 67,
+    agentCount: 0,
+    bullishPercent: 50,
     sparkline7d: [2.90, 2.95, 3.00, 3.05, 3.10, 3.15, 3.21],
     priceHistory48h: generatePriceHistory48h(3.21, 0.04),
   },

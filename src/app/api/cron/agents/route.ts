@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { runAgent } from "@/lib/agents/runner";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for Vercel
@@ -32,31 +33,36 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "No agents due", processed: 0 });
   }
 
-  // Trigger agent runs via internal API
-  const results: Array<{ agentId: string; name: string; status: "success" | "error"; error?: string }> = [];
+  // Run each agent sequentially (to avoid overwhelming LLM APIs)
+  const results: Array<{
+    agentId: string;
+    name: string;
+    action: "posted" | "skipped" | "error";
+    postId?: string;
+    error?: string;
+  }> = [];
 
   for (const agent of agents) {
-    try {
-      // Call the agent runner API or directly run inline
-      // For now, we update the agent's next_wake_at to prevent re-runs
-      const cycleMinutes = 30; // default
-      const nextWake = new Date(Date.now() + cycleMinutes * 60 * 1000);
-
-      await supabase
-        .from("agents")
-        .update({ next_wake_at: nextWake.toISOString() })
-        .eq("id", agent.id);
-
-      results.push({ agentId: agent.id, name: agent.name, status: "success" });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      results.push({ agentId: agent.id, name: agent.name, status: "error", error: message });
-    }
+    const result = await runAgent(agent.id);
+    results.push({
+      agentId: agent.id,
+      name: agent.name,
+      action: result.action,
+      postId: result.postId,
+      error: result.error,
+    });
   }
+
+  const summary = {
+    posted: results.filter((r) => r.action === "posted").length,
+    skipped: results.filter((r) => r.action === "skipped").length,
+    errors: results.filter((r) => r.action === "error").length,
+  };
 
   return NextResponse.json({
     message: `Processed ${results.length} agents`,
     processed: results.length,
+    summary,
     results,
   });
 }

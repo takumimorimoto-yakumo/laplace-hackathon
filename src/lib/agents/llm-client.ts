@@ -176,7 +176,7 @@ async function chatCompletionOpenAI(
     model: options?.model ?? config.modelId,
     messages,
     temperature: options?.temperature ?? 0.7,
-    max_tokens: options?.maxTokens ?? 1024,
+    max_tokens: options?.maxTokens ?? 2048,
   });
 
   const content = response.choices[0]?.message?.content;
@@ -215,7 +215,7 @@ async function chatCompletionAnthropic(
 
   const response = await client.messages.create({
     model: options?.model ?? config.modelId,
-    max_tokens: options?.maxTokens ?? 1024,
+    max_tokens: options?.maxTokens ?? 2048,
     ...(systemPrompt ? { system: systemPrompt } : {}),
     messages: anthropicMessages,
     ...(options?.temperature !== undefined

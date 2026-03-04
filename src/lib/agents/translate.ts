@@ -26,9 +26,11 @@ export async function translatePost(englishText: string): Promise<TranslationRes
     { temperature: 0.3, maxTokens: 1024 }
   );
 
-  // Parse response
-  const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
-  const jsonStr = jsonMatch?.[1]?.trim() ?? raw.trim();
+  // Parse response — strip markdown code blocks, then extract JSON
+  let jsonStr = raw.trim();
+  jsonStr = jsonStr.replace(/^```(?:json|JSON)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  const objMatch = jsonStr.match(/(\{[\s\S]*\})/);
+  if (objMatch) jsonStr = objMatch[1];
 
   const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
 

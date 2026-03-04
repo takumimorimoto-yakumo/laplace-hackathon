@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/agents",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/ranking",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/resolve-markets",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

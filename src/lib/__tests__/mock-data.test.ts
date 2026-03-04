@@ -1,72 +1,25 @@
 import { describe, it, expect } from "vitest";
 import {
-  agents,
-  timelinePosts,
   seedTokens,
-  predictionContest,
-  whaleTrackerPositions,
-  whaleTrackerTrades,
-  agentRentalPlans,
-  getRentalPlanForAgent,
   thinkingProcesses,
   getThinkingProcess,
   newsItems,
   isProPicker,
-  getProPickers,
-  getAgent,
+  predictionMarkets,
+  getPredictionMarkets,
+  getPredictionMarketForPost,
   getToken,
   getTokenBySymbol,
-  getPostsForToken,
   formatPrice,
   formatChange,
   formatCompactNumber,
 } from "../mock-data";
+import type { Agent } from "../types";
 
 // -------------------------------------------------------
-// Data integrity tests
+// Seed tokens
 // -------------------------------------------------------
-describe("mock data integrity", () => {
-  it("has 10 agents", () => {
-    expect(agents).toHaveLength(10);
-  });
-
-  it("every agent has required fields", () => {
-    for (const agent of agents) {
-      expect(agent.id).toBeTruthy();
-      expect(agent.name).toBeTruthy();
-      expect(agent.accuracy).toBeGreaterThanOrEqual(0);
-      expect(agent.accuracy).toBeLessThanOrEqual(1);
-      expect(agent.rank).toBeGreaterThan(0);
-      expect(agent.modules.length).toBeGreaterThan(0);
-      expect(agent.bio).toBeTruthy();
-    }
-  });
-
-  it("agent IDs are unique", () => {
-    const ids = agents.map((a) => a.id);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it("agent ranks are unique and sequential", () => {
-    const ranks = agents.map((a) => a.rank).sort((a, b) => a - b);
-    expect(ranks).toEqual(Array.from({ length: agents.length }, (_, i) => i + 1));
-  });
-
-  it("has timeline posts", () => {
-    expect(timelinePosts.length).toBeGreaterThan(0);
-  });
-
-  it("every post references a valid agent", () => {
-    for (const post of timelinePosts) {
-      expect(getAgent(post.agentId)).toBeDefined();
-    }
-  });
-
-  it("top-level posts have parentId === null", () => {
-    const topLevel = timelinePosts.filter((p) => p.parentId === null);
-    expect(topLevel.length).toBeGreaterThan(0);
-  });
-
+describe("seed tokens", () => {
   it("has seed tokens", () => {
     expect(seedTokens.length).toBeGreaterThan(0);
   });
@@ -90,73 +43,6 @@ describe("mock data integrity", () => {
     }
   });
 
-  it("prediction contest has entries", () => {
-    expect(predictionContest.entries.length).toBeGreaterThan(0);
-  });
-
-  it("prediction contest entries reference valid agents", () => {
-    for (const entry of predictionContest.entries) {
-      expect(getAgent(entry.agentId)).toBeDefined();
-    }
-  });
-
-  it("prediction contest firstPlaceProbability is 0-100", () => {
-    for (const entry of predictionContest.entries) {
-      expect(entry.firstPlaceProbability).toBeGreaterThanOrEqual(0);
-      expect(entry.firstPlaceProbability).toBeLessThanOrEqual(100);
-    }
-  });
-
-  it("prediction contest topThreeProbability is 0-100", () => {
-    for (const entry of predictionContest.entries) {
-      expect(entry.topThreeProbability).toBeGreaterThanOrEqual(0);
-      expect(entry.topThreeProbability).toBeLessThanOrEqual(100);
-    }
-  });
-
-  it("topThreeProbability >= firstPlaceProbability for every entry", () => {
-    for (const entry of predictionContest.entries) {
-      expect(entry.topThreeProbability).toBeGreaterThanOrEqual(entry.firstPlaceProbability);
-    }
-  });
-
-  it("has whale tracker positions", () => {
-    expect(whaleTrackerPositions.length).toBeGreaterThan(0);
-  });
-
-  it("has whale tracker trades", () => {
-    expect(whaleTrackerTrades.length).toBeGreaterThan(0);
-  });
-
-  it("posts with tokenAddress have non-null priceAtPrediction", () => {
-    function checkPosts(posts: typeof timelinePosts) {
-      for (const post of posts) {
-        if (post.tokenAddress !== null) {
-          expect(post.priceAtPrediction).not.toBeNull();
-          expect(typeof post.priceAtPrediction).toBe("number");
-        }
-        if (post.replies.length > 0) {
-          checkPosts(post.replies);
-        }
-      }
-    }
-    checkPosts(timelinePosts);
-  });
-
-  it("posts without tokenAddress have null priceAtPrediction", () => {
-    function checkPosts(posts: typeof timelinePosts) {
-      for (const post of posts) {
-        if (post.tokenAddress === null) {
-          expect(post.priceAtPrediction).toBeNull();
-        }
-        if (post.replies.length > 0) {
-          checkPosts(post.replies);
-        }
-      }
-    }
-    checkPosts(timelinePosts);
-  });
-
   it("every seed token has priceHistory48h with 48 elements", () => {
     for (const token of seedTokens) {
       expect(token.priceHistory48h).toHaveLength(48);
@@ -173,18 +59,6 @@ describe("mock data integrity", () => {
 // -------------------------------------------------------
 // Lookup helpers
 // -------------------------------------------------------
-describe("getAgent", () => {
-  it("returns agent by id", () => {
-    const agent = getAgent("agent-001");
-    expect(agent).toBeDefined();
-    expect(agent!.name).toBe("DeFi Yield Hunter");
-  });
-
-  it("returns undefined for unknown id", () => {
-    expect(getAgent("nonexistent")).toBeUndefined();
-  });
-});
-
 describe("getToken", () => {
   it("returns token by address", () => {
     const token = getToken("So11111111111111111111111111111111111111112");
@@ -263,56 +137,28 @@ describe("formatCompactNumber", () => {
 });
 
 // -------------------------------------------------------
-// getPostsForToken
+// Prediction markets
 // -------------------------------------------------------
-describe("getPostsForToken", () => {
-  it("returns posts for JUP token including replies", () => {
-    const jupPosts = getPostsForToken("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN");
-    expect(jupPosts.length).toBeGreaterThan(0);
-    // Should include replies (post-002, post-003 are replies about JUP)
-    const ids = jupPosts.map((p) => p.id);
-    expect(ids).toContain("post-002");
-    expect(ids).toContain("post-003");
+describe("prediction markets", () => {
+  it("has prediction markets", () => {
+    expect(predictionMarkets.length).toBeGreaterThan(0);
   });
 
-  it("returns empty array for unknown token", () => {
-    const posts = getPostsForToken("unknown-address");
-    expect(posts).toHaveLength(0);
-  });
-
-  it("every returned post references the requested token", () => {
-    const solPosts = getPostsForToken("So11111111111111111111111111111111111111112");
-    for (const post of solPosts) {
-      expect(post.tokenAddress).toBe("So11111111111111111111111111111111111111112");
-    }
-  });
-});
-
-// -------------------------------------------------------
-// Rental plans
-// -------------------------------------------------------
-describe("rental plans", () => {
-  it("every agent has exactly 1 rental plan", () => {
-    for (const agent of agents) {
-      const plan = getRentalPlanForAgent(agent.id);
-      expect(plan).toBeDefined();
+  it("getPredictionMarkets returns unresolved markets", () => {
+    const active = getPredictionMarkets();
+    for (const m of active) {
+      expect(m.isResolved).toBe(false);
     }
   });
 
-  it("total rental plans equals number of agents", () => {
-    expect(agentRentalPlans).toHaveLength(agents.length);
+  it("getPredictionMarketForPost returns market for known post", () => {
+    const market = getPredictionMarketForPost("post-007");
+    expect(market).toBeDefined();
+    expect(market!.tokenSymbol).toBe("SOL");
   });
 
-  it("all rental plans have positive monthly price", () => {
-    for (const plan of agentRentalPlans) {
-      expect(plan.monthlyPriceUsdc).toBeGreaterThan(0);
-    }
-  });
-
-  it("all rental plans reference valid agents", () => {
-    for (const plan of agentRentalPlans) {
-      expect(getAgent(plan.agentId)).toBeDefined();
-    }
+  it("getPredictionMarketForPost returns undefined for unknown post", () => {
+    expect(getPredictionMarketForPost("nonexistent")).toBeUndefined();
   });
 });
 
@@ -320,21 +166,6 @@ describe("rental plans", () => {
 // Thinking processes
 // -------------------------------------------------------
 describe("thinking processes", () => {
-  it("every thinking process references a valid post ID", () => {
-    const allPostIds = new Set<string>();
-    function collectIds(posts: typeof timelinePosts) {
-      for (const post of posts) {
-        allPostIds.add(post.id);
-        if (post.replies.length > 0) collectIds(post.replies);
-      }
-    }
-    collectIds(timelinePosts);
-
-    for (const tp of thinkingProcesses) {
-      expect(allPostIds.has(tp.postId)).toBe(true);
-    }
-  });
-
   it("getThinkingProcess returns correct process", () => {
     const tp = getThinkingProcess("post-001");
     expect(tp).toBeDefined();
@@ -376,45 +207,33 @@ describe("news items", () => {
   it("has at least 5 news items", () => {
     expect(newsItems.length).toBeGreaterThanOrEqual(5);
   });
-
-  it("every news item references a valid agent as author", () => {
-    for (const item of newsItems) {
-      expect(getAgent(item.authorAgentId)).toBeDefined();
-    }
-  });
-
-  it("every news author is a Pro Picker", () => {
-    for (const item of newsItems) {
-      const author = getAgent(item.authorAgentId)!;
-      expect(isProPicker(author)).toBe(true);
-    }
-  });
 });
 
 // -------------------------------------------------------
 // Pro Picker
 // -------------------------------------------------------
 describe("pro picker", () => {
-  it("returns 9 pro pickers (Meme Hunter excluded)", () => {
-    const pickers = getProPickers();
-    expect(pickers).toHaveLength(9);
+  const highRankAgent: Agent = {
+    id: "test-001", name: "Test Agent", style: "swing", modules: ["defi"],
+    llm: "claude-sonnet", accuracy: 0.8, rank: 1, totalVotes: 1000,
+    trend: "stable", portfolioValue: 10000, portfolioReturn: 0.1,
+    bio: "Test", personality: "Test", voiceStyle: "analytical",
+    temperature: 0.5, cycleIntervalMinutes: 60, isSystem: true,
+  };
+
+  const lowAccuracyAgent: Agent = {
+    ...highRankAgent, id: "test-002", accuracy: 0.5, rank: 10,
+  };
+
+  it("includes agents with high rank and accuracy", () => {
+    expect(isProPicker(highRankAgent)).toBe(true);
   });
 
   it("excludes agents with accuracy below 60%", () => {
-    const memeHunter = getAgent("agent-010")!;
-    expect(memeHunter.accuracy).toBeLessThan(0.6);
-    expect(isProPicker(memeHunter)).toBe(false);
+    expect(isProPicker(lowAccuracyAgent)).toBe(false);
   });
 
-  it("includes top-ranked agents with sufficient accuracy", () => {
-    const defiHunter = getAgent("agent-001")!;
-    expect(isProPicker(defiHunter)).toBe(true);
-  });
-
-  it("all pro pickers have rank <= 10 and accuracy >= 0.6", () => {
-    for (const picker of getProPickers()) {
-      expect(picker.rank).toBeLessThanOrEqual(10);
-      expect(picker.accuracy).toBeGreaterThanOrEqual(0.6);
-    }
+  it("excludes agents ranked above 10", () => {
+    expect(isProPicker({ ...highRankAgent, rank: 11 })).toBe(false);
   });
 });

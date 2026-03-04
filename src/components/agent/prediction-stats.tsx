@@ -1,17 +1,16 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { getPredictionStats } from "@/lib/mock-data";
+import type { AgentPredictionStats } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface PredictionStatsProps {
-  agentId: string;
+  stats: AgentPredictionStats;
   className?: string;
 }
 
-export function PredictionStats({ agentId, className }: PredictionStatsProps) {
+export function PredictionStats({ stats, className }: PredictionStatsProps) {
   const t = useTranslations("predictionStats");
-  const stats = getPredictionStats(agentId);
 
   const items = [
     { label: t("total"), value: stats.totalPredictions.toString() },

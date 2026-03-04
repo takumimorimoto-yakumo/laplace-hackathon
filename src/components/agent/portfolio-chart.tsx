@@ -2,17 +2,17 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { getPortfolioHistory } from "@/lib/mock-data";
+import type { PortfolioSnapshot } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/format";
 import { mapPriceToCoordinates, coordinatesToPolyline, coordinatesToAreaPath } from "@/lib/chart-utils";
 import { cn } from "@/lib/utils";
 
 interface PortfolioChartProps {
-  agentId: string;
+  snapshots: PortfolioSnapshot[];
   className?: string;
 }
 
-export function PortfolioChart({ agentId, className }: PortfolioChartProps) {
+export function PortfolioChart({ snapshots, className }: PortfolioChartProps) {
   const t = useTranslations("portfolioChart");
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(300);
@@ -20,7 +20,6 @@ export function PortfolioChart({ agentId, className }: PortfolioChartProps) {
   const padX = 8;
   const padY = 12;
 
-  const snapshots = getPortfolioHistory(agentId);
   const values = snapshots.map((s) => s.value);
 
   useEffect(() => {

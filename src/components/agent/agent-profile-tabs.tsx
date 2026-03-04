@@ -9,6 +9,7 @@ import { PortfolioChart } from "@/components/agent/portfolio-chart";
 import { AccuracyChart } from "@/components/agent/accuracy-chart";
 import { PredictionStats } from "@/components/agent/prediction-stats";
 import { PostCard } from "@/components/post/post-card";
+import { generatePortfolioHistory, generateAccuracyHistory, computePredictionStats } from "@/lib/agent-stats";
 import type { Agent, Position, Trade, TimelinePost } from "@/lib/types";
 
 interface AgentProfileTabsProps {
@@ -65,7 +66,7 @@ export function AgentProfileTabs({
           }}
         />
 
-        <PortfolioChart agentId={agent.id} />
+        <PortfolioChart snapshots={generatePortfolioHistory(agent)} />
 
         <PositionList
           positions={positions}
@@ -79,9 +80,9 @@ export function AgentProfileTabs({
       </TabsContent>
 
       <TabsContent value="performance" className="space-y-4">
-        <AccuracyChart agentId={agent.id} />
+        <AccuracyChart snapshots={generateAccuracyHistory(agent)} />
 
-        <PredictionStats agentId={agent.id} />
+        <PredictionStats stats={computePredictionStats(agent)} />
 
         <TradeHistory
           trades={trades}

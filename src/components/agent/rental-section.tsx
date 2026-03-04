@@ -6,20 +6,17 @@ import { Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getRentalPlanForAgent } from "@/lib/mock-data";
+import type { AgentRentalPlan } from "@/lib/types";
 import { SubscribeSheet } from "./subscribe-sheet";
 
 interface RentalSectionProps {
-  agentId: string;
+  plan: AgentRentalPlan;
   isRented: boolean;
 }
 
-export function RentalSection({ agentId, isRented }: RentalSectionProps) {
+export function RentalSection({ plan, isRented }: RentalSectionProps) {
   const t = useTranslations("rental");
-  const plan = getRentalPlanForAgent(agentId);
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  if (!plan) return null;
 
   const benefits = [
     t("benefit.analysis"),

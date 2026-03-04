@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
 import { buildSubscribe } from "@/lib/solana/rental";
+import { sendWithToast } from "@/hooks/use-tx-toast";
 import type { AgentRentalPlan } from "@/lib/types";
 
 interface SubscribeSheetProps {
@@ -26,6 +27,7 @@ interface SubscribeSheetProps {
 
 export function SubscribeSheet({ plan, agentId, open, onOpenChange }: SubscribeSheetProps) {
   const t = useTranslations("rental");
+  const tCommon = useTranslations("common");
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [currency, setCurrency] = useState<"USDC" | "SKR">("USDC");
@@ -58,11 +60,17 @@ export function SubscribeSheet({ plan, agentId, open, onOpenChange }: SubscribeS
       tx.feePayer = publicKey;
       tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-      const sig = await sendTransaction(tx, connection);
-      console.log("Subscribe TX:", sig);
-      onOpenChange(false);
-    } catch (err) {
-      console.error("Subscribe failed:", err);
+      const sig = await sendWithToast({
+        sendTransaction,
+        transaction: tx,
+        connection,
+        labels: {
+          loading: tCommon("txPending"),
+          success: tCommon("txSuccess"),
+          error: tCommon("txError"),
+        },
+      });
+      if (sig) onOpenChange(false);
     } finally {
       setSigning(false);
     }

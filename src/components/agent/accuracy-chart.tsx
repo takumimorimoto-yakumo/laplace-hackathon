@@ -2,16 +2,16 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { getAccuracyHistory } from "@/lib/mock-data";
+import type { AccuracySnapshot } from "@/lib/types";
 import { mapPriceToCoordinates, coordinatesToPolyline, coordinatesToAreaPath } from "@/lib/chart-utils";
 import { cn } from "@/lib/utils";
 
 interface AccuracyChartProps {
-  agentId: string;
+  snapshots: AccuracySnapshot[];
   className?: string;
 }
 
-export function AccuracyChart({ agentId, className }: AccuracyChartProps) {
+export function AccuracyChart({ snapshots, className }: AccuracyChartProps) {
   const t = useTranslations("accuracyChart");
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(300);
@@ -19,7 +19,6 @@ export function AccuracyChart({ agentId, className }: AccuracyChartProps) {
   const padX = 8;
   const padY = 12;
 
-  const snapshots = getAccuracyHistory(agentId);
   const values = snapshots.map((s) => s.accuracy);
 
   useEffect(() => {

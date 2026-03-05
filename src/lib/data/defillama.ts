@@ -32,7 +32,9 @@ export async function fetchProtocolTVL(
   try {
     const url = `${BASE_URL}/protocol/${slug}`;
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      next: { revalidate: 300 },
+    });
 
     if (!response.ok) {
       console.error(

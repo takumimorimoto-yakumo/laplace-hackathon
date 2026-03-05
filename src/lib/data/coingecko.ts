@@ -119,75 +119,65 @@ const CACHE_TTL_MS = 300_000; // 5 minutes (extended to reduce 429s on free tier
 let ecosystemCache: CacheEntry<SolanaEcosystemToken[]> | null = null;
 
 /**
- * Fetch top Solana ecosystem tokens from CoinGecko (up to 200).
- * Includes price, change24h, volume, marketCap, sparkline, and image.
- * No API key required. Cached for 5 minutes.
+ * Fetch top Solana ecosystem tokens from CoinGecko (up to 100).
+ * Single page fetch — UI paginates at 20 so 100 tokens is sufficient.
+ * Cached for 5 minutes in-memory + Next.js server cache (revalidate: 300).
  */
 export async function fetchSolanaEcosystemTokens(): Promise<SolanaEcosystemToken[]> {
   if (ecosystemCache && Date.now() < ecosystemCache.expiresAt) {
     return ecosystemCache.data;
   }
 
-  const results: SolanaEcosystemToken[] = [];
+  try {
+    const url = new URL(`${BASE_URL}/coins/markets`);
+    url.searchParams.set("vs_currency", "usd");
+    url.searchParams.set("category", "solana-ecosystem");
+    url.searchParams.set("order", "volume_desc");
+    url.searchParams.set("per_page", "100");
+    url.searchParams.set("page", "1");
+    url.searchParams.set("sparkline", "true");
 
-  // Fetch 2 pages of 100 tokens each (with delay to avoid 429)
-  for (const page of [1, 2]) {
-    if (page > 1) {
-      await new Promise((r) => setTimeout(r, 1500));
+    const response = await fetch(url.toString(), {
+      headers: getHeaders(),
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        console.warn("[CoinGecko] Rate limited (429) on ecosystem fetch, using fallback");
+      } else {
+        console.error(`CoinGecko ecosystem error: ${response.status}`);
+      }
+      return [];
     }
 
-    try {
-      const url = new URL(`${BASE_URL}/coins/markets`);
-      url.searchParams.set("vs_currency", "usd");
-      url.searchParams.set("category", "solana-ecosystem");
-      url.searchParams.set("order", "volume_desc");
-      url.searchParams.set("per_page", "100");
-      url.searchParams.set("page", String(page));
-      url.searchParams.set("sparkline", page === 1 ? "true" : "false");
+    const json = (await response.json()) as CoinGeckoRawMarketItem[];
 
-      const response = await fetch(url.toString(), {
-        headers: getHeaders(),
-      });
+    const results: SolanaEcosystemToken[] = json.map((item) => ({
+      coingeckoId: item.id,
+      symbol: item.symbol,
+      name: item.name,
+      image: item.image || null,
+      currentPrice: item.current_price ?? 0,
+      marketCap: item.market_cap ?? 0,
+      totalVolume: item.total_volume ?? 0,
+      priceChangePercentage24h: item.price_change_percentage_24h ?? 0,
+      sparklineIn7d: item.sparkline_in_7d?.price ?? [],
+    }));
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          console.warn(`[CoinGecko] Rate limited (429) on ecosystem page ${page}, using fallback`);
-          break;
-        }
-        console.error(`CoinGecko ecosystem page ${page} error: ${response.status}`);
-        break;
-      }
-
-      const json = (await response.json()) as CoinGeckoRawMarketItem[];
-
-      for (const item of json) {
-        results.push({
-          coingeckoId: item.id,
-          symbol: item.symbol,
-          name: item.name,
-          image: item.image || null,
-          currentPrice: item.current_price ?? 0,
-          marketCap: item.market_cap ?? 0,
-          totalVolume: item.total_volume ?? 0,
-          priceChangePercentage24h: item.price_change_percentage_24h ?? 0,
-          sparklineIn7d: item.sparkline_in_7d?.price ?? [],
-        });
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`CoinGecko ecosystem page ${page} failed: ${message}`);
-      break;
+    if (results.length > 0) {
+      ecosystemCache = {
+        data: results,
+        expiresAt: Date.now() + CACHE_TTL_MS,
+      };
     }
-  }
 
-  if (results.length > 0) {
-    ecosystemCache = {
-      data: results,
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    };
+    return results;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`CoinGecko ecosystem fetch failed: ${message}`);
+    return [];
   }
-
-  return results;
 }
 
 // ---------- CoinGecko ID → Solana Address Resolution ----------

@@ -3,6 +3,7 @@ import {
   stripHtml,
   detectInjection,
   checkForbiddenContent,
+  checkUrls,
   jaccardSimilarity,
   checkDuplicate,
   checkContentSafety,
@@ -94,6 +95,61 @@ describe("Content Safety", () => {
       const result = checkForbiddenContent("ETH looking bullish, strong volume above 4k");
       expect(result.safe).toBe(true);
     });
+
+    // A2: Expanded patterns
+    it("blocks 'rug pull'", () => {
+      expect(checkForbiddenContent("This is a rug pull waiting to happen").safe).toBe(false);
+    });
+
+    it("blocks 'honeypot'", () => {
+      expect(checkForbiddenContent("Looks like a honeypot contract").safe).toBe(false);
+    });
+
+    it("blocks 'pump and dump'", () => {
+      expect(checkForbiddenContent("Classic pump and dump scheme").safe).toBe(false);
+    });
+
+    it("blocks 'ponzi'", () => {
+      expect(checkForbiddenContent("This project is a ponzi").safe).toBe(false);
+    });
+
+    it("blocks 'buy now' shilling", () => {
+      expect(checkForbiddenContent("Buy now before it moons!").safe).toBe(false);
+    });
+
+    it("blocks 'insider info'", () => {
+      expect(checkForbiddenContent("I have insider info on this token").safe).toBe(false);
+    });
+
+    it("blocks airdrop scams", () => {
+      expect(checkForbiddenContent("Free airdrop! Claim your tokens now").safe).toBe(false);
+    });
+
+    it("blocks free crypto scams", () => {
+      expect(checkForbiddenContent("Get free crypto just sign up").safe).toBe(false);
+    });
+
+    it("blocks hate speech", () => {
+      expect(checkForbiddenContent("you are retarded").safe).toBe(false);
+    });
+  });
+
+  describe("checkUrls", () => {
+    it("blocks http URLs", () => {
+      expect(checkUrls("Check out http://scam.com for free tokens").safe).toBe(false);
+    });
+
+    it("blocks https URLs", () => {
+      expect(checkUrls("Visit https://phishing.io/claim").safe).toBe(false);
+    });
+
+    it("allows text without URLs", () => {
+      expect(checkUrls("SOL breaking $200 resistance level").safe).toBe(true);
+    });
+
+    it("allows mentions of protocols without links", () => {
+      expect(checkUrls("The DeFi protocol shows strong TVL growth").safe).toBe(true);
+    });
   });
 
   describe("jaccardSimilarity", () => {
@@ -166,6 +222,11 @@ describe("Content Safety", () => {
 
     it("catches forbidden content", () => {
       const result = checkContentSafety("Guaranteed profit on this token!");
+      expect(result.safe).toBe(false);
+    });
+
+    it("catches URLs", () => {
+      const result = checkContentSafety("Check https://example.com for alpha");
       expect(result.safe).toBe(false);
     });
 

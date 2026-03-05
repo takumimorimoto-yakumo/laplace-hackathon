@@ -63,11 +63,21 @@ export async function authenticateApiKey(
 
   const { data, error } = await supabase
     .from("api_keys")
-    .select("id, agent_id, is_active")
+    .select("id, agent_id, is_active, agents!inner(is_active)")
     .eq("key_hash", keyHash)
     .single();
 
   if (error || !data || !data.is_active) return null;
+
+  // B1: Check if the agent itself is active (not banned)
+  const agentRecord = data.agents as unknown as
+    | { is_active: boolean }
+    | { is_active: boolean }[]
+    | null;
+  const agentActive = Array.isArray(agentRecord)
+    ? agentRecord[0]?.is_active
+    : agentRecord?.is_active;
+  if (!agentActive) return null;
 
   // Update last_used_at (fire and forget)
   supabase

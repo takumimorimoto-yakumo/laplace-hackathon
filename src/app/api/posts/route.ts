@@ -106,18 +106,51 @@ export async function POST(request: NextRequest) {
   // Layer 4: Content safety
   const supabase = createAdminClient();
 
-  // Fetch recent posts for duplicate detection
+  // A4: Fetch recent posts from ALL agents for cross-agent duplicate detection
   const { data: recentPosts } = await supabase
     .from("timeline_posts")
     .select("natural_text")
-    .eq("agent_id", auth.agentId)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(50);
 
-  const recentTexts = (recentPosts ?? []).map((p) => p.natural_text);
+  const recentTexts = (recentPosts ?? []).map((p) => p.natural_text as string);
   const safetyResult = checkContentSafety(cleanText, recentTexts);
 
   if (!safetyResult.safe) {
+    // B2: Record violation and increment counter
+    supabase
+      .from("content_violations")
+      .insert({
+        agent_id: auth.agentId,
+        post_type: "original",
+        content: cleanText.slice(0, 500),
+        reason: safetyResult.reason ?? "unknown",
+      })
+      .then(() => {});
+
+    supabase
+      .rpc("increment_violation_count", {
+        target_agent_id: auth.agentId,
+      })
+      .then(async () => {
+        // B3: Auto-suspend after 5 violations
+        const { data: agentData } = await supabase
+          .from("agents")
+          .select("violation_count")
+          .eq("id", auth.agentId)
+          .single();
+
+        if (agentData && (agentData.violation_count as number) >= 5) {
+          await supabase
+            .from("agents")
+            .update({ is_active: false })
+            .eq("id", auth.agentId);
+          console.warn(
+            `[safety] Agent ${auth.agentId} auto-suspended after ${agentData.violation_count} violations`
+          );
+        }
+      });
+
     const res = badRequest(safetyResult.reason ?? "Content rejected");
     await logApiRequest(
       buildLogEntry(request, 400, {

@@ -63,10 +63,27 @@ const FORBIDDEN_PATTERNS = [
   /private\s+key/i,
   /seed\s+phrase/i,
   /connect\s+your\s+wallet\s+to/i,
+  // Crypto scams
+  /rug\s*pull/i,
+  /honey\s*pot/i,
+  /pump\s*(?:and|&|n)\s*dump/i,
+  /ponzi/i,
+  /pyramid\s+scheme/i,
+  /airdrop.*(?:claim|connect|link)/i,
+  /free\s+(?:crypto|tokens?|coins?|nft)/i,
+  // Shilling / market manipulation
+  /buy\s+(?:now|immediately|before|asap)/i,
+  /moon(?:ing|shot)?\s+(?:guaranteed|100%|certain)/i,
+  /insider\s+(?:info|knowledge|tip)/i,
   // Danger/harm
   /\bkill\b/i,
   /\bbomb\b/i,
   /\bterror/i,
+  // Hate speech
+  /\bn[i1]gg/i,
+  /\bfagg/i,
+  /\bretard(?:ed)?\b/i,
+  /\bkys\b/i,
 ];
 
 export function checkForbiddenContent(text: string): ContentSafetyResult {
@@ -124,6 +141,20 @@ export function checkDuplicate(
   return { safe: true };
 }
 
+// ---------- URL Detection ----------
+
+const URL_PATTERN = /https?:\/\/[^\s]+/i;
+
+/**
+ * Block posts containing URLs (phishing prevention).
+ */
+export function checkUrls(text: string): ContentSafetyResult {
+  if (URL_PATTERN.test(text)) {
+    return { safe: false, reason: "URLs are not allowed in posts" };
+  }
+  return { safe: true };
+}
+
 // ---------- Combined Check ----------
 
 /**
@@ -144,6 +175,10 @@ export function checkContentSafety(
   // Check for forbidden content
   const forbiddenResult = checkForbiddenContent(cleaned);
   if (!forbiddenResult.safe) return forbiddenResult;
+
+  // Check for URLs
+  const urlResult = checkUrls(cleaned);
+  if (!urlResult.safe) return urlResult;
 
   // Check for duplicates
   const duplicateResult = checkDuplicate(cleaned, recentTexts);

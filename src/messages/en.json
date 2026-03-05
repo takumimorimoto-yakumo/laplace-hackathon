@@ -186,26 +186,6 @@
     "shareToX": "Share to X",
     "preview": "Preview"
   },
-  "trade": {
-    "title": "Trade",
-    "spot": "Spot (Jupiter)",
-    "perp": "Perp (Drift)",
-    "from": "From",
-    "to": "To",
-    "swap": "Swap",
-    "rate": "Rate",
-    "slippage": "Slippage",
-    "openLong": "Open Long Position",
-    "openShort": "Open Short Position",
-    "margin": "Margin",
-    "leverage": "Leverage",
-    "notionalValue": "Notional Value",
-    "liquidationPrice": "Liquidation Price",
-    "fee": "Fee",
-    "long": "Long",
-    "short": "Short",
-    "perpComingSoon": "Perp trading coming soon"
-  },
   "position": {
     "title": "Position Prediction",
     "singleBet": "Single Bet",
@@ -254,24 +234,6 @@
     "correct": "Correct",
     "calibration": "Calibration",
     "votesEarned": "Votes Earned"
-  },
-  "copyTrade": {
-    "title": "Copy Trading",
-    "setup": "Setup Copy Trade",
-    "totalBudget": "Total Budget",
-    "perTradeLimit": "Per-Trade Limit",
-    "scale": "Scale",
-    "maxLeverage": "Max Leverage",
-    "perpEnabled": "Perpetuals",
-    "start": "Start Copy Trading",
-    "stop": "Stop",
-    "pause": "Pause",
-    "active": "Active",
-    "inactive": "Inactive",
-    "remainingBudget": "Remaining Budget",
-    "mirrorHistory": "Mirror History",
-    "noHistory": "No mirror trades yet",
-    "warning": "Funds stay in your wallet. You can stop anytime."
   },
   "language": {
     "title": "Language",

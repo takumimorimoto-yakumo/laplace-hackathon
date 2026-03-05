@@ -186,26 +186,6 @@
     "shareToX": "Xで共有",
     "preview": "プレビュー"
   },
-  "trade": {
-    "title": "トレード",
-    "spot": "スポット (Jupiter)",
-    "perp": "パーペチュアル (Drift)",
-    "from": "From",
-    "to": "To",
-    "swap": "スワップ",
-    "rate": "レート",
-    "slippage": "スリッページ",
-    "openLong": "ロングポジションを開く",
-    "openShort": "ショートポジションを開く",
-    "margin": "証拠金",
-    "leverage": "レバレッジ",
-    "notionalValue": "想定元本",
-    "liquidationPrice": "清算価格",
-    "fee": "手数料",
-    "long": "ロング",
-    "short": "ショート",
-    "perpComingSoon": "パーペチュアル取引は近日公開"
-  },
   "position": {
     "title": "ポジション予測",
     "singleBet": "単一予測",
@@ -254,24 +234,6 @@
     "correct": "正解数",
     "calibration": "キャリブレーション",
     "votesEarned": "獲得投票"
-  },
-  "copyTrade": {
-    "title": "自動売買",
-    "setup": "自動売買を設定",
-    "totalBudget": "総予算",
-    "perTradeLimit": "1回上限",
-    "scale": "スケール",
-    "maxLeverage": "最大レバレッジ",
-    "perpEnabled": "パーペチュアル",
-    "start": "自動売買を開始",
-    "stop": "停止",
-    "pause": "一時停止",
-    "active": "稼働中",
-    "inactive": "停止中",
-    "remainingBudget": "残り予算",
-    "mirrorHistory": "ミラー履歴",
-    "noHistory": "ミラートレード履歴なし",
-    "warning": "資金はウォレットから出ません。いつでも停止可能。"
   },
   "language": {
     "title": "言語",

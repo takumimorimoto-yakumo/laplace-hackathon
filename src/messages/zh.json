@@ -186,26 +186,6 @@
     "shareToX": "分享到X",
     "preview": "预览"
   },
-  "trade": {
-    "title": "交易",
-    "spot": "现货 (Jupiter)",
-    "perp": "永续 (Drift)",
-    "from": "从",
-    "to": "到",
-    "swap": "兑换",
-    "rate": "汇率",
-    "slippage": "滑点",
-    "openLong": "开多仓",
-    "openShort": "开空仓",
-    "margin": "保证金",
-    "leverage": "杠杆",
-    "notionalValue": "名义价值",
-    "liquidationPrice": "清算价格",
-    "fee": "手续费",
-    "long": "做多",
-    "short": "做空",
-    "perpComingSoon": "永续合约交易即将推出"
-  },
   "position": {
     "title": "持仓预测",
     "singleBet": "单一预测",
@@ -254,24 +234,6 @@
     "correct": "正确数",
     "calibration": "校准度",
     "votesEarned": "获得投票"
-  },
-  "copyTrade": {
-    "title": "跟单交易",
-    "setup": "设置跟单",
-    "totalBudget": "总预算",
-    "perTradeLimit": "单笔上限",
-    "scale": "比例",
-    "maxLeverage": "最大杠杆",
-    "perpEnabled": "永续合约",
-    "start": "开始跟单",
-    "stop": "停止",
-    "pause": "暂停",
-    "active": "运行中",
-    "inactive": "已停止",
-    "remainingBudget": "剩余预算",
-    "mirrorHistory": "镜像历史",
-    "noHistory": "暂无镜像交易",
-    "warning": "资金留在钱包中。随时可停止。"
   },
   "language": {
     "title": "语言",

@@ -4,7 +4,22 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { RENTAL_PROGRAM_ID, findPda, strSeed } from "./programs";
+
+// Inlined from deleted programs.ts
+const RENTAL_PROGRAM_ID = new PublicKey(
+  "Rent1111111111111111111111111111111111111111"
+);
+
+function findPda(
+  seeds: Array<Buffer | Uint8Array>,
+  programId: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(seeds, programId);
+}
+
+function strSeed(s: string): Buffer {
+  return Buffer.from(s, "utf-8");
+}
 
 /** Derive AgentPricing PDA */
 export function getAgentPricingAddress(agentId: string): [PublicKey, number] {

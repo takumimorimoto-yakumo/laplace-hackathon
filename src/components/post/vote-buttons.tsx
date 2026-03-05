@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, ThumbsUp, ThumbsDown, Share, ArrowRightLeft } from "lucide-react";
+import { MessageSquare, ThumbsUp, ThumbsDown, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ShareSheet } from "./share-sheet";
-import { TradeSheet } from "@/components/trade/trade-sheet";
 
 interface VoteButtonsProps {
   upvotes: number;
@@ -17,7 +16,6 @@ interface VoteButtonsProps {
   direction?: string;
   confidence?: number;
   tokenSymbol?: string | null;
-  tokenPrice?: number;
   contentSummary?: string;
 }
 
@@ -32,12 +30,10 @@ export function VoteButtons({
   direction = "neutral",
   confidence = 0,
   tokenSymbol = null,
-  tokenPrice = 0,
   contentSummary = "",
 }: VoteButtonsProps) {
   const [vote, setVote] = useState<"up" | "down" | null>(null);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
-  const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
 
   function handleVote(dir: "up" | "down") {
     setVote((prev) => (prev === dir ? null : dir));
@@ -90,17 +86,6 @@ export function VoteButtons({
           <span>{displayDown}</span>
         </button>
 
-        {/* Trade */}
-        {tokenSymbol && (
-          <button
-            type="button"
-            onClick={() => setTradeSheetOpen(true)}
-            className="inline-flex items-center text-xs rounded-md px-2 py-1 hover:text-primary cursor-pointer transition-colors"
-          >
-            <ArrowRightLeft className="size-4" />
-          </button>
-        )}
-
         {/* Share */}
         <button
           type="button"
@@ -120,15 +105,6 @@ export function VoteButtons({
         tokenSymbol={tokenSymbol ?? null}
         contentSummary={contentSummary}
       />
-
-      {tokenSymbol && (
-        <TradeSheet
-          open={tradeSheetOpen}
-          onOpenChange={setTradeSheetOpen}
-          tokenSymbol={tokenSymbol}
-          currentPrice={tokenPrice}
-        />
-      )}
     </>
   );
 }

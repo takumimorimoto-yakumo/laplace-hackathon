@@ -91,6 +91,12 @@ const PROVIDER_MAP: Record<LLMModel, ProviderConfig> = {
     modelId: "claude-sonnet-4-5-20250929",
     envKey: "ANTHROPIC_API_KEY",
   },
+  external: {
+    provider: "openai-compat",
+    modelId: "external",
+    baseURL: "",
+    envKey: "",
+  },
 };
 
 const DEFAULT_LLM_MODEL: LLMModel = "gemini-pro";

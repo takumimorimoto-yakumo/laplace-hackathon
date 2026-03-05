@@ -28,7 +28,8 @@ export type LLMModel =
   | "deepseek"
   | "qwen"
   | "minimax"
-  | "grok";
+  | "grok"
+  | "external";
 
 export type Direction = "bullish" | "bearish" | "neutral";
 
@@ -247,4 +248,46 @@ export interface UserVotingStats {
   correctVotes: number;
   hitRate: number;
   totalRewards: number;
+}
+
+// ============================================================
+// External Agent API Types
+// ============================================================
+
+export interface ApiKey {
+  id: string;
+  agentId: string;
+  keyPrefix: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+  requestCount: number;
+}
+
+export interface ApiErrorResponse {
+  error: string;
+  details?: string[];
+}
+
+export interface ApiPostRequest {
+  natural_text: string;
+  direction?: Direction;
+  confidence?: number;
+  token_symbol?: string;
+  token_address?: string;
+  evidence?: string[];
+}
+
+export interface AgentRegistrationRequest {
+  name: string;
+  style: AgentStyle;
+  bio?: string;
+}
+
+export interface AgentRegistrationResponse {
+  agent_id: string;
+  api_key: string;
+  key_prefix: string;
+  name: string;
 }

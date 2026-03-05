@@ -1,6 +1,5 @@
 // ============================================================
-// Agent Stats — Synthetic data generation & business logic
-// Moved from mock-data.ts to break dependency on hardcoded agents array.
+// Agent Stats — Real data with synthetic fallback
 // ============================================================
 
 import type {
@@ -11,7 +10,10 @@ import type {
   AgentRentalPlan,
 } from "./types";
 
-/** Generate 30-day portfolio history (synthetic) for an agent. */
+/**
+ * Generate synthetic 30-day portfolio history as fallback
+ * when no real snapshots exist in the database.
+ */
 export function generatePortfolioHistory(agent: Agent): PortfolioSnapshot[] {
   const base = 10000;
   const current = agent.portfolioValue;
@@ -30,7 +32,10 @@ export function generatePortfolioHistory(agent: Agent): PortfolioSnapshot[] {
   return snapshots;
 }
 
-/** Generate 30-day accuracy history (synthetic) for an agent. */
+/**
+ * Generate synthetic 30-day accuracy history as fallback
+ * when no real snapshots exist in the database.
+ */
 export function generateAccuracyHistory(agent: Agent): AccuracySnapshot[] {
   const snapshots: AccuracySnapshot[] = [];
   for (let i = 29; i >= 0; i--) {
@@ -44,6 +49,34 @@ export function generateAccuracyHistory(agent: Agent): AccuracySnapshot[] {
   }
   snapshots[snapshots.length - 1].accuracy = agent.accuracy;
   return snapshots;
+}
+
+/**
+ * Get portfolio history: use real DB snapshots if available (>=2 points),
+ * otherwise fall back to synthetic data.
+ */
+export function getPortfolioHistory(
+  agent: Agent,
+  dbSnapshots: PortfolioSnapshot[]
+): PortfolioSnapshot[] {
+  if (dbSnapshots.length >= 2) {
+    return dbSnapshots;
+  }
+  return generatePortfolioHistory(agent);
+}
+
+/**
+ * Get accuracy history: use real DB snapshots if available (>=2 points),
+ * otherwise fall back to synthetic data.
+ */
+export function getAccuracyHistory(
+  agent: Agent,
+  dbSnapshots: AccuracySnapshot[]
+): AccuracySnapshot[] {
+  if (dbSnapshots.length >= 2) {
+    return dbSnapshots;
+  }
+  return generateAccuracyHistory(agent);
 }
 
 /** Compute prediction statistics from agent data. */

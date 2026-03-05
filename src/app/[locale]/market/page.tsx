@@ -2,17 +2,16 @@ import { Metadata } from "next";
 import { getLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { MarketOverview } from "@/components/market/market-overview";
-import { MarketClient } from "@/components/market/market-client";
-import { NewsBoard } from "@/components/market/news-board";
+import { MarketPageContent } from "@/components/market/market-page-content";
 import { seedTokens, generatePriceHistory48h } from "@/lib/tokens";
-import { newsItems } from "@/lib/mock-data";
+import { newsItems as mockNewsItems } from "@/lib/mock-data";
 import {
   fetchSolanaEcosystemTokens,
   resolveSolanaAddress,
-  fetchSolanaAddressForCoin,
 } from "@/lib/data/coingecko";
+import type { SolanaEcosystemToken } from "@/lib/data/coingecko";
 import { fetchAllProtocolTVLs } from "@/lib/data/defillama";
-import { fetchTokenSentiment, fetchAgents } from "@/lib/supabase/queries";
+import { fetchTokenSentiment, fetchAgents, fetchNewsFromPosts } from "@/lib/supabase/queries";
 import type { MarketToken, Agent } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/format";
 
@@ -40,86 +39,83 @@ function inferTags(coingeckoId: string, symbol: string): string[] {
   return ["defi"];
 }
 
-async function getMarketTokens(): Promise<MarketToken[]> {
-  try {
-    // 1. Fetch Solana ecosystem tokens from CoinGecko
-    const ecosystemTokens = await fetchSolanaEcosystemTokens();
-    if (ecosystemTokens.length === 0) return seedTokens;
+/** Build MarketToken[] from fetched data sources (pure, no async) */
+function buildMarketTokens(
+  ecosystemTokens: SolanaEcosystemToken[],
+  tvlMap: Record<string, number>,
+  sentimentMap: Map<string, { agentCount: number; bullishPercent: number }>,
+): MarketToken[] {
+  const seedByAddress = new Map(seedTokens.map((t) => [t.address, t]));
+  const seenAddresses = new Set<string>();
+  const tokens: MarketToken[] = [];
 
-    // 2. Fetch DeFi Llama TVLs + Supabase sentiment in parallel
-    const [tvlMap, sentimentMap] = await Promise.all([
+  for (const eco of ecosystemTokens) {
+    const resolved = resolveSolanaAddress(eco.coingeckoId);
+    if (!resolved) continue;
+
+    if (seenAddresses.has(resolved.address)) continue;
+    seenAddresses.add(resolved.address);
+
+    const seed = seedByAddress.get(resolved.address);
+    const sentiment = sentimentMap.get(resolved.address);
+    const tvl = tvlMap[eco.symbol.toUpperCase()] ?? seed?.tvl ?? null;
+    const price = eco.currentPrice;
+    const change24h = eco.priceChangePercentage24h;
+
+    const sparkline7d = eco.sparklineIn7d.length > 0
+      ? eco.sparklineIn7d
+      : seed?.sparkline7d ?? (price > 0 ? [price, price, price, price, price, price, price] : []);
+
+    const priceHistory48h =
+      eco.sparklineIn7d.length >= 48
+        ? eco.sparklineIn7d.slice(-48)
+        : eco.sparklineIn7d.length > 0
+          ? eco.sparklineIn7d
+          : price > 0
+            ? generatePriceHistory48h(price, Math.abs(change24h) / 100 || 0.03)
+            : seed?.priceHistory48h ?? [];
+
+    tokens.push({
+      address: resolved.address,
+      symbol: eco.symbol.toUpperCase(),
+      name: eco.name,
+      logoURI: eco.image,
+      decimals: resolved.decimals,
+      price,
+      change24h,
+      tags: inferTags(eco.coingeckoId, eco.symbol),
+      tvl,
+      volume24h: eco.totalVolume,
+      marketCap: eco.marketCap,
+      agentCount: sentiment?.agentCount ?? 0,
+      bullishPercent: sentiment?.bullishPercent ?? 50,
+      sparkline7d,
+      priceHistory48h,
+    });
+  }
+
+  return tokens;
+}
+
+async function getMarketTokens(): Promise<{ tokens: MarketToken[]; allAgents: Agent[] }> {
+  try {
+    // Fetch all data sources in parallel
+    const [ecosystemTokens, tvlMap, sentimentMap, allAgents] = await Promise.all([
+      fetchSolanaEcosystemTokens(),
       fetchAllProtocolTVLs(),
       fetchTokenSentiment(),
+      fetchAgents(),
     ]);
 
-    // 3. Resolve Solana addresses
-    const seedByAddress = new Map(seedTokens.map((t) => [t.address, t]));
-    const seenAddresses = new Set<string>();
-    const tokens: MarketToken[] = [];
-
-    const unknownCoins = ecosystemTokens.filter((t) => !resolveSolanaAddress(t.coingeckoId));
-    const resolvedExtra = new Map<string, { address: string; decimals: number }>();
-    if (unknownCoins.length > 0) {
-      const results = await Promise.all(
-        unknownCoins.map(async (t) => {
-          const result = await fetchSolanaAddressForCoin(t.coingeckoId);
-          return { id: t.coingeckoId, result };
-        })
-      );
-      for (const { id, result } of results) {
-        if (result) resolvedExtra.set(id, result);
-      }
+    if (ecosystemTokens.length === 0) {
+      return { tokens: seedTokens, allAgents };
     }
 
-    for (const eco of ecosystemTokens) {
-      const resolved = resolveSolanaAddress(eco.coingeckoId) ?? resolvedExtra.get(eco.coingeckoId);
-      if (!resolved) continue;
-
-      if (seenAddresses.has(resolved.address)) continue;
-      seenAddresses.add(resolved.address);
-
-      const seed = seedByAddress.get(resolved.address);
-      const sentiment = sentimentMap.get(resolved.address);
-      const tvl = tvlMap[eco.symbol.toUpperCase()] ?? seed?.tvl ?? null;
-      const price = eco.currentPrice;
-      const change24h = eco.priceChangePercentage24h;
-
-      const sparkline7d = eco.sparklineIn7d.length > 0
-        ? eco.sparklineIn7d
-        : seed?.sparkline7d ?? (price > 0 ? [price, price, price, price, price, price, price] : []);
-
-      const priceHistory48h =
-        eco.sparklineIn7d.length >= 48
-          ? eco.sparklineIn7d.slice(-48)
-          : eco.sparklineIn7d.length > 0
-            ? eco.sparklineIn7d
-            : price > 0
-              ? generatePriceHistory48h(price, Math.abs(change24h) / 100 || 0.03)
-              : seed?.priceHistory48h ?? [];
-
-      tokens.push({
-        address: resolved.address,
-        symbol: eco.symbol.toUpperCase(),
-        name: eco.name,
-        logoURI: eco.image,
-        decimals: resolved.decimals,
-        price,
-        change24h,
-        tags: inferTags(eco.coingeckoId, eco.symbol),
-        tvl,
-        volume24h: eco.totalVolume,
-        marketCap: eco.marketCap,
-        agentCount: sentiment?.agentCount ?? 0,
-        bullishPercent: sentiment?.bullishPercent ?? 50,
-        sparkline7d,
-        priceHistory48h,
-      });
-    }
-
-    return tokens.length > 0 ? tokens : seedTokens;
+    const tokens = buildMarketTokens(ecosystemTokens, tvlMap, sentimentMap);
+    return { tokens: tokens.length > 0 ? tokens : seedTokens, allAgents };
   } catch (err) {
     console.error("getMarketTokens error:", err);
-    return seedTokens;
+    return { tokens: seedTokens, allAgents: [] };
   }
 }
 
@@ -135,10 +131,9 @@ export const metadata: Metadata = {
 
 export default async function MarketPage() {
   const locale = await getLocale();
-  const tokens = await getMarketTokens();
-
-  const allAgents = await fetchAgents();
-  const agentsMap = new Map<string, Agent>(allAgents.map((a) => [a.id, a]));
+  const { tokens, allAgents } = await getMarketTokens();
+  const dbNews = await fetchNewsFromPosts();
+  const newsItems = dbNews.length > 0 ? dbNews : mockNewsItems;
 
   const totalVolume = tokens.reduce((sum, t) => sum + t.volume24h, 0);
   const totalTvl = tokens.reduce((sum, t) => sum + (t.tvl ?? 0), 0);
@@ -157,13 +152,13 @@ export default async function MarketPage() {
         />
       </div>
 
-      {/* Token List with Search & Filter */}
-      <MarketClient tokens={tokens} />
-
-      {/* News Board */}
-      <div className="mt-6">
-        <NewsBoard items={newsItems} locale={locale} agentsMap={agentsMap} />
-      </div>
+      {/* Token List / News with Tab Switcher */}
+      <MarketPageContent
+        tokens={tokens}
+        newsItems={newsItems}
+        locale={locale}
+        agents={allAgents}
+      />
     </AppShell>
   );
 }

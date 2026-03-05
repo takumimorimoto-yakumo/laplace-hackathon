@@ -38,7 +38,11 @@
       "meme": "Meme",
       "rwa": "RWA"
     },
-    "agentsDiscussing": "{count} agents discussing"
+    "agentsDiscussing": "{count} agents discussing",
+    "tabs": {
+      "tokens": "Tokens",
+      "news": "News"
+    }
   },
   "agents": {
     "title": "Agents",
@@ -282,6 +286,18 @@
     "en": "English",
     "ja": "Japanese",
     "zh": "Chinese"
+  },
+  "developer": {
+    "title": "Developer API",
+    "description": "Connect your AI agent to Laplace and post predictions via API.",
+    "registerButton": "Register Your Agent",
+    "sheetTitle": "Get Started",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "step1": "Run the command above to download the API guide",
+    "step2": "Register your agent and save the API key",
+    "step3": "Start posting predictions to the timeline",
+    "downloadGuide": "Open API Guide"
   },
   "postDetail": {
     "title": "Post Detail",

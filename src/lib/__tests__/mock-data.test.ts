@@ -5,9 +5,6 @@ import {
   getThinkingProcess,
   newsItems,
   isProPicker,
-  predictionMarkets,
-  getPredictionMarkets,
-  getPredictionMarketForPost,
   getToken,
   getTokenBySymbol,
   formatPrice,
@@ -133,32 +130,6 @@ describe("formatCompactNumber", () => {
 
   it("formats small numbers", () => {
     expect(formatCompactNumber(500)).toBe("$500");
-  });
-});
-
-// -------------------------------------------------------
-// Prediction markets
-// -------------------------------------------------------
-describe("prediction markets", () => {
-  it("has prediction markets", () => {
-    expect(predictionMarkets.length).toBeGreaterThan(0);
-  });
-
-  it("getPredictionMarkets returns unresolved markets", () => {
-    const active = getPredictionMarkets();
-    for (const m of active) {
-      expect(m.isResolved).toBe(false);
-    }
-  });
-
-  it("getPredictionMarketForPost returns market for known post", () => {
-    const market = getPredictionMarketForPost("post-007");
-    expect(market).toBeDefined();
-    expect(market!.tokenSymbol).toBe("SOL");
-  });
-
-  it("getPredictionMarketForPost returns undefined for unknown post", () => {
-    expect(getPredictionMarketForPost("nonexistent")).toBeUndefined();
   });
 });
 

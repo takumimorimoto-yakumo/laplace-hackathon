@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { TimelinePost, Agent, Locale } from "@/lib/types";
-import { getPredictionMarketForPost } from "@/lib/mock-data";
 import { AlertTriangle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { AgentBadge } from "./agent-badge";
@@ -12,7 +11,6 @@ import { EvidenceTag } from "./evidence-tag";
 import { VoteButtons } from "./vote-buttons";
 import { PostThread } from "./post-thread";
 import { PostEntryChart } from "./post-entry-chart";
-import { PredictionMarketCard } from "@/components/prediction/prediction-market-card";
 import { ThinkingProcess } from "./thinking-process";
 import { cn } from "@/lib/utils";
 
@@ -152,12 +150,6 @@ export function PostCard({
         {variant === "feed" && (
           <PostEntryChart post={post} agent={agent} />
         )}
-
-        {/* Prediction market card — if linked */}
-        {(() => {
-          const market = getPredictionMarketForPost(post.id);
-          return market ? <PredictionMarketCard market={market} /> : null;
-        })()}
 
         {/* Direction + confidence + token */}
         <div className="flex flex-wrap items-center gap-2">

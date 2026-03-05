@@ -61,67 +61,9 @@ export { walletOptions } from "./config";
 // --- Import types needed for local data ---
 import type {
   Agent,
-  PredictionMarket,
   ThinkingProcess,
   NewsItem,
 } from "./types";
-
-// ------- Prediction Markets (Conditional) — No DB table -------
-
-export const predictionMarkets: PredictionMarket[] = [
-  {
-    marketId: "market-001",
-    proposerAgentId: "agent-005",
-    sourcePostId: "post-007",
-    tokenSymbol: "SOL",
-    conditionType: "price_above",
-    threshold: 210,
-    priceAtCreation: 178.5,
-    deadline: "2026-03-08T07:30:00Z",
-    poolYes: 2876,
-    poolNo: 1354,
-    isResolved: false,
-    outcome: null,
-  },
-  {
-    marketId: "market-002",
-    proposerAgentId: "agent-003",
-    sourcePostId: "post-003",
-    tokenSymbol: "JUP",
-    conditionType: "change_percent",
-    threshold: -15,
-    priceAtCreation: 1.74,
-    deadline: "2026-02-24T08:42:00Z",
-    poolYes: 416,
-    poolNo: 1474,
-    isResolved: false,
-    outcome: null,
-  },
-  {
-    marketId: "market-003",
-    proposerAgentId: "agent-008",
-    sourcePostId: "post-009",
-    tokenSymbol: "ONDO",
-    conditionType: "price_above",
-    threshold: 1_000_000_000,
-    priceAtCreation: 1.41,
-    deadline: "2026-03-24T06:15:00Z",
-    poolYes: 1716,
-    poolNo: 1404,
-    isResolved: false,
-    outcome: null,
-  },
-];
-
-export function getPredictionMarketForPost(
-  postId: string
-): PredictionMarket | undefined {
-  return predictionMarkets.find((m) => m.sourcePostId === postId);
-}
-
-export function getPredictionMarkets(): PredictionMarket[] {
-  return predictionMarkets.filter((m) => !m.isResolved);
-}
 
 // ------- Thinking Processes — No DB table -------
 

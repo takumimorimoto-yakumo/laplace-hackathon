@@ -22,6 +22,7 @@ import { fetchMarketContext } from "./market-context";
 import { fetchAgentMemory, formatMemoryBlock } from "./memory-context";
 import { getProvider } from "./llm-client";
 import { isProPicker } from "@/lib/mock-data";
+import { recordPortfolioSnapshot } from "./portfolio-snapshot";
 import type { Agent, TimelinePost } from "@/lib/types";
 
 export interface RunResult {
@@ -164,6 +165,32 @@ export async function runAgent(agentId: string): Promise<RunResult> {
 
     if (insertError) {
       throw new Error(`Failed to insert post: ${insertError.message}`);
+    }
+
+    // 6a. Store thinking process for this prediction
+    if (output.evidence.length > 0 || output.uncertainty || output.reasoning) {
+      const consensus = output.evidence.map((e) => ({ en: e, ja: "", zh: "" }));
+      const debatePoints = output.uncertainty
+        ? [{ en: output.uncertainty, ja: "", zh: "" }]
+        : [];
+      const blindSpots = output.confidence_rationale
+        ? [{ en: output.confidence_rationale, ja: "", zh: "" }]
+        : [];
+
+      const { error: tpError } = await supabase
+        .from("thinking_processes")
+        .insert({
+          post_id: post.id,
+          consensus,
+          debate_points: debatePoints,
+          blind_spots: blindSpots,
+        });
+
+      if (tpError) {
+        console.warn(
+          `[runner] Failed to store thinking process for ${agent.name}: ${tpError.message}`
+        );
+      }
     }
 
     // 6b. Record prediction for future resolution
@@ -606,6 +633,9 @@ export async function runVirtualTrade(
       );
     }
 
+    // 8. Record portfolio snapshot after trade
+    await recordPortfolioSnapshot(agentId);
+
     console.log(
       `[runner] Virtual trade: ${side} ${output.token_symbol} $${amountUsdc.toFixed(2)} @ $${price.toFixed(4)} for agent ${agentId}`
     );
@@ -749,6 +779,9 @@ export async function closeExpiredPositions(agentId: string): Promise<void> {
           `[runner] Failed to update portfolio after close: ${portfolioError.message}`
         );
       }
+
+      // Record portfolio snapshot after closing positions
+      await recordPortfolioSnapshot(agentId);
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Brain, ChevronDown, ChevronUp } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { getThinkingProcess } from "@/lib/mock-data";
-import type { Locale } from "@/lib/types";
+import type { ThinkingProcess as ThinkingProcessType, Locale } from "@/lib/types";
 
 interface ThinkingProcessProps {
   postId: string;
@@ -14,9 +15,38 @@ interface ThinkingProcessProps {
 export function ThinkingProcess({ postId, locale }: ThinkingProcessProps) {
   const t = useTranslations("thinking");
   const [expanded, setExpanded] = useState(false);
-  const process = getThinkingProcess(postId);
+  const [process, setProcess] = useState<ThinkingProcessType | null | undefined>(undefined);
+  const supabase = useMemo(() => createClient(), []);
 
-  if (!process) return null;
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase
+      .from("thinking_processes")
+      .select("*")
+      .eq("post_id", postId)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data) {
+          // Fallback to mock data
+          setProcess(getThinkingProcess(postId) ?? null);
+        } else {
+          setProcess({
+            postId: data.post_id as string,
+            consensus: (data.consensus as ThinkingProcessType["consensus"]) ?? [],
+            debatePoints: (data.debate_points as ThinkingProcessType["debatePoints"]) ?? [],
+            blindSpots: (data.blind_spots as ThinkingProcessType["blindSpots"]) ?? [],
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [postId, supabase]);
+
+  if (process === undefined || process === null) return null;
 
   return (
     <div className="mt-2">

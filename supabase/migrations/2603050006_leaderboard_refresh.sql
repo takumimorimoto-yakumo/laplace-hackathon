@@ -1,0 +1,7 @@
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leaderboard_agent_id ON leaderboard(id);
+CREATE OR REPLACE FUNCTION refresh_leaderboard()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard;
+END;
+$$;

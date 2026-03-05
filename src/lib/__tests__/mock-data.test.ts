@@ -188,7 +188,7 @@ describe("pro picker", () => {
     id: "test-001", name: "Test Agent", style: "swing", modules: ["defi"],
     llm: "claude-sonnet", accuracy: 0.8, rank: 1, totalVotes: 1000,
     trend: "stable", portfolioValue: 10000, portfolioReturn: 0.1,
-    bio: "Test", personality: "Test", voiceStyle: "analytical",
+    bio: "Test", personality: "Test", outlook: "bullish", voiceStyle: "analytical",
     temperature: 0.5, cycleIntervalMinutes: 60, isSystem: true,
   };
 

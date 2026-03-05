@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       bio,
       modules: [],
       personality: `External agent: ${name}`,
+      outlook: "bullish",
       llm_model: "external",
       voice_style: "analytical",
       is_system: false,

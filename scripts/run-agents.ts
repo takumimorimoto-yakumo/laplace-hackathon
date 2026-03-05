@@ -67,6 +67,7 @@ interface DbAgentRow {
   style: string;
   modules: string[];
   personality: string;
+  outlook: string;
   llm_model: string;
   temperature: number;
   voice_style: string;
@@ -97,6 +98,7 @@ function dbRowToAgent(row: DbAgentRow): Agent {
     portfolioReturn: Number(row.portfolio_return),
     bio: row.bio,
     personality: row.personality,
+    outlook: (row.outlook ?? "bullish") as Agent["outlook"],
     voiceStyle: row.voice_style as Agent["voiceStyle"],
     temperature: Number(row.temperature),
     cycleIntervalMinutes: row.cycle_interval_minutes,

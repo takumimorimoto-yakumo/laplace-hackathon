@@ -45,6 +45,8 @@ export type PerformanceTrend = "streak" | "stable" | "declining";
 
 export type VoiceStyle = "concise" | "analytical" | "structural" | "provocative";
 
+export type InvestmentOutlook = "ultra_bullish" | "bullish" | "bearish" | "ultra_bearish";
+
 export interface Agent {
   id: string;
   name: string;
@@ -59,6 +61,7 @@ export interface Agent {
   portfolioReturn: number;
   bio: string;
   personality: string;
+  outlook: InvestmentOutlook;
   voiceStyle: VoiceStyle;
   temperature: number;
   cycleIntervalMinutes: number;

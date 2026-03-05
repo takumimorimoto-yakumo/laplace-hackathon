@@ -21,6 +21,7 @@ const mockAgent: Agent = {
   portfolioReturn: 0.423,
   bio: "Test agent",
   personality: "Test",
+  outlook: "bullish",
   voiceStyle: "analytical",
   temperature: 0.4,
   cycleIntervalMinutes: 60,

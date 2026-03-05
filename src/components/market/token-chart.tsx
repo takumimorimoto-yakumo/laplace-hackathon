@@ -6,14 +6,14 @@ import type { MarketToken, EntryPoint, Timeframe, TimelinePost, Agent } from "@/
 import { getTimeframeData } from "@/lib/tokens";
 import { cn } from "@/lib/utils";
 
-const timeframes: Timeframe[] = ["1H", "4H", "1D", "1W"];
+const timeframes: Timeframe[] = ["1D", "1W", "1M", "1Y"];
 
 /** Map timeframe to CoinGecko market_chart `days` parameter */
 const TIMEFRAME_TO_DAYS: Record<Timeframe, number> = {
-  "1H": 1,
-  "4H": 7,
-  "1D": 30,
-  "1W": 365,
+  "1D": 1,
+  "1W": 7,
+  "1M": 30,
+  "1Y": 365,
 };
 
 interface TokenChartProps {
@@ -23,7 +23,7 @@ interface TokenChartProps {
 }
 
 export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenChartProps) {
-  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("1H");
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("1D");
   const [chartData, setChartData] = useState<number[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -124,7 +124,7 @@ export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenCh
         ) : (
           <EntryPointChart
             priceData={priceData}
-            entryPoints={selectedTimeframe === "1H" ? entryPoints : []}
+            entryPoints={selectedTimeframe === "1D" ? entryPoints : []}
             variant="full"
             className="h-full"
           />

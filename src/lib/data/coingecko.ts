@@ -357,10 +357,10 @@ const CHART_TTL_MS: Record<MarketChartDays, number> = {
  * Fetch price history from CoinGecko /coins/{id}/market_chart.
  *
  * Resolution by `days`:
- * - days=1   → ~5min intervals (~288 points)  → 1H timeframe
- * - days=7   → ~1h intervals  (~168 points)   → 4H timeframe
- * - days=30  → ~1h intervals  (~720 points)   → 1D timeframe
- * - days=365 → daily          (~365 points)   → 1W timeframe
+ * - days=1   → ~5min intervals (~288 points)  → 1D timeframe
+ * - days=7   → ~1h intervals  (~168 points)   → 1W timeframe
+ * - days=30  → ~1h intervals  (~720 points)   → 1M timeframe
+ * - days=365 → daily          (~365 points)   → 1Y timeframe
  */
 export async function fetchMarketChart(
   coingeckoId: string,

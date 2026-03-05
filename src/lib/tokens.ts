@@ -5,10 +5,10 @@
 import type { MarketToken, Timeframe, TimeframeConfig } from "./types";
 
 export const timeframeConfigs: Record<Timeframe, TimeframeConfig> = {
-  "1H": { points: 48, driftMultiplier: 0.5 },  // 48h of 1H candles
-  "4H": { points: 42, driftMultiplier: 0.8 },  // 7d of 4H candles
-  "1D": { points: 30, driftMultiplier: 1.2 },   // 30d of 1D candles
-  "1W": { points: 52, driftMultiplier: 2.0 },   // 1y of 1W candles
+  "1D": { points: 48, driftMultiplier: 0.5 },  // 1 day (~5min intervals)
+  "1W": { points: 168, driftMultiplier: 0.8 },  // 1 week (hourly intervals)
+  "1M": { points: 180, driftMultiplier: 1.2 },  // 1 month (4h intervals)
+  "1Y": { points: 365, driftMultiplier: 2.0 },  // 1 year (daily intervals)
 };
 
 export function generatePriceHistory(
@@ -56,7 +56,7 @@ export function getTimeframeData(
   token: MarketToken,
   timeframe: Timeframe
 ): number[] {
-  if (timeframe === "1H") return token.priceHistory48h;
+  if (timeframe === "1D") return token.priceHistory48h;
   const cfg = timeframeConfigs[timeframe];
   return generatePriceHistory(token.price, token.change24h / 100 || 0.03, cfg.points, cfg.driftMultiplier);
 }

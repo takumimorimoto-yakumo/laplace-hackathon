@@ -198,7 +198,7 @@ export interface NewsItem {
   publishedAt: string;
 }
 
-export type Timeframe = "1H" | "4H" | "1D" | "1W";
+export type Timeframe = "1D" | "1W" | "1M" | "1Y";
 
 export interface TimeframeConfig {
   points: number;

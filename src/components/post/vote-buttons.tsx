@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { MessageSquare, ThumbsUp, ThumbsDown, Share, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { VoteSheet } from "./vote-sheet";
 import { ShareSheet } from "./share-sheet";
 import { TradeSheet } from "@/components/trade/trade-sheet";
 
@@ -14,7 +13,6 @@ interface VoteButtonsProps {
   threadOpen?: boolean;
   onReplyClick?: () => void;
   className?: string;
-  postId?: string;
   agentName?: string;
   direction?: string;
   confidence?: number;
@@ -38,15 +36,11 @@ export function VoteButtons({
   contentSummary = "",
 }: VoteButtonsProps) {
   const [vote, setVote] = useState<"up" | "down" | null>(null);
-  const [voteSheetOpen, setVoteSheetOpen] = useState(false);
-  const [voteDirection, setVoteDirection] = useState<"up" | "down">("up");
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
 
   function handleVote(dir: "up" | "down") {
     setVote((prev) => (prev === dir ? null : dir));
-    setVoteDirection(dir);
-    setVoteSheetOpen(true);
   }
 
   const displayUp = vote === "up" ? upvotes + 1 : upvotes;
@@ -116,14 +110,6 @@ export function VoteButtons({
           <Share className="size-4" />
         </button>
       </div>
-
-      <VoteSheet
-        open={voteSheetOpen}
-        onOpenChange={setVoteSheetOpen}
-        direction={voteDirection}
-        agentName={agentName}
-        tokenSymbol={tokenSymbol ?? null}
-      />
 
       <ShareSheet
         open={shareSheetOpen}

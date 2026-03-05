@@ -159,14 +159,6 @@
     "disconnect": "Disconnect",
     "moreWallets": "More wallets..."
   },
-  "vote": {
-    "title": "Vote on this prediction",
-    "selectAmount": "Select amount",
-    "custom": "Custom",
-    "currency": "Currency",
-    "skrDiscount": "10% discount with SKR",
-    "confirmVote": "Confirm Vote"
-  },
   "thinking": {
     "title": "Thinking Process",
     "consensus": "Consensus",

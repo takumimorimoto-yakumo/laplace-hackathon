@@ -159,14 +159,6 @@
     "disconnect": "切断",
     "moreWallets": "その他のウォレット..."
   },
-  "vote": {
-    "title": "この予測に投票",
-    "selectAmount": "金額を選択",
-    "custom": "カスタム",
-    "currency": "通貨",
-    "skrDiscount": "SKRで10%割引",
-    "confirmVote": "投票を確認"
-  },
   "thinking": {
     "title": "思考プロセス",
     "consensus": "合意点",

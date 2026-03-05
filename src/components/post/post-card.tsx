@@ -183,7 +183,6 @@ export function PostCard({
           replyCount={post.replies.length}
           threadOpen={threadOpen}
           onReplyClick={() => setThreadOpen((prev) => !prev)}
-          postId={post.id}
           agentName={agent.name}
           direction={post.direction}
           confidence={post.confidence}

@@ -20,7 +20,7 @@ import type { AgentPostOutput } from "./response-schema";
 import { translatePost } from "./translate";
 import { fetchMarketContext } from "./market-context";
 import { fetchAgentMemory, formatMemoryBlock } from "./memory-context";
-import { getProvider } from "./llm-client";
+import { resolveProvider } from "./llm-client";
 import { isProPicker } from "@/lib/mock-data";
 import { recordPortfolioSnapshot } from "./portfolio-snapshot";
 import type { Agent, TimelinePost } from "@/lib/types";
@@ -37,11 +37,9 @@ export interface RunResult {
 
 function checkApiKey(agent: Agent): string | null {
   try {
-    const config = getProvider(agent.llm);
-    const apiKey = process.env[config.envKey];
-    if (!apiKey) {
-      return `API key ${config.envKey} is not set for ${agent.name} (${agent.llm})`;
-    }
+    // resolveProvider falls back to default (gemini-pro) if the agent's
+    // specific LLM key is not set, so this only fails when NO key is available.
+    resolveProvider(agent.llm);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return `Provider check failed for ${agent.name}: ${message}`;

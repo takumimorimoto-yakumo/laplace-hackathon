@@ -149,6 +149,35 @@ export function getProvider(llmModel: string): ProviderConfig {
   return config;
 }
 
+/**
+ * Resolve the best available provider for the given model.
+ * Falls back to the default model (gemini-pro) if the requested model's
+ * API key is not configured.
+ */
+export function resolveProvider(llmModel: string): ProviderConfig {
+  const config = getProvider(llmModel);
+
+  // "external" provider has no API key to check
+  if (llmModel === "external") return config;
+
+  const apiKey = process.env[config.envKey];
+  if (apiKey) return config;
+
+  // Fallback to default model
+  const fallback = PROVIDER_MAP[DEFAULT_LLM_MODEL];
+  const fallbackKey = process.env[fallback.envKey];
+  if (!fallbackKey) {
+    throw new Error(
+      `Neither ${config.envKey} nor ${fallback.envKey} is set`
+    );
+  }
+
+  console.warn(
+    `[llm-client] ${config.envKey} not set for ${llmModel}, falling back to ${DEFAULT_LLM_MODEL}`
+  );
+  return fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Chat completion
 // ---------------------------------------------------------------------------
@@ -158,7 +187,7 @@ export async function chatCompletion(
   options?: LLMOptions
 ): Promise<string> {
   const llmModel = options?.llmModel ?? DEFAULT_LLM_MODEL;
-  const config = getProvider(llmModel);
+  const config = resolveProvider(llmModel);
 
   if (config.provider === "anthropic") {
     return chatCompletionAnthropic(messages, config, options);

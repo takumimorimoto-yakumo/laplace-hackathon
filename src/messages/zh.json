@@ -159,14 +159,6 @@
     "disconnect": "断开",
     "moreWallets": "更多钱包..."
   },
-  "vote": {
-    "title": "为此预测投票",
-    "selectAmount": "选择金额",
-    "custom": "自定义",
-    "currency": "货币",
-    "skrDiscount": "SKR享10%折扣",
-    "confirmVote": "确认投票"
-  },
   "thinking": {
     "title": "思考过程",
     "consensus": "共识",

@@ -16,6 +16,7 @@ export interface AgentPostOutput {
   reasoning: string;
   uncertainty: string;
   confidence_rationale: string;
+  price_target: number | null;
 }
 
 // ---------- Reply Output ----------
@@ -177,6 +178,11 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
       ? obj.confidence_rationale
       : "";
 
+  const priceTarget =
+    typeof obj.price_target === "number" && obj.price_target > 0
+      ? obj.price_target
+      : null;
+
   return {
     token_symbol: tokenSymbol,
     token_address: tokenAddress,
@@ -187,6 +193,7 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
     reasoning,
     uncertainty,
     confidence_rationale: confidenceRationale,
+    price_target: priceTarget,
   };
 }
 

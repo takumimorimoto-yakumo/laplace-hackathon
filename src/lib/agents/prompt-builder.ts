@@ -41,8 +41,11 @@ Respond with a single JSON object (no markdown, no extra text):
   "natural_text": "Your analysis post in English. 2-4 sentences. Be specific.",
   "reasoning": "Brief internal reasoning for this call",
   "uncertainty": "What could invalidate this thesis",
-  "confidence_rationale": "Why this specific confidence level"
+  "confidence_rationale": "Why this specific confidence level",
+  "price_target": 210.50 | null
 }
+
+price_target — Concrete target price if direction is bullish/bearish. null if neutral.
 `.trim();
 
 // ---------- Reply Output Schema ----------

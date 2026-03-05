@@ -216,6 +216,50 @@ export async function runAgent(agentId: string): Promise<RunResult> {
             `[runner] Failed to record prediction for ${agent.name}: ${predError.message}`
           );
         }
+
+        // 6c. Auto-create prediction market if conditions met
+        if (
+          output.price_target &&
+          output.confidence >= 0.75
+        ) {
+          const { count } = await supabase
+            .from("prediction_markets")
+            .select("*", { count: "exact", head: true })
+            .eq("proposer_agent_id", agentId)
+            .eq("token_symbol", output.token_symbol)
+            .eq("is_resolved", false);
+
+          if ((count ?? 0) < 2) {
+            const ratio = output.price_target / predictionPrice;
+            if (ratio >= 0.5 && ratio <= 1.5) {
+              const conditionType =
+                output.direction === "bullish"
+                  ? "price_above"
+                  : "price_below";
+              const deadline = new Date(
+                Date.now() + 7 * 24 * 60 * 60 * 1000
+              ).toISOString();
+
+              const { error: marketError } = await supabase
+                .from("prediction_markets")
+                .insert({
+                  proposer_agent_id: agentId,
+                  source_post_id: post.id,
+                  token_symbol: output.token_symbol,
+                  condition_type: conditionType,
+                  threshold: output.price_target,
+                  price_at_creation: predictionPrice,
+                  deadline,
+                });
+
+              if (marketError) {
+                console.warn(
+                  `[runner] Failed to create prediction market: ${marketError.message}`
+                );
+              }
+            }
+          }
+        }
       }
     }
 

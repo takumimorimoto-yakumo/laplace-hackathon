@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { predictionMarkets } from "@/lib/mock-data";
 import { fetchMarketData, getCoingeckoId } from "@/lib/data/coingecko";
 import { seedTokens } from "@/lib/tokens";
-import type { PredictionMarket } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+interface MarketRow {
+  marketId: string;
+  proposerAgentId: string;
+  sourcePostId: string;
+  tokenSymbol: string;
+  conditionType: string;
+  threshold: number;
+  priceAtCreation: number;
+  deadline: string;
+  poolYes: number;
+  poolNo: number;
+  isResolved: boolean;
+  outcome: "yes" | "no" | null;
+}
 
 interface PredictionRow {
   id: string;
@@ -46,9 +59,31 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
 
   // --- Find unresolved markets past their deadline ---
-  const expiredMarkets = predictionMarkets.filter(
-    (m) => !m.isResolved && new Date(m.deadline) < now
-  );
+  const { data: expiredData, error: fetchMarketsError } = await supabase
+    .from("prediction_markets")
+    .select("*")
+    .eq("is_resolved", false)
+    .lte("deadline", now.toISOString());
+
+  if (fetchMarketsError) {
+    console.error("Failed to fetch expired markets:", fetchMarketsError.message);
+    return NextResponse.json({ error: "Failed to fetch markets" }, { status: 500 });
+  }
+
+  const expiredMarkets: MarketRow[] = (expiredData ?? []).map((row) => ({
+    marketId: row.id as string,
+    proposerAgentId: row.proposer_agent_id as string,
+    sourcePostId: (row.source_post_id as string) ?? "",
+    tokenSymbol: row.token_symbol as string,
+    conditionType: row.condition_type as string,
+    threshold: Number(row.threshold),
+    priceAtCreation: Number(row.price_at_creation),
+    deadline: row.deadline as string,
+    poolYes: Number(row.pool_yes),
+    poolNo: Number(row.pool_no),
+    isResolved: false,
+    outcome: null as "yes" | "no" | null,
+  }));
 
   if (expiredMarkets.length === 0) {
     return NextResponse.json({
@@ -75,9 +110,15 @@ export async function GET(request: NextRequest) {
     // --- Evaluate market condition ---
     const outcome = evaluateCondition(market, currentPrice);
 
-    // Mark in-memory market as resolved (ephemeral for this request)
-    market.isResolved = true;
-    market.outcome = outcome;
+    // Persist resolution to DB
+    const { error: resolveError } = await supabase
+      .from("prediction_markets")
+      .update({ is_resolved: true, outcome })
+      .eq("id", market.marketId);
+
+    if (resolveError) {
+      console.warn(`Failed to persist market resolution ${market.marketId}: ${resolveError.message}`);
+    }
 
     console.log(
       `Market ${market.marketId} (${market.tokenSymbol} ${market.conditionType} ${market.threshold}): ` +
@@ -122,7 +163,7 @@ export async function GET(request: NextRequest) {
  * Build a token symbol to current price map using CoinGecko data with seedTokens fallback.
  */
 async function buildPriceMap(
-  markets: PredictionMarket[]
+  markets: MarketRow[]
 ): Promise<Map<string, number>> {
   const priceMap = new Map<string, number>();
   const symbols = [...new Set(markets.map((m) => m.tokenSymbol))];
@@ -167,7 +208,7 @@ async function buildPriceMap(
  * Evaluate a prediction market condition against the current price.
  */
 function evaluateCondition(
-  market: PredictionMarket,
+  market: MarketRow,
   currentPrice: number
 ): "yes" | "no" {
   switch (market.conditionType) {
@@ -195,7 +236,7 @@ function evaluateCondition(
  */
 async function resolveAssociatedPredictions(
   supabase: ReturnType<typeof createAdminClient>,
-  market: PredictionMarket,
+  market: MarketRow,
   currentPrice: number,
   agentIdsToRecalculate: Set<string>
 ): Promise<number> {

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { Tag } from "@/components/ui/tag";
 
 interface EvidenceTagProps {
   evidence: string;
@@ -6,14 +6,5 @@ interface EvidenceTagProps {
 }
 
 export function EvidenceTag({ evidence, className }: EvidenceTagProps) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground",
-        className,
-      )}
-    >
-      {evidence}
-    </span>
-  );
+  return <Tag className={className}>{evidence}</Tag>;
 }

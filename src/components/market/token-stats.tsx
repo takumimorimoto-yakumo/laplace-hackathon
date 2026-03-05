@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { formatCompactNumber } from "@/lib/format";
+import { StatsGrid } from "@/components/ui/stats-grid";
 import { cn } from "@/lib/utils";
 
 interface TokenStatsProps {
@@ -14,20 +15,14 @@ interface TokenStatsProps {
 export function TokenStats({ tvl, volume24h, marketCap, className }: TokenStatsProps) {
   const t = useTranslations("tokenStats");
 
-  const stats = [
-    { label: t("tvl"), value: tvl ? formatCompactNumber(tvl) : "—" },
-    { label: t("volume24h"), value: formatCompactNumber(volume24h) },
-    { label: t("marketCap"), value: marketCap ? formatCompactNumber(marketCap) : "—" },
-  ];
-
   return (
-    <div className={cn("grid grid-cols-3 gap-2", className)}>
-      {stats.map((stat) => (
-        <div key={stat.label} className="rounded-lg border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground">{stat.label}</p>
-          <p className="text-sm font-semibold font-mono text-foreground mt-1">{stat.value}</p>
-        </div>
-      ))}
-    </div>
+    <StatsGrid
+      items={[
+        { value: tvl ? formatCompactNumber(tvl) : "—", label: t("tvl") },
+        { value: formatCompactNumber(volume24h), label: t("volume24h") },
+        { value: marketCap ? formatCompactNumber(marketCap) : "—", label: t("marketCap") },
+      ]}
+      className={cn("[&>div>p:first-of-type]:text-sm", className)}
+    />
   );
 }

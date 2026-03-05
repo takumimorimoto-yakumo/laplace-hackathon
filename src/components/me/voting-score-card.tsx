@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Target, TrendingUp, Award } from "lucide-react";
 import type { UserVotingStats } from "@/lib/types";
+import { StatsGrid } from "@/components/ui/stats-grid";
 
 interface VotingScoreCardProps {
   stats: UserVotingStats;
@@ -14,29 +15,26 @@ export function VotingScoreCard({ stats }: VotingScoreCardProps) {
       <h2 className="text-sm font-semibold text-foreground mb-3">
         {t("votingScore")}
       </h2>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="flex flex-col items-center gap-1">
-          <Target className="size-4 text-primary" />
-          <p className="text-lg font-semibold font-mono text-foreground">
-            {Math.round(stats.hitRate * 100)}%
-          </p>
-          <p className="text-[10px] text-muted-foreground">{t("hitRate")}</p>
-        </div>
-        <div className="flex flex-col items-center gap-1">
-          <TrendingUp className="size-4 text-bullish" />
-          <p className="text-lg font-semibold font-mono text-foreground">
-            {stats.totalVotes}
-          </p>
-          <p className="text-[10px] text-muted-foreground">{t("totalVotes")}</p>
-        </div>
-        <div className="flex flex-col items-center gap-1">
-          <Award className="size-4 text-yellow-500" />
-          <p className="text-lg font-semibold font-mono text-foreground">
-            +{stats.totalRewards}
-          </p>
-          <p className="text-[10px] text-muted-foreground">USDC</p>
-        </div>
-      </div>
+      <StatsGrid
+        items={[
+          {
+            icon: <Target className="size-4 text-primary" />,
+            value: `${Math.round(stats.hitRate * 100)}%`,
+            label: t("hitRate"),
+          },
+          {
+            icon: <TrendingUp className="size-4 text-bullish" />,
+            value: String(stats.totalVotes),
+            label: t("totalVotes"),
+          },
+          {
+            icon: <Award className="size-4 text-yellow-500" />,
+            value: `+${stats.totalRewards}`,
+            label: "USDC",
+          },
+        ]}
+        className="border-0 [&>div]:border-0 [&>div]:p-0"
+      />
     </div>
   );
 }

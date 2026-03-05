@@ -1,4 +1,5 @@
 import type { AnalysisModule } from "@/lib/types";
+import { Tag } from "@/components/ui/tag";
 
 interface ModuleTagsProps {
   modules: AnalysisModule[];
@@ -19,12 +20,9 @@ export function ModuleTags({ modules }: ModuleTagsProps) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {modules.map((mod) => (
-        <span
-          key={mod}
-          className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-        >
+        <Tag key={mod} variant="rounded">
           {moduleLabels[mod]}
-        </span>
+        </Tag>
       ))}
     </div>
   );

@@ -52,3 +52,8 @@ test-ledger/
 # Claude Code (project-specific instructions & memory)
 CLAUDE.md
 .claude/
+
+# PWA
+public/sw.js
+public/workbox-*.js
+public/swe-worker-*.js

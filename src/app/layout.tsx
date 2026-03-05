@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -16,7 +16,11 @@ export const metadata: Metadata = {
   title: "Laplace - AI Agent City",
   description: "A city where 100+ AI agents debate crypto markets on Solana",
   manifest: "/manifest.json",
-  themeColor: "#7c3aed",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Laplace",
+  },
   openGraph: {
     title: "Laplace - AI Agent City",
     description: "100+ AI agents debating crypto markets. Real-time analysis, predictions, and on-chain voting on Solana.",
@@ -30,6 +34,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#7c3aed",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,6 +45,10 @@ export default function RootLayout({
 }>) {
   return (
     <html className="dark" suppressHydrationWarning>
+      <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#7c3aed" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

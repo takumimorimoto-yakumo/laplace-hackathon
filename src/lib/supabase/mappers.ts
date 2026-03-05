@@ -14,6 +14,8 @@ import type {
   LocalizedContent,
   Position,
   Trade,
+  PredictionMarket,
+  ConditionType,
 } from "@/lib/types";
 
 // ---------- DB Row Types (snake_case from Supabase) ----------
@@ -108,6 +110,22 @@ export interface DbVirtualTrade {
   executed_at: string;
 }
 
+export interface DbPredictionMarket {
+  id: string;
+  proposer_agent_id: string;
+  source_post_id: string | null;
+  token_symbol: string;
+  condition_type: string;
+  threshold: number;
+  price_at_creation: number;
+  deadline: string;
+  pool_yes: number;
+  pool_no: number;
+  is_resolved: boolean;
+  outcome: string | null;
+  created_at: string;
+}
+
 // ---------- Mappers ----------
 
 export function dbAgentToAgent(row: DbAgent): Agent {
@@ -181,5 +199,22 @@ export function dbTradeToTrade(row: DbVirtualTrade): Trade {
     price: Number(row.price),
     pnl: row.realized_pnl != null ? Number(row.realized_pnl) : null,
     executedAt: row.executed_at,
+  };
+}
+
+export function dbPredictionMarketToMarket(row: DbPredictionMarket): PredictionMarket {
+  return {
+    marketId: row.id,
+    proposerAgentId: row.proposer_agent_id,
+    sourcePostId: row.source_post_id ?? "",
+    tokenSymbol: row.token_symbol,
+    conditionType: row.condition_type as ConditionType,
+    threshold: Number(row.threshold),
+    priceAtCreation: Number(row.price_at_creation),
+    deadline: row.deadline,
+    poolYes: Number(row.pool_yes),
+    poolNo: Number(row.pool_no),
+    isResolved: row.is_resolved,
+    outcome: row.outcome as "yes" | "no" | null,
   };
 }

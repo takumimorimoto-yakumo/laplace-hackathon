@@ -8,9 +8,10 @@ import {
   dbPostToTimelinePost,
   dbPositionToPosition,
   dbTradeToTrade,
+  dbPredictionMarketToMarket,
 } from "./mappers";
-import type { DbAgent, DbTimelinePost, DbVirtualPosition, DbVirtualTrade } from "./mappers";
-import type { Agent, TimelinePost, Position, Trade } from "@/lib/types";
+import type { DbAgent, DbTimelinePost, DbVirtualPosition, DbVirtualTrade, DbPredictionMarket } from "./mappers";
+import type { Agent, TimelinePost, Position, Trade, PortfolioSnapshot, AccuracySnapshot, PredictionMarket, ThinkingProcess, NewsItem, LocalizedContent } from "@/lib/types";
 
 // ---------- Agents ----------
 
@@ -287,6 +288,62 @@ export async function fetchAgentBookmarks(
   });
 }
 
+// ---------- Portfolio Snapshots ----------
+
+export async function fetchPortfolioSnapshots(
+  agentId: string,
+  days = 30
+): Promise<PortfolioSnapshot[]> {
+  const supabase = createReadOnlyClient();
+  const since = new Date(Date.now() - days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("portfolio_snapshots")
+    .select("snapshot_date, portfolio_value, accuracy_score")
+    .eq("agent_id", agentId)
+    .gte("snapshot_date", since)
+    .order("snapshot_date", { ascending: true });
+
+  if (error) {
+    console.error("fetchPortfolioSnapshots error:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    date: row.snapshot_date as string,
+    value: Number(row.portfolio_value),
+  }));
+}
+
+export async function fetchAccuracySnapshots(
+  agentId: string,
+  days = 30
+): Promise<AccuracySnapshot[]> {
+  const supabase = createReadOnlyClient();
+  const since = new Date(Date.now() - days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("portfolio_snapshots")
+    .select("snapshot_date, accuracy_score")
+    .eq("agent_id", agentId)
+    .gte("snapshot_date", since)
+    .order("snapshot_date", { ascending: true });
+
+  if (error) {
+    console.error("fetchAccuracySnapshots error:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    date: row.snapshot_date as string,
+    accuracy: Number(row.accuracy_score),
+  }));
+}
+
 // ---------- Trades ----------
 
 export async function fetchTrades(agentId: string): Promise<Trade[]> {
@@ -302,4 +359,101 @@ export async function fetchTrades(agentId: string): Promise<Trade[]> {
     return [];
   }
   return (data as DbVirtualTrade[]).map(dbTradeToTrade);
+}
+
+// ---------- Prediction Markets ----------
+
+export async function fetchPredictionMarkets(): Promise<PredictionMarket[]> {
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("prediction_markets")
+    .select("*")
+    .eq("is_resolved", false)
+    .order("deadline", { ascending: true });
+
+  if (error) {
+    console.error("fetchPredictionMarkets error:", error.message);
+    return [];
+  }
+  return (data as DbPredictionMarket[]).map(dbPredictionMarketToMarket);
+}
+
+export async function fetchPredictionMarketForPost(postId: string): Promise<PredictionMarket | null> {
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("prediction_markets")
+    .select("*")
+    .eq("source_post_id", postId)
+    .single();
+
+  if (error || !data) return null;
+  return dbPredictionMarketToMarket(data as DbPredictionMarket);
+}
+
+// ---------- Thinking Processes ----------
+
+export async function fetchThinkingProcess(postId: string): Promise<ThinkingProcess | null> {
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("thinking_processes")
+    .select("*")
+    .eq("post_id", postId)
+    .single();
+
+  if (error || !data) return null;
+
+  return {
+    postId: data.post_id as string,
+    consensus: (data.consensus as LocalizedContent[]) ?? [],
+    debatePoints: (data.debate_points as LocalizedContent[]) ?? [],
+    blindSpots: (data.blind_spots as LocalizedContent[]) ?? [],
+  };
+}
+
+// ---------- News from Posts ----------
+
+export async function fetchNewsFromPosts(limit = 12): Promise<NewsItem[]> {
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("timeline_posts")
+    .select("*")
+    .eq("post_type", "alert")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  return (data as DbTimelinePost[]).map((row) => {
+    const localized = row.content_localized as Record<string, string> | null;
+    const text = localized?.en ?? row.natural_text;
+
+    // Parse "[CATEGORY] headline\n\nbody" format
+    const categoryMatch = text.match(/^\[(\w+)\]\s*/);
+    const category = categoryMatch
+      ? (categoryMatch[1].toLowerCase() as NewsItem["category"])
+      : "market";
+    const afterCategory = categoryMatch ? text.slice(categoryMatch[0].length) : text;
+    const [headline = "", ...bodyParts] = afterCategory.split("\n\n");
+
+    const titleEn = headline || afterCategory.slice(0, 100);
+    const titleJa = localized?.ja
+      ? (localized.ja.match(/^\[\w+\]\s*(.+?)(?:\n|$)/)?.[1] ?? localized.ja.slice(0, 100))
+      : "";
+    const titleZh = localized?.zh
+      ? (localized.zh.match(/^\[\w+\]\s*(.+?)(?:\n|$)/)?.[1] ?? localized.zh.slice(0, 100))
+      : "";
+
+    // Suppress unused variable warning
+    void bodyParts;
+
+    return {
+      id: row.id,
+      authorAgentId: row.agent_id,
+      title: { en: titleEn, ja: titleJa, zh: titleZh },
+      source: "Laplace AI",
+      category,
+      tokenSymbols: row.token_symbol ? [row.token_symbol] : [],
+      publishedAt: row.created_at,
+    };
+  });
 }

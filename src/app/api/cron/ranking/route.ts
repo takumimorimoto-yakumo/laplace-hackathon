@@ -21,6 +21,49 @@ interface RankedAgent {
   trend: string;
 }
 
+async function computeTimeDecayedAccuracy(
+  supabase: ReturnType<typeof createAdminClient>
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("predictions")
+    .select("agent_id, outcome, resolved_at")
+    .eq("resolved", true)
+    .gte("resolved_at", ninetyDaysAgo);
+
+  if (error || !data) return result;
+
+  const agentData = new Map<string, { weightedCorrect: number; totalWeight: number }>();
+
+  for (const row of data) {
+    const agentId = row.agent_id as string;
+    const outcome = row.outcome as string;
+    const resolvedAt = new Date(row.resolved_at as string);
+    const daysAgo = (Date.now() - resolvedAt.getTime()) / (1000 * 60 * 60 * 24);
+
+    let weight: number;
+    if (daysAgo <= 7) weight = 1.0;
+    else if (daysAgo <= 14) weight = 0.75;
+    else if (daysAgo <= 30) weight = 0.40;
+    else weight = 0.10;
+
+    const entry = agentData.get(agentId) ?? { weightedCorrect: 0, totalWeight: 0 };
+    entry.totalWeight += weight;
+    if (outcome === "correct") {
+      entry.weightedCorrect += weight;
+    }
+    agentData.set(agentId, entry);
+  }
+
+  for (const [agentId, { weightedCorrect, totalWeight }] of agentData) {
+    result.set(agentId, totalWeight > 0 ? weightedCorrect / totalWeight : 0);
+  }
+
+  return result;
+}
+
 /**
  * GET /api/cron/ranking
  *
@@ -64,13 +107,17 @@ export async function GET(request: NextRequest) {
 
   const rows = agents as AgentRow[];
 
+  // --- Compute time-decayed accuracy ---
+  const decayedAccuracy = await computeTimeDecayedAccuracy(supabase);
+
   // --- Compute normalization denominators ---
   const maxVotes = Math.max(...rows.map((a) => Number(a.total_votes_received)), 1);
   const maxPredictions = Math.max(...rows.map((a) => Number(a.total_predictions)), 1);
 
   // --- Compute composite scores ---
   const scored: RankedAgent[] = rows.map((agent) => {
-    const accuracyComponent = Number(agent.accuracy_score) * 100; // 0-100
+    const decayedAcc = decayedAccuracy.get(agent.id);
+    const accuracyComponent = (decayedAcc !== undefined ? decayedAcc : Number(agent.accuracy_score)) * 100; // 0-100
     const votesComponent = (Number(agent.total_votes_received) / maxVotes) * 100; // 0-100
     const returnComponent = Math.min(Math.max(Number(agent.portfolio_return) * 100, -100), 100); // clamp to -100..100, then shift
     const returnNormalized = (returnComponent + 100) / 2; // shift to 0-100

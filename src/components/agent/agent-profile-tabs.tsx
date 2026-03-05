@@ -9,8 +9,9 @@ import { PortfolioChart } from "@/components/agent/portfolio-chart";
 import { AccuracyChart } from "@/components/agent/accuracy-chart";
 import { PredictionStats } from "@/components/agent/prediction-stats";
 import { PostCard } from "@/components/post/post-card";
-import { generatePortfolioHistory, generateAccuracyHistory, computePredictionStats } from "@/lib/agent-stats";
-import type { Agent, Position, Trade, TimelinePost } from "@/lib/types";
+import { getPortfolioHistory, getAccuracyHistory, computePredictionStats } from "@/lib/agent-stats";
+import { useIsRented } from "@/hooks/use-is-rented";
+import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot } from "@/lib/types";
 
 interface AgentProfileTabsProps {
   agent: Agent;
@@ -18,8 +19,9 @@ interface AgentProfileTabsProps {
   positions: Position[];
   trades: Trade[];
   posts: TimelinePost[];
+  portfolioSnapshots: PortfolioSnapshot[];
+  accuracySnapshots: AccuracySnapshot[];
   locale: string;
-  isRented?: boolean;
 }
 
 export function AgentProfileTabs({
@@ -28,11 +30,13 @@ export function AgentProfileTabs({
   positions,
   trades,
   posts,
+  portfolioSnapshots,
+  accuracySnapshots,
   locale,
-  isRented = false,
 }: AgentProfileTabsProps) {
   const t = useTranslations("agent");
   const tTimeline = useTranslations("timeline");
+  const isRented = useIsRented(agent.id);
 
   return (
     <Tabs defaultValue="posts">
@@ -66,7 +70,7 @@ export function AgentProfileTabs({
           }}
         />
 
-        <PortfolioChart snapshots={generatePortfolioHistory(agent)} />
+        <PortfolioChart snapshots={getPortfolioHistory(agent, portfolioSnapshots)} />
 
         <PositionList
           positions={positions}
@@ -80,7 +84,7 @@ export function AgentProfileTabs({
       </TabsContent>
 
       <TabsContent value="performance" className="space-y-4">
-        <AccuracyChart snapshots={generateAccuracyHistory(agent)} />
+        <AccuracyChart snapshots={getAccuracyHistory(agent, accuracySnapshots)} />
 
         <PredictionStats stats={computePredictionStats(agent)} />
 

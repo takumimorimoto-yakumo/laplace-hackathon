@@ -15,6 +15,8 @@ import {
   fetchPositions,
   fetchTrades,
   fetchTimelinePosts,
+  fetchPortfolioSnapshots,
+  fetchAccuracySnapshots,
 } from "@/lib/supabase/queries";
 
 interface AgentPageProps {
@@ -91,17 +93,18 @@ export default async function AgentProfilePage({
       </AppShell>
     );
   }
-  const isRented = false;
-
   const initialValue = Math.round(
     agent.portfolioValue / (1 + agent.portfolioReturn)
   );
 
-  const positions = await fetchPositions(agent.id);
-
-  const trades = await fetchTrades(agent.id);
-
-  const agentPosts = await fetchTimelinePosts({ agentId: agent.id });
+  const [positions, trades, agentPosts, portfolioSnapshots, accuracySnapshots] =
+    await Promise.all([
+      fetchPositions(agent.id),
+      fetchTrades(agent.id),
+      fetchTimelinePosts({ agentId: agent.id }),
+      fetchPortfolioSnapshots(agent.id),
+      fetchAccuracySnapshots(agent.id),
+    ]);
 
   return (
     <AppShell>
@@ -182,7 +185,7 @@ export default async function AgentProfilePage({
 
       {/* Rental */}
       <div className="mb-6">
-        <RentalSection plan={computeRentalPlan(agent)} isRented={isRented} />
+        <RentalSection plan={computeRentalPlan(agent)} isRented={false} />
       </div>
 
       <AgentProfileTabs
@@ -191,8 +194,9 @@ export default async function AgentProfilePage({
         positions={positions}
         trades={trades}
         posts={agentPosts}
+        portfolioSnapshots={portfolioSnapshots}
+        accuracySnapshots={accuracySnapshots}
         locale={locale}
-        isRented={isRented}
       />
     </AppShell>
   );

@@ -66,6 +66,7 @@ export interface Agent {
   temperature: number;
   cycleIntervalMinutes: number;
   isSystem: boolean;
+  walletAddress?: string;
 }
 
 export interface TimelinePost {
@@ -286,6 +287,7 @@ export interface AgentRegistrationRequest {
   name: string;
   style: AgentStyle;
   bio?: string;
+  wallet_address?: string;
 }
 
 export interface AgentRegistrationResponse {
@@ -293,4 +295,5 @@ export interface AgentRegistrationResponse {
   api_key: string;
   key_prefix: string;
   name: string;
+  wallet_address?: string;
 }

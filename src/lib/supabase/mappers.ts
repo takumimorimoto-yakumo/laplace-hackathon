@@ -45,6 +45,7 @@ export interface DbAgent {
   last_active_at: string | null;
   next_wake_at: string | null;
   created_at: string;
+  wallet_address: string | null;
 }
 
 export interface DbTimelinePost {
@@ -150,6 +151,7 @@ export function dbAgentToAgent(row: DbAgent): Agent {
     temperature: Number(row.temperature),
     cycleIntervalMinutes: row.cycle_interval_minutes,
     isSystem: row.is_system,
+    walletAddress: row.wallet_address ?? undefined,
   };
 }
 

@@ -11,6 +11,9 @@ interface AgentRow {
   total_predictions: number;
   leaderboard_rank: number;
   trend: string;
+  follower_count: number;
+  reply_count: number;
+  total_votes_given: number;
 }
 
 interface RankedAgent {
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
   const { data: agents, error: fetchError } = await supabase
     .from("agents")
     .select(
-      "id, accuracy_score, total_votes_received, portfolio_return, total_predictions, leaderboard_rank, trend"
+      "id, accuracy_score, total_votes_received, portfolio_return, total_predictions, leaderboard_rank, trend, follower_count, reply_count, total_votes_given"
     );
 
   if (fetchError || !agents) {
@@ -132,8 +135,12 @@ export async function GET(request: NextRequest) {
   // --- Compute normalization denominators ---
   const maxVotes = Math.max(...rows.map((a) => Number(a.total_votes_received)), 1);
   const maxPredictions = Math.max(...rows.map((a) => Number(a.total_predictions)), 1);
+  const maxFollowers = Math.max(...rows.map((a) => Number(a.follower_count ?? 0)), 1);
+  const maxReplies = Math.max(...rows.map((a) => Number(a.reply_count ?? 0)), 1);
+  const maxVotesGiven = Math.max(...rows.map((a) => Number(a.total_votes_given ?? 0)), 1);
 
   // --- Compute composite scores ---
+  // Weights: accuracy 35%, votes 20%, portfolio return 15%, predictions 10%, social 20%
   const scored: RankedAgent[] = rows.map((agent) => {
     const decayedAcc = decayedAccuracy.get(agent.id);
     const accuracyComponent = (decayedAcc !== undefined ? decayedAcc : Number(agent.accuracy_score)) * 100; // 0-100
@@ -142,11 +149,21 @@ export async function GET(request: NextRequest) {
     const returnNormalized = (returnComponent + 100) / 2; // shift to 0-100
     const predictionsComponent = (Number(agent.total_predictions) / maxPredictions) * 100; // 0-100
 
+    // Social score: follower_count 40% + reply_count 40% + total_votes_given 20%
+    const followerComponent = (Number(agent.follower_count ?? 0) / maxFollowers) * 100;
+    const replyComponent = (Number(agent.reply_count ?? 0) / maxReplies) * 100;
+    const votesGivenComponent = (Number(agent.total_votes_given ?? 0) / maxVotesGiven) * 100;
+    const socialScore =
+      followerComponent * 0.4 +
+      replyComponent * 0.4 +
+      votesGivenComponent * 0.2;
+
     const compositeScore =
-      accuracyComponent * 0.4 +
-      votesComponent * 0.3 +
-      returnNormalized * 0.2 +
-      predictionsComponent * 0.1;
+      accuracyComponent * 0.35 +
+      votesComponent * 0.20 +
+      returnNormalized * 0.15 +
+      predictionsComponent * 0.10 +
+      socialScore * 0.20;
 
     return {
       id: agent.id,
@@ -164,13 +181,18 @@ export async function GET(request: NextRequest) {
   scored.forEach((agent, index) => {
     agent.newRank = index + 1;
 
-    const rankDiff = agent.previousRank - agent.newRank; // positive = moved up
-    if (rankDiff >= 2) {
-      agent.trend = "streak";
-    } else if (rankDiff <= -2) {
-      agent.trend = "declining";
-    } else {
+    // If agent was never ranked before (default 999), treat as stable
+    if (agent.previousRank >= 999) {
       agent.trend = "stable";
+    } else {
+      const rankDiff = agent.previousRank - agent.newRank; // positive = moved up
+      if (rankDiff >= 2) {
+        agent.trend = "streak";
+      } else if (rankDiff <= -2) {
+        agent.trend = "declining";
+      } else {
+        agent.trend = "stable";
+      }
     }
   });
 

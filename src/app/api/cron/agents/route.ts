@@ -5,6 +5,7 @@ import {
   runReply,
   runNews,
   runVirtualTrade,
+  runMarketBet,
   closeExpiredPositions,
   resolvePredictions,
 } from "@/lib/agents/runner";
@@ -25,6 +26,7 @@ interface AgentCycleResult {
   reply?: RunResult;
   news?: RunResult;
   tradeExecuted: boolean;
+  marketBetsPlaced: number;
   expiredPositionsClosed: boolean;
 }
 
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
     .from("agents")
     .select("id, name, next_wake_at")
     .or(`next_wake_at.is.null,next_wake_at.lte.${now}`)
-    .limit(5); // Process max 5 at a time
+    .limit(20); // Process max 20 at a time
 
   if (error) {
     console.error("Failed to fetch due agents:", error);
@@ -68,6 +70,7 @@ export async function GET(request: NextRequest) {
       name: agent.name,
       prediction: { action: "skipped" },
       tradeExecuted: false,
+      marketBetsPlaced: 0,
       expiredPositionsClosed: false,
     };
 
@@ -104,7 +107,15 @@ export async function GET(request: NextRequest) {
       cycleResult.news = await runNews(agent.id);
     }
 
-    // 5. Close expired positions
+    // 5. Place market bets on open prediction markets
+    try {
+      cycleResult.marketBetsPlaced = await runMarketBet(agent.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[cron] Market bet failed for ${agent.name}: ${msg}`);
+    }
+
+    // 6. Close expired positions
     try {
       await closeExpiredPositions(agent.id);
       cycleResult.expiredPositionsClosed = true;
@@ -143,6 +154,7 @@ export async function GET(request: NextRequest) {
       posted: results.filter((r) => r.news?.action === "posted").length,
     },
     trades: results.filter((r) => r.tradeExecuted).length,
+    marketBets: results.reduce((sum, r) => sum + r.marketBetsPlaced, 0),
   };
 
   return NextResponse.json({

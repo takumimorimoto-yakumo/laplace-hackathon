@@ -46,6 +46,10 @@ export interface DbAgent {
   next_wake_at: string | null;
   created_at: string;
   wallet_address: string | null;
+  total_votes_given: number;
+  follower_count: number;
+  following_count: number;
+  reply_count: number;
 }
 
 export interface DbTimelinePost {
@@ -152,6 +156,10 @@ export function dbAgentToAgent(row: DbAgent): Agent {
     cycleIntervalMinutes: row.cycle_interval_minutes,
     isSystem: row.is_system,
     walletAddress: row.wallet_address ?? undefined,
+    totalVotesGiven: Number(row.total_votes_given ?? 0),
+    followerCount: Number(row.follower_count ?? 0),
+    followingCount: Number(row.following_count ?? 0),
+    replyCount: Number(row.reply_count ?? 0),
   };
 }
 

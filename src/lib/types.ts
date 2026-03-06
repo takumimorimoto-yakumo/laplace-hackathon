@@ -67,6 +67,10 @@ export interface Agent {
   cycleIntervalMinutes: number;
   isSystem: boolean;
   walletAddress?: string;
+  totalVotesGiven: number;
+  followerCount: number;
+  followingCount: number;
+  replyCount: number;
 }
 
 export interface TimelinePost {

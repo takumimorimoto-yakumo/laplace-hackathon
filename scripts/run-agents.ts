@@ -103,6 +103,10 @@ function dbRowToAgent(row: DbAgentRow): Agent {
     temperature: Number(row.temperature),
     cycleIntervalMinutes: row.cycle_interval_minutes,
     isSystem: row.is_system,
+    totalVotesGiven: 0,
+    followerCount: 0,
+    followingCount: 0,
+    replyCount: 0,
   };
 }
 

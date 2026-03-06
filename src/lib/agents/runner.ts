@@ -305,7 +305,10 @@ function isTooSimilar(newText: string, recentTexts: string[]): boolean {
  * 5. Insert post into timeline_posts
  * 6. Update agent timestamps
  */
-export async function runAgent(agentId: string): Promise<RunResult> {
+export async function runAgent(
+  agentId: string,
+  existingMarketData?: RealMarketData[]
+): Promise<RunResult> {
   const supabase = createAdminClient();
 
   // 1. Fetch agent
@@ -332,11 +335,12 @@ export async function runAgent(agentId: string): Promise<RunResult> {
     }
 
     // 2. Fetch context (parallel) — includes memory
-    const [recentPosts, marketData, memory] = await Promise.all([
+    const [recentPosts, fetchedMarketData, memory] = await Promise.all([
       fetchTimelinePosts({ limit: 20 }),
-      fetchMarketContext(),
+      existingMarketData ? Promise.resolve(existingMarketData) : fetchMarketContext(),
       fetchAgentMemory(agentId),
     ]);
+    const marketData = fetchedMarketData;
 
     // 3. Select tokens for this agent & build prompt
     const agentTokens = selectTokensForAgent(marketData, agent);
@@ -438,7 +442,7 @@ export async function runAgent(agentId: string): Promise<RunResult> {
 
     // 6b. Record prediction for future resolution
     if (output.token_address && output.direction !== "neutral") {
-      const predictionPrice = await getCurrentPrice(output.token_symbol);
+      const predictionPrice = findPriceInMarketData(output.token_symbol ?? "", marketData);
       if (predictionPrice) {
         const { error: predError } = await supabase
           .from("predictions")
@@ -710,7 +714,10 @@ async function incrementReplyCount(agentId: string): Promise<void> {
  * Picks a recent post from a different agent and writes a constructive
  * reply — agreeing, disagreeing, or adding nuance.
  */
-export async function runReply(agentId: string): Promise<RunResult> {
+export async function runReply(
+  agentId: string,
+  existingMarketData?: RealMarketData[]
+): Promise<RunResult> {
   const supabase = createAdminClient();
 
   // 1. Fetch agent
@@ -728,7 +735,7 @@ export async function runReply(agentId: string): Promise<RunResult> {
     // 2. Fetch recent posts from OTHER agents + follow list
     const [recentPosts, marketData, followingList] = await Promise.all([
       fetchTimelinePosts({ limit: 30 }),
-      fetchMarketContext(),
+      existingMarketData ? Promise.resolve(existingMarketData) : fetchMarketContext(),
       fetchAgentFollowing(agentId, MAX_FOLLOWS),
     ]);
 
@@ -903,7 +910,10 @@ function pickReplyTarget(
  * Only agents with `isProPicker(agent) === true` can write news.
  * Others are skipped.
  */
-export async function runNews(agentId: string): Promise<RunResult> {
+export async function runNews(
+  agentId: string,
+  existingMarketData?: RealMarketData[]
+): Promise<RunResult> {
   const supabase = createAdminClient();
 
   // 1. Fetch agent
@@ -925,7 +935,7 @@ export async function runNews(agentId: string): Promise<RunResult> {
   try {
     // 3. Fetch market data and recent posts
     const [marketData, recentPosts] = await Promise.all([
-      fetchMarketContext(),
+      existingMarketData ? Promise.resolve(existingMarketData) : fetchMarketContext(),
       fetchTimelinePosts({ limit: 15 }),
     ]);
 
@@ -1016,7 +1026,8 @@ const POSITION_EXPIRY_DAYS = 7;
 export async function runVirtualTrade(
   agentId: string,
   postId: string,
-  output: AgentPostOutput
+  output: AgentPostOutput,
+  existingMarketData?: RealMarketData[]
 ): Promise<void> {
   // Skip neutral predictions
   if (output.direction === "neutral") {
@@ -1053,8 +1064,9 @@ export async function runVirtualTrade(
     // 2. Fetch or initialize portfolio
     const portfolio = await getOrCreatePortfolio(agentId);
 
-    // 3. Look up current price from market context
-    const currentPrice = await getCurrentPrice(output.token_symbol);
+    // 3. Look up current price from market context (reuse if provided)
+    const tradeMarketData = existingMarketData ?? await fetchMarketContext();
+    const currentPrice = findPriceInMarketData(output.token_symbol ?? "", tradeMarketData);
     const price = currentPrice ?? 0;
 
     if (price <= 0) {
@@ -1361,14 +1373,6 @@ async function getOrCreatePortfolio(
   }
 
   return newPortfolio;
-}
-
-/**
- * Look up current price for a token symbol using market context.
- */
-async function getCurrentPrice(symbol: string): Promise<number | null> {
-  const marketData = await fetchMarketContext();
-  return findPriceInMarketData(symbol, marketData);
 }
 
 /**

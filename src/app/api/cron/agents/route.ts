@@ -64,6 +64,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "No agents due", processed: 0 });
   }
 
+  // Fetch market data ONCE for the entire cron cycle
+  let sharedMarketData;
+  try {
+    sharedMarketData = await fetchMarketContext();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] fetchMarketContext failed: ${msg}`);
+  }
+
   // Run each agent sequentially (to avoid overwhelming LLM APIs)
   const results: AgentCycleResult[] = [];
 
@@ -77,11 +86,11 @@ export async function GET(request: NextRequest) {
       expiredPositionsClosed: false,
     };
 
-    // 1. Run prediction (main mode)
-    const predictionResult = await runAgent(agent.id);
+    // 1. Run prediction (main mode) — reuse shared market data
+    const predictionResult = await runAgent(agent.id, sharedMarketData);
     cycleResult.prediction = predictionResult;
 
-    // 2. If prediction succeeded, execute virtual trade
+    // 2. If prediction succeeded, execute virtual trade (reuse market data)
     if (
       predictionResult.action === "posted" &&
       predictionResult.postId &&
@@ -91,7 +100,8 @@ export async function GET(request: NextRequest) {
         await runVirtualTrade(
           agent.id,
           predictionResult.postId,
-          predictionResult.output
+          predictionResult.output,
+          sharedMarketData
         );
         cycleResult.tradeExecuted = true;
       } catch (err: unknown) {
@@ -100,14 +110,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Maybe run reply (~30% chance)
+    // 3. Maybe run reply (~30% chance) — reuse shared market data
     if (Math.random() < REPLY_PROBABILITY) {
-      cycleResult.reply = await runReply(agent.id);
+      cycleResult.reply = await runReply(agent.id, sharedMarketData);
     }
 
-    // 4. Maybe run news (~10% chance, pro pickers only — runNews checks internally)
+    // 4. Maybe run news (~10% chance, pro pickers only) — reuse shared market data
     if (Math.random() < NEWS_PROBABILITY) {
-      cycleResult.news = await runNews(agent.id);
+      cycleResult.news = await runNews(agent.id, sharedMarketData);
     }
 
     // 5. Place market bets on open prediction markets
@@ -118,28 +128,19 @@ export async function GET(request: NextRequest) {
       console.error(`[cron] Market bet failed for ${agent.name}: ${msg}`);
     }
 
-    // 6. Fetch market data once for P&L update + position close
-    let marketData;
-    try {
-      marketData = await fetchMarketContext();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[cron] fetchMarketContext failed for ${agent.name}: ${msg}`);
-    }
-
-    // 7. Update unrealized P&L (mark-to-market)
-    if (marketData) {
+    // 6. Update unrealized P&L (mark-to-market) — reuse shared market data
+    if (sharedMarketData) {
       try {
-        await updateUnrealizedPnL(agent.id, marketData);
+        await updateUnrealizedPnL(agent.id, sharedMarketData);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[cron] updateUnrealizedPnL failed for ${agent.name}: ${msg}`);
       }
     }
 
-    // 8. Close expired positions (reuse marketData)
+    // 7. Close expired positions (reuse shared market data)
     try {
-      await closeExpiredPositions(agent.id, marketData);
+      await closeExpiredPositions(agent.id, sharedMarketData);
       cycleResult.expiredPositionsClosed = true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -148,7 +149,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 9. Record portfolio snapshot (after P&L is updated)
+    // 8. Record portfolio snapshot (after P&L is updated)
     try {
       await recordPortfolioSnapshot(agent.id);
     } catch (err: unknown) {

@@ -35,8 +35,6 @@ export type {
   PortfolioSnapshot,
   AccuracySnapshot,
   AgentPredictionStats,
-  CopyTradeConfig,
-  CopyTradeMirror,
   UserVotingStats,
 } from "./types";
 

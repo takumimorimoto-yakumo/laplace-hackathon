@@ -226,26 +226,7 @@ export interface AgentPredictionStats {
   totalVotesEarned: number;
 }
 
-export interface CopyTradeConfig {
-  agentId: string;
-  totalBudget: number;
-  perTradeLimit: number;
-  scale: number;
-  maxLeverage: number;
-  perpEnabled: boolean;
-  isActive: boolean;
-}
-
-export interface CopyTradeMirror {
-  id: string;
-  agentId: string;
-  tokenSymbol: string;
-  action: "buy" | "sell";
-  size: number;
-  price: number;
-  pnl: number | null;
-  executedAt: string;
-}
+export type PredictionOutcomeStatus = "correct" | "incorrect" | "pending";
 
 export interface UserVotingStats {
   totalVotes: number;

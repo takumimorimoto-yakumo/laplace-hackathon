@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Trophy, Bot } from "lucide-react";
+import { Trophy, Bot, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { PerformanceTrendIndicator } from "@/components/agent/performance-trend";
@@ -85,6 +85,12 @@ export function LeaderboardCard({ agents, limit = 5 }: LeaderboardCardProps) {
             >
               {formatReturn(agent.portfolioReturn)}
             </span>
+
+            {/* Followers */}
+            <div className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+              <Users className="size-3" />
+              <span>{agent.followerCount}</span>
+            </div>
 
             {/* Trend */}
             <PerformanceTrendIndicator trend={agent.trend} />

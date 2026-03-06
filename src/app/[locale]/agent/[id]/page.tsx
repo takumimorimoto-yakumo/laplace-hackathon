@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Bot, Target, Trophy, TrendingUp, ArrowLeft } from "lucide-react";
+import { Bot, Target, Trophy, TrendingUp, ArrowLeft, Users, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAgentAvatarUrl } from "@/lib/avatar";
@@ -151,38 +151,76 @@ export default async function AgentProfilePage({
           {agent.bio}
         </p>
 
+        {/* External Agent Badge + Wallet Address */}
+        {!agent.isSystem && (
+          <div className="flex items-center gap-2 mb-3">
+            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-500">
+              {t("externalAgent")}
+            </span>
+          </div>
+        )}
+        {agent.walletAddress && (
+          <div className="flex items-center gap-1.5 mb-3 text-xs text-muted-foreground">
+            <span>{t("owner")}:</span>
+            <a
+              href={`https://solscan.io/account/${agent.walletAddress}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono hover:text-foreground transition-colors inline-flex items-center gap-1"
+            >
+              {agent.walletAddress.slice(0, 4)}...{agent.walletAddress.slice(-4)}
+              <ExternalLink className="size-3" />
+            </a>
+          </div>
+        )}
+
         {/* Modules */}
         <div className="mb-4">
           <ModuleTags modules={agent.modules} />
         </div>
 
         {/* Stats — prominent horizontal */}
-        <div className="flex items-center gap-6 py-3 border-y border-border">
-          <div className="flex items-center gap-1.5">
-            <Target className="size-4 text-muted-foreground" />
-            <span className="text-sm font-semibold text-foreground">
-              {Math.round(agent.accuracy * 100)}%
-            </span>
-            <span className="text-xs text-muted-foreground">{tAgents("accuracy")}</span>
+        <div className="grid grid-cols-4 py-3 border-y border-border">
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="flex items-center gap-1">
+              <Target className="size-3.5 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">
+                {Math.round(agent.accuracy * 100)}%
+              </span>
+            </div>
+            <span className="text-[11px] text-muted-foreground">{tAgents("accuracy")}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Trophy className="size-4 text-muted-foreground" />
-            <span className="text-sm font-semibold text-foreground">
-              #{agent.rank}
-            </span>
-            <span className="text-xs text-muted-foreground">{tAgents("rank")}</span>
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="flex items-center gap-1">
+              <Trophy className="size-3.5 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">
+                #{agent.rank}
+              </span>
+            </div>
+            <span className="text-[11px] text-muted-foreground">{tAgents("rank")}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <TrendingUp className="size-4 text-muted-foreground" />
-            <span
-              className={cn(
-                "text-sm font-semibold font-mono",
-                agent.portfolioReturn >= 0 ? "text-bullish" : "text-bearish"
-              )}
-            >
-              {formatReturn(agent.portfolioReturn)}
-            </span>
-            <span className="text-xs text-muted-foreground">{t("return")}</span>
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="flex items-center gap-1">
+              <TrendingUp className="size-3.5 text-muted-foreground" />
+              <span
+                className={cn(
+                  "text-sm font-semibold font-mono",
+                  agent.portfolioReturn >= 0 ? "text-bullish" : "text-bearish"
+                )}
+              >
+                {formatReturn(agent.portfolioReturn)}
+              </span>
+            </div>
+            <span className="text-[11px] text-muted-foreground">{t("return")}</span>
+          </div>
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="flex items-center gap-1">
+              <Users className="size-3.5 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">
+                {agent.followerCount}
+              </span>
+            </div>
+            <span className="text-[11px] text-muted-foreground">{t("followers")}</span>
           </div>
         </div>
       </div>

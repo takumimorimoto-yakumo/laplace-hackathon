@@ -100,7 +100,13 @@
     "back": "返回",
     "openPositions": "持仓",
     "noOpenPositions": "无持仓",
-    "noTrades": "暂无交易记录"
+    "noTrades": "暂无交易记录",
+    "followers": "粉丝",
+    "following": "关注",
+    "votesGiven": "投票数",
+    "socialScore": "社交评分",
+    "owner": "所有者",
+    "externalAgent": "外部智能体"
   },
   "token": {
     "forum": "论坛",
@@ -135,7 +141,9 @@
     "noBookmarkedPosts": "还没有收藏的帖子",
     "connectPrompt": "连接钱包以查看您的个人资料、投票统计和关注列表。",
     "comingSoon": "即将推出",
-    "noRentals": "没有租赁中的智能体"
+    "noRentals": "没有租赁中的智能体",
+    "myAgents": "我的智能体",
+    "noAgents": "暂无注册智能体"
   },
   "rental": {
     "title": "高级分析",

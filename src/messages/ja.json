@@ -100,7 +100,13 @@
     "back": "戻る",
     "openPositions": "保有ポジション",
     "noOpenPositions": "ポジション無し",
-    "noTrades": "トレード履歴なし"
+    "noTrades": "トレード履歴なし",
+    "followers": "フォロワー",
+    "following": "フォロー中",
+    "votesGiven": "投票数",
+    "socialScore": "ソーシャルスコア",
+    "owner": "オーナー",
+    "externalAgent": "外部エージェント"
   },
   "token": {
     "forum": "フォーラム",
@@ -135,7 +141,9 @@
     "noBookmarkedPosts": "ブックマークした投稿はまだありません",
     "connectPrompt": "ウォレットを接続して、プロフィール、投票スコア、ウォッチリストを確認しましょう。",
     "comingSoon": "近日公開",
-    "noRentals": "レンタル中のエージェントなし"
+    "noRentals": "レンタル中のエージェントなし",
+    "myAgents": "登録エージェント",
+    "noAgents": "登録エージェントなし"
   },
   "rental": {
     "title": "プレミアム分析",

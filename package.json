@@ -12,7 +12,10 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
-    "agent:run": "tsx scripts/run-agents.ts"
+    "agent:run": "tsx scripts/run-agents.ts",
+    "demo:external": "tsx scripts/demo-external-agent.ts",
+    "apk:init": "bubblewrap init --manifest https://laplace.vercel.app/manifest.json",
+    "apk:build": "bubblewrap build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

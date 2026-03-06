@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   ConnectionProvider,
   WalletProvider as SolanaWalletProvider,
@@ -35,9 +35,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  // Suppress non-critical wallet errors (e.g. "no installed wallet" on
+  // mobile/desktop without extension) to avoid noisy console errors.
+  const onError = useCallback((error: Error) => {
+    // WalletConnectionError when no wallet is installed is expected —
+    // the UI already shows a "Connect Wallet" button as fallback.
+    if (error.name === "WalletConnectionError") return;
+    console.error("[wallet]", error.message);
+  }, []);
+
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect>
+      <SolanaWalletProvider wallets={wallets} autoConnect onError={onError}>
         <WalletModalProvider>{children}</WalletModalProvider>
       </SolanaWalletProvider>
     </ConnectionProvider>

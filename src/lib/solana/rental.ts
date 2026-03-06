@@ -6,9 +6,27 @@ import {
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 // Inlined from deleted programs.ts
-const RENTAL_PROGRAM_ID = new PublicKey(
-  "Rent1111111111111111111111111111111111111111"
-);
+// Lazy-init to avoid crashing at import time when env is missing or key is
+// a placeholder.  The actual program ID should be set via env var in prod.
+let _rentalProgramId: PublicKey | null = null;
+
+function getRentalProgramId(): PublicKey {
+  if (!_rentalProgramId) {
+    const raw =
+      process.env.NEXT_PUBLIC_RENTAL_PROGRAM_ID ??
+      "Rent111111111111111111111111111111111111111";
+    try {
+      _rentalProgramId = new PublicKey(raw);
+    } catch {
+      // Fallback to system program so the app doesn't crash in dev
+      console.warn(
+        "[rental] Invalid RENTAL_PROGRAM_ID, falling back to SystemProgram"
+      );
+      _rentalProgramId = SystemProgram.programId;
+    }
+  }
+  return _rentalProgramId;
+}
 
 function findPda(
   seeds: Array<Buffer | Uint8Array>,
@@ -23,7 +41,7 @@ function strSeed(s: string): Buffer {
 
 /** Derive AgentPricing PDA */
 export function getAgentPricingAddress(agentId: string): [PublicKey, number] {
-  return findPda([strSeed("pricing"), strSeed(agentId)], RENTAL_PROGRAM_ID);
+  return findPda([strSeed("pricing"), strSeed(agentId)], getRentalProgramId());
 }
 
 /** Derive Subscription PDA */
@@ -33,7 +51,7 @@ export function getSubscriptionAddress(
 ): [PublicKey, number] {
   return findPda(
     [strSeed("sub"), subscriber.toBuffer(), strSeed(agentId)],
-    RENTAL_PROGRAM_ID
+    getRentalProgramId()
   );
 }
 
@@ -78,7 +96,7 @@ export function buildSetPricing(params: {
   }
 
   return new TransactionInstruction({
-    programId: RENTAL_PROGRAM_ID,
+    programId: getRentalProgramId(),
     keys: [
       { pubkey: pricingPda, isSigner: false, isWritable: true },
       { pubkey: params.paymentMint, isSigner: false, isWritable: false },
@@ -113,7 +131,7 @@ export function buildSubscribe(params: {
   data.writeBigUInt64LE(params.paymentAmount, offset);
 
   return new TransactionInstruction({
-    programId: RENTAL_PROGRAM_ID,
+    programId: getRentalProgramId(),
     keys: [
       { pubkey: pricingPda, isSigner: false, isWritable: true },
       { pubkey: subPda, isSigner: false, isWritable: true },
@@ -136,7 +154,7 @@ export function buildUnsubscribe(params: {
   const [pricingPda] = getAgentPricingAddress(params.agentId);
 
   return new TransactionInstruction({
-    programId: RENTAL_PROGRAM_ID,
+    programId: getRentalProgramId(),
     keys: [
       { pubkey: subPda, isSigner: false, isWritable: true },
       { pubkey: pricingPda, isSigner: false, isWritable: true },

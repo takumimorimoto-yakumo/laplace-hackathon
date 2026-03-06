@@ -3,7 +3,7 @@
 // ============================================================
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchAgent, fetchTimelinePosts } from "@/lib/supabase/queries";
+import { fetchAgent, fetchTimelinePosts, fetchAgentFollowing } from "@/lib/supabase/queries";
 import { chatCompletion } from "./llm-client";
 import {
   buildMessages,
@@ -16,11 +16,12 @@ import {
   parseReplyResponse,
   parseNewsResponse,
 } from "./response-schema";
-import type { AgentPostOutput } from "./response-schema";
+import type { AgentPostOutput, VoteDirection } from "./response-schema";
 import { translatePost } from "./translate";
 import { fetchMarketContext } from "./market-context";
 import { fetchAgentMemory, formatMemoryBlock } from "./memory-context";
 import { resolveProvider } from "./llm-client";
+import { jaccardSimilarity } from "@/lib/api/content-safety";
 import { isProPicker } from "@/lib/mock-data";
 import { recordPortfolioSnapshot } from "./portfolio-snapshot";
 import type { Agent, TimelinePost } from "@/lib/types";
@@ -89,6 +90,107 @@ async function updateNextWake(agentId: string, cycleMinutes: number): Promise<vo
     .eq("id", agentId);
 }
 
+// ---------- Post Dedup Constants ----------
+
+/** Maximum predictions per agent per 24 hours */
+const MAX_PREDICTIONS_PER_DAY = 24;
+
+/** Jaccard similarity threshold for internal agents (stricter than external API) */
+const SIMILARITY_THRESHOLD = 0.7;
+
+/** Hours within which same token + same direction is considered a duplicate prediction */
+const DUPLICATE_PREDICTION_HOURS = 6;
+
+// ---------- Post Limit Helpers ----------
+
+/**
+ * Count predictions by this agent in the last 24 hours.
+ */
+async function countRecentPredictions(agentId: string): Promise<number> {
+  const supabase = createAdminClient();
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { count, error } = await supabase
+    .from("timeline_posts")
+    .select("*", { count: "exact", head: true })
+    .eq("agent_id", agentId)
+    .eq("post_type", "prediction")
+    .gte("created_at", cutoff);
+
+  if (error) {
+    console.warn(`[runner] Failed to count recent predictions: ${error.message}`);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+/**
+ * Check if the agent recently posted the same token + direction combination.
+ */
+async function hasDuplicatePrediction(
+  agentId: string,
+  tokenSymbol: string | undefined,
+  direction: string
+): Promise<boolean> {
+  if (!tokenSymbol) return false;
+
+  const supabase = createAdminClient();
+  const cutoff = new Date(
+    Date.now() - DUPLICATE_PREDICTION_HOURS * 60 * 60 * 1000
+  ).toISOString();
+
+  const { count, error } = await supabase
+    .from("timeline_posts")
+    .select("*", { count: "exact", head: true })
+    .eq("agent_id", agentId)
+    .eq("post_type", "prediction")
+    .eq("token_symbol", tokenSymbol)
+    .eq("direction", direction)
+    .gte("created_at", cutoff);
+
+  if (error) {
+    console.warn(`[runner] Failed to check duplicate prediction: ${error.message}`);
+    return false;
+  }
+
+  return (count ?? 0) > 0;
+}
+
+/**
+ * Fetch recent post texts by this agent for similarity checking.
+ */
+async function fetchRecentPostTexts(agentId: string, limit: number): Promise<string[]> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("timeline_posts")
+    .select("natural_text")
+    .eq("agent_id", agentId)
+    .eq("post_type", "prediction")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn(`[runner] Failed to fetch recent post texts: ${error.message}`);
+    return [];
+  }
+
+  return (data ?? []).map((row) => row.natural_text as string).filter(Boolean);
+}
+
+/**
+ * Check if text is too similar to recent posts using Jaccard similarity.
+ */
+function isTooSimilar(newText: string, recentTexts: string[]): boolean {
+  for (const existing of recentTexts) {
+    if (jaccardSimilarity(newText, existing) > SIMILARITY_THRESHOLD) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ============================================================
 // 1. Prediction (existing)
 // ============================================================
@@ -118,6 +220,16 @@ export async function runAgent(agentId: string): Promise<RunResult> {
   }
 
   try {
+    // 1c. Check daily prediction limit (before LLM call)
+    const recentCount = await countRecentPredictions(agentId);
+    if (recentCount >= MAX_PREDICTIONS_PER_DAY) {
+      console.log(
+        `[runner] ${agent.name} hit daily prediction limit (${recentCount}/${MAX_PREDICTIONS_PER_DAY})`
+      );
+      await updateNextWake(agentId, agent.cycleIntervalMinutes || 30);
+      return { action: "skipped", error: "Daily prediction limit reached" };
+    }
+
     // 2. Fetch context (parallel) — includes memory
     const [recentPosts, marketData, memory] = await Promise.all([
       fetchTimelinePosts({ limit: 20 }),
@@ -135,6 +247,25 @@ export async function runAgent(agentId: string): Promise<RunResult> {
 
     // 4. Parse response
     const output = parseAgentResponse(raw);
+
+    // 4b. Duplicate prediction check (same token + direction within 6h)
+    if (await hasDuplicatePrediction(agentId, output.token_symbol, output.direction)) {
+      console.log(
+        `[runner] ${agent.name} skipped: duplicate prediction ${output.direction} on ${output.token_symbol}`
+      );
+      await updateNextWake(agentId, agent.cycleIntervalMinutes || 30);
+      return { action: "skipped", error: "Duplicate prediction (same token + direction)" };
+    }
+
+    // 4c. Content similarity check (Jaccard against recent 10 posts)
+    const recentTexts = await fetchRecentPostTexts(agentId, 10);
+    if (isTooSimilar(output.natural_text, recentTexts)) {
+      console.log(
+        `[runner] ${agent.name} skipped: content too similar to recent posts`
+      );
+      await updateNextWake(agentId, agent.cycleIntervalMinutes || 30);
+      return { action: "skipped", error: "Content too similar to recent post" };
+    }
 
     // 5. Translate (graceful degradation — EN only on failure)
     const contentLocalized = await translateText(output.natural_text, agent.name);
@@ -281,6 +412,175 @@ export async function runAgent(agentId: string): Promise<RunResult> {
 }
 
 // ============================================================
+// Agent Social: Vote & Follow
+// ============================================================
+
+/**
+ * Record an agent's vote on a post.
+ * Upserts into agent_votes, updates post upvotes/downvotes and agent counters.
+ */
+async function recordAgentVote(
+  agentId: string,
+  postId: string,
+  direction: VoteDirection
+): Promise<void> {
+  if (direction === "none") return;
+
+  const supabase = createAdminClient();
+
+  // Upsert vote (ignore conflict = already voted)
+  const { error: voteError } = await supabase
+    .from("agent_votes")
+    .upsert(
+      { agent_id: agentId, post_id: postId, direction },
+      { onConflict: "agent_id,post_id" }
+    );
+
+  if (voteError) {
+    console.warn(`[runner] Vote upsert failed: ${voteError.message}`);
+    return;
+  }
+
+  // Increment upvotes/downvotes on the post
+  const column = direction === "up" ? "upvotes" : "downvotes";
+  const { data: postData } = await supabase
+    .from("timeline_posts")
+    .select("upvotes, downvotes")
+    .eq("id", postId)
+    .single();
+
+  if (postData) {
+    const currentValue = direction === "up" ? Number(postData.upvotes) : Number(postData.downvotes);
+    await supabase
+      .from("timeline_posts")
+      .update({ [column]: currentValue + 1 })
+      .eq("id", postId);
+  }
+
+  // Increment agent's total_votes_given
+  await supabase
+    .from("agents")
+    .select("total_votes_given")
+    .eq("id", agentId)
+    .single()
+    .then(({ data }) => {
+      if (data) {
+        return supabase
+          .from("agents")
+          .update({ total_votes_given: Number(data.total_votes_given) + 1 })
+          .eq("id", agentId);
+      }
+    });
+}
+
+/** Maximum follows per agent */
+const MAX_FOLLOWS = 20;
+
+/**
+ * Record an agent follow relationship.
+ * Inserts into agent_follows and updates follower/following counts.
+ * Prunes oldest follows if over MAX_FOLLOWS.
+ */
+async function recordAgentFollow(
+  followerAgentId: string,
+  followedAgentId: string
+): Promise<void> {
+  if (followerAgentId === followedAgentId) return;
+
+  const supabase = createAdminClient();
+
+  // Check if already following
+  const { data: existing } = await supabase
+    .from("agent_follows")
+    .select("id")
+    .eq("follower_agent_id", followerAgentId)
+    .eq("followed_agent_id", followedAgentId)
+    .single();
+
+  if (existing) return; // already following
+
+  // Insert follow
+  const { error: followError } = await supabase
+    .from("agent_follows")
+    .insert({
+      follower_agent_id: followerAgentId,
+      followed_agent_id: followedAgentId,
+    });
+
+  if (followError) {
+    console.warn(`[runner] Follow insert failed: ${followError.message}`);
+    return;
+  }
+
+  // Update following_count for follower
+  await supabase
+    .from("agents")
+    .select("following_count")
+    .eq("id", followerAgentId)
+    .single()
+    .then(({ data }) => {
+      if (data) {
+        return supabase
+          .from("agents")
+          .update({ following_count: Number(data.following_count) + 1 })
+          .eq("id", followerAgentId);
+      }
+    });
+
+  // Update follower_count for followed
+  await supabase
+    .from("agents")
+    .select("follower_count")
+    .eq("id", followedAgentId)
+    .single()
+    .then(({ data }) => {
+      if (data) {
+        return supabase
+          .from("agents")
+          .update({ follower_count: Number(data.follower_count) + 1 })
+          .eq("id", followedAgentId);
+      }
+    });
+
+  // Prune old follows if over limit
+  const { data: allFollows } = await supabase
+    .from("agent_follows")
+    .select("id")
+    .eq("follower_agent_id", followerAgentId)
+    .order("created_at", { ascending: false });
+
+  if (allFollows && allFollows.length > MAX_FOLLOWS) {
+    const toDelete = allFollows.slice(MAX_FOLLOWS).map((f) => f.id as string);
+    await supabase.from("agent_follows").delete().in("id", toDelete);
+
+    // Correct the following_count after pruning
+    await supabase
+      .from("agents")
+      .update({ following_count: MAX_FOLLOWS })
+      .eq("id", followerAgentId);
+  }
+}
+
+/**
+ * Increment the reply_count for an agent.
+ */
+async function incrementReplyCount(agentId: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("agents")
+    .select("reply_count")
+    .eq("id", agentId)
+    .single();
+
+  if (data) {
+    await supabase
+      .from("agents")
+      .update({ reply_count: Number(data.reply_count) + 1 })
+      .eq("id", agentId);
+  }
+}
+
+// ============================================================
 // 2. Reply Generation
 // ============================================================
 
@@ -304,11 +604,14 @@ export async function runReply(agentId: string): Promise<RunResult> {
   }
 
   try {
-    // 2. Fetch recent posts from OTHER agents
-    const [recentPosts, marketData] = await Promise.all([
+    // 2. Fetch recent posts from OTHER agents + follow list
+    const [recentPosts, marketData, followingList] = await Promise.all([
       fetchTimelinePosts({ limit: 30 }),
       fetchMarketContext(),
+      fetchAgentFollowing(agentId, MAX_FOLLOWS),
     ]);
+
+    const followedAgentIds = new Set(followingList.map((f) => f.agentId));
 
     const otherPosts = recentPosts.filter((p) => p.agentId !== agentId);
 
@@ -317,7 +620,7 @@ export async function runReply(agentId: string): Promise<RunResult> {
     }
 
     // 3. Pick a post to reply to
-    const targetPost = pickReplyTarget(otherPosts, agent);
+    const targetPost = pickReplyTarget(otherPosts, agent, followedAgentIds);
 
     if (!targetPost) {
       return { action: "skipped", error: "No suitable reply target found" };
@@ -370,6 +673,33 @@ export async function runReply(agentId: string): Promise<RunResult> {
       }
     }
 
+    // 8b. Handle vote
+    if (output.vote !== "none") {
+      try {
+        await recordAgentVote(agentId, targetPost.id, output.vote);
+      } catch (voteErr: unknown) {
+        const voteMsg = voteErr instanceof Error ? voteErr.message : String(voteErr);
+        console.warn(`[runner] Vote failed for ${agent.name}: ${voteMsg}`);
+      }
+    }
+
+    // 8c. Handle follow
+    if (output.follow_author && targetPost.agentId) {
+      try {
+        await recordAgentFollow(agentId, targetPost.agentId);
+      } catch (followErr: unknown) {
+        const followMsg = followErr instanceof Error ? followErr.message : String(followErr);
+        console.warn(`[runner] Follow failed for ${agent.name}: ${followMsg}`);
+      }
+    }
+
+    // 8d. Increment reply_count
+    try {
+      await incrementReplyCount(agentId);
+    } catch {
+      // non-critical
+    }
+
     // 9. Update next_wake_at
     await updateNextWake(agentId, agent.cycleIntervalMinutes || 30);
 
@@ -392,7 +722,8 @@ export async function runReply(agentId: string): Promise<RunResult> {
  */
 function pickReplyTarget(
   posts: TimelinePost[],
-  agent: Agent
+  agent: Agent,
+  followedAgentIds: Set<string> = new Set()
 ): TimelinePost | null {
   if (posts.length === 0) return null;
 
@@ -425,6 +756,11 @@ function pickReplyTarget(
       score += 2.0; // bearish agent strongly wants to challenge bullish posts
     } else if (agentIsBullish && post.direction === "bearish") {
       score += 2.0; // bullish agent strongly wants to challenge bearish posts
+    }
+
+    // Boost posts from followed agents
+    if (followedAgentIds.has(post.agentId)) {
+      score += 1.5;
     }
 
     return { post, score };
@@ -1019,7 +1355,126 @@ export async function resolvePredictions(): Promise<number> {
 }
 
 // ============================================================
-// 7. Bookmark Management
+// 7. Market Bet — Agent bets on open prediction markets
+// ============================================================
+
+/** Default virtual bet amount per market */
+const BET_AMOUNT = 100;
+
+/**
+ * Place bets on open prediction markets based on the agent's
+ * current outlook and token analysis.
+ *
+ * For each unresolved market the agent has not yet bet on:
+ *   - bullish agents bet YES on price_above, NO on price_below
+ *   - bearish agents bet NO on price_above, YES on price_below
+ *   - neutral / unknown → skip
+ *
+ * Also updates pool_yes / pool_no on the market.
+ */
+export async function runMarketBet(agentId: string): Promise<number> {
+  const supabase = createAdminClient();
+
+  const agent = await fetchAgent(agentId);
+  if (!agent) return 0;
+
+  // Fetch open markets
+  const { data: markets, error: mErr } = await supabase
+    .from("prediction_markets")
+    .select("id, token_symbol, condition_type, threshold, pool_yes, pool_no, proposer_agent_id")
+    .eq("is_resolved", false);
+
+  if (mErr || !markets || markets.length === 0) return 0;
+
+  // Fetch markets this agent already bet on
+  const { data: existingBets } = await supabase
+    .from("market_bets")
+    .select("market_id")
+    .eq("agent_id", agentId);
+
+  const alreadyBet = new Set((existingBets ?? []).map((b) => b.market_id as string));
+
+  // Determine agent's bias per token from recent predictions
+  const { data: recentPreds } = await supabase
+    .from("predictions")
+    .select("token_symbol, direction")
+    .eq("agent_id", agentId)
+    .order("predicted_at", { ascending: false })
+    .limit(20);
+
+  // Build per-token direction map: latest prediction direction per token
+  const tokenDirection = new Map<string, string>();
+  for (const p of recentPreds ?? []) {
+    const sym = (p.token_symbol as string).toUpperCase();
+    if (!tokenDirection.has(sym)) {
+      tokenDirection.set(sym, p.direction as string);
+    }
+  }
+
+  let betsPlaced = 0;
+
+  for (const market of markets) {
+    const marketId = market.id as string;
+
+    // Skip if already bet or proposer is self
+    if (alreadyBet.has(marketId)) continue;
+    if ((market.proposer_agent_id as string) === agentId) continue;
+
+    const symbol = (market.token_symbol as string).toUpperCase();
+    const conditionType = market.condition_type as string;
+
+    // Determine bias: token-specific prediction > agent outlook
+    let bias = tokenDirection.get(symbol) ?? agent.outlook;
+
+    // Map outlook strings to bullish/bearish
+    if (bias === "ultra_bullish") bias = "bullish";
+    if (bias === "ultra_bearish") bias = "bearish";
+
+    let side: "yes" | "no";
+    if (bias === "bullish") {
+      side = conditionType === "price_above" ? "yes" : "no";
+    } else if (bias === "bearish") {
+      side = conditionType === "price_above" ? "no" : "yes";
+    } else {
+      // neutral / unknown — skip
+      continue;
+    }
+
+    // Insert bet
+    const { error: betErr } = await supabase
+      .from("market_bets")
+      .insert({
+        market_id: marketId,
+        agent_id: agentId,
+        side,
+        amount: BET_AMOUNT,
+      });
+
+    if (betErr) {
+      // Likely unique constraint — already bet
+      continue;
+    }
+
+    // Update pool
+    const poolColumn = side === "yes" ? "pool_yes" : "pool_no";
+    const currentPool = Number(market[poolColumn] ?? 0);
+    await supabase
+      .from("prediction_markets")
+      .update({ [poolColumn]: currentPool + BET_AMOUNT })
+      .eq("id", marketId);
+
+    betsPlaced++;
+  }
+
+  if (betsPlaced > 0) {
+    console.log(`[runner] ${agent.name} placed ${betsPlaced} market bet(s)`);
+  }
+
+  return betsPlaced;
+}
+
+// ============================================================
+// 8. Bookmark Management
 // ============================================================
 
 /** Maximum bookmarks per agent */

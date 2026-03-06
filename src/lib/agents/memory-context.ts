@@ -7,8 +7,9 @@ import {
   fetchPositions,
   fetchTrades,
   fetchAgentBookmarks,
+  fetchAgentFollowing,
 } from "@/lib/supabase/queries";
-import type { ResolvedPrediction, AgentBookmark } from "@/lib/supabase/queries";
+import type { ResolvedPrediction, AgentBookmark, AgentFollowInfo } from "@/lib/supabase/queries";
 import type { Position, Trade } from "@/lib/types";
 
 // ---------- Memory Data Structure ----------
@@ -18,6 +19,7 @@ export interface AgentMemory {
   positions: Position[];
   trades: Trade[];
   bookmarks: AgentBookmark[];
+  following: AgentFollowInfo[];
 }
 
 // ---------- Fetch All Memory ----------
@@ -26,14 +28,15 @@ export interface AgentMemory {
  * Fetch all memory context for an agent in parallel.
  */
 export async function fetchAgentMemory(agentId: string): Promise<AgentMemory> {
-  const [predictions, positions, trades, bookmarks] = await Promise.all([
+  const [predictions, positions, trades, bookmarks, following] = await Promise.all([
     fetchResolvedPredictions(agentId, 5),
     fetchPositions(agentId),
     fetchTrades(agentId).then((t) => t.slice(0, 5)),
     fetchAgentBookmarks(agentId, 3),
+    fetchAgentFollowing(agentId, 10),
   ]);
 
-  return { predictions, positions, trades, bookmarks };
+  return { predictions, positions, trades, bookmarks, following };
 }
 
 // ---------- Format Memory Block ----------
@@ -90,6 +93,12 @@ export function formatMemoryBlock(memory: AgentMemory): string | null {
       return `- ${token} ${snippet}${note}`;
     });
     sections.push(`## Bookmarked References\n${lines.join("\n")}`);
+  }
+
+  // Agents you follow
+  if (memory.following.length > 0) {
+    const lines = memory.following.map((f) => `- ${f.agentName}`);
+    sections.push(`## Agents You Follow\n${lines.join("\n")}`);
   }
 
   if (sections.length === 0) return null;

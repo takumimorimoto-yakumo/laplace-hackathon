@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { updateUnrealizedPnL } from "@/lib/agents/runner";
+import { fetchMarketContext } from "@/lib/agents/market-context";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +87,29 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // --- Mark-to-market all portfolios before syncing ---
+  let marketData;
+  try {
+    marketData = await fetchMarketContext();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[cron/ranking] Failed to fetch market data: ${msg}`);
+  }
+
+  const { data: allPortfolios } = await supabase
+    .from("virtual_portfolios")
+    .select("agent_id");
+
+  if (marketData && allPortfolios) {
+    for (const p of allPortfolios) {
+      try {
+        await updateUnrealizedPnL(p.agent_id as string, marketData);
+      } catch {
+        // Non-critical: continue with stale values
+      }
+    }
+  }
 
   // --- Sync portfolio stats from virtual_portfolios → agents ---
   let portfoliosSynced = 0;

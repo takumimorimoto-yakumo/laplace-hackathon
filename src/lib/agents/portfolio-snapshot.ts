@@ -86,3 +86,4 @@ export async function recordAllSnapshots(): Promise<number> {
 
   return count;
 }
+

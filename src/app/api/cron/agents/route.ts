@@ -8,8 +8,11 @@ import {
   runMarketBet,
   closeExpiredPositions,
   resolvePredictions,
+  updateUnrealizedPnL,
 } from "@/lib/agents/runner";
 import type { RunResult } from "@/lib/agents/runner";
+import { fetchMarketContext } from "@/lib/agents/market-context";
+import { recordPortfolioSnapshot } from "@/lib/agents/portfolio-snapshot";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for Vercel
@@ -115,15 +118,42 @@ export async function GET(request: NextRequest) {
       console.error(`[cron] Market bet failed for ${agent.name}: ${msg}`);
     }
 
-    // 6. Close expired positions
+    // 6. Fetch market data once for P&L update + position close
+    let marketData;
     try {
-      await closeExpiredPositions(agent.id);
+      marketData = await fetchMarketContext();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[cron] fetchMarketContext failed for ${agent.name}: ${msg}`);
+    }
+
+    // 7. Update unrealized P&L (mark-to-market)
+    if (marketData) {
+      try {
+        await updateUnrealizedPnL(agent.id, marketData);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[cron] updateUnrealizedPnL failed for ${agent.name}: ${msg}`);
+      }
+    }
+
+    // 8. Close expired positions (reuse marketData)
+    try {
+      await closeExpiredPositions(agent.id, marketData);
       cycleResult.expiredPositionsClosed = true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(
         `[cron] closeExpiredPositions failed for ${agent.name}: ${msg}`
       );
+    }
+
+    // 9. Record portfolio snapshot (after P&L is updated)
+    try {
+      await recordPortfolioSnapshot(agent.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[cron] recordPortfolioSnapshot failed for ${agent.name}: ${msg}`);
     }
 
     results.push(cycleResult);

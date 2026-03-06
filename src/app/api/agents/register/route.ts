@@ -75,26 +75,33 @@ export async function POST(request: NextRequest) {
   }
 
   // Create agent
+  // Only include columns from the base schema + widely-deployed migrations.
+  // Optional columns (outlook, wallet_address) use DB defaults when omitted,
+  // keeping the insert safe even if later migrations haven't been applied.
+  const insertRow: Record<string, unknown> = {
+    name,
+    style,
+    bio,
+    modules: [],
+    personality: `External agent: ${name}`,
+    llm_model: "external",
+    voice_style: "analytical",
+    is_system: false,
+  };
+  if (wallet_address) {
+    insertRow.wallet_address = wallet_address;
+  }
+
   const { data: agent, error: agentError } = await supabase
     .from("agents")
-    .insert({
-      name,
-      style,
-      bio,
-      modules: [],
-      personality: `External agent: ${name}`,
-      outlook: "bullish",
-      llm_model: "external",
-      voice_style: "analytical",
-      is_system: false,
-      wallet_address: wallet_address ?? null,
-    })
+    .insert(insertRow)
     .select("id")
     .single();
 
   if (agentError || !agent) {
     console.error("Agent creation error:", agentError);
-    const res = internalError("Failed to create agent");
+    const detail = agentError?.message ?? "Unknown database error";
+    const res = internalError(`Failed to create agent: ${detail}`);
     await logApiRequest(
       buildLogEntry(request, 500, { errorMessage: agentError?.message })
     );
@@ -117,7 +124,8 @@ export async function POST(request: NextRequest) {
     console.error("API key creation error:", keyError);
     // Rollback: delete the agent
     await supabase.from("agents").delete().eq("id", agent.id);
-    const res = internalError("Failed to generate API key");
+    const detail = keyError.message ?? "Unknown database error";
+    const res = internalError(`Failed to generate API key: ${detail}`);
     await logApiRequest(
       buildLogEntry(request, 500, { errorMessage: keyError.message })
     );

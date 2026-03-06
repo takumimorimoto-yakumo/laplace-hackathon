@@ -17,14 +17,115 @@ import {
   parseNewsResponse,
 } from "./response-schema";
 import type { AgentPostOutput, VoteDirection } from "./response-schema";
-import { translatePost } from "./translate";
-import { fetchMarketContext } from "./market-context";
+import { translatePost, translateEvidence } from "./translate";
+import { fetchMarketContext, MarketDataUnavailableError } from "./market-context";
+import { selectTokensForAgent } from "./token-selector";
 import { fetchAgentMemory, formatMemoryBlock } from "./memory-context";
 import { resolveProvider } from "./llm-client";
 import { jaccardSimilarity } from "@/lib/api/content-safety";
 import { isProPicker } from "@/lib/mock-data";
 import { recordPortfolioSnapshot } from "./portfolio-snapshot";
 import type { Agent, TimelinePost } from "@/lib/types";
+
+// ============================================================
+// Position P&L Calculation
+// ============================================================
+
+export interface PositionPnLResult {
+  unrealizedPnl: number;
+  unrealizedPnlPct: number;
+  markToMarketValue: number;
+}
+
+/**
+ * Pure function: compute unrealized P&L for a single position.
+ */
+export function computePositionPnL(
+  side: "long" | "short",
+  entryPrice: number,
+  currentPrice: number,
+  quantity: number,
+  amountUsdc: number
+): PositionPnLResult {
+  const pnl =
+    side === "long"
+      ? (currentPrice - entryPrice) * quantity
+      : (entryPrice - currentPrice) * quantity;
+  const pnlPct = amountUsdc > 0 ? (pnl / amountUsdc) * 100 : 0;
+  const markToMarketValue =
+    side === "long" ? currentPrice * quantity : amountUsdc + pnl;
+
+  return {
+    unrealizedPnl: pnl,
+    unrealizedPnlPct: pnlPct,
+    markToMarketValue,
+  };
+}
+
+/**
+ * Update unrealized P&L for all open positions of an agent,
+ * then recalculate portfolio total_value and total_pnl.
+ */
+export async function updateUnrealizedPnL(
+  agentId: string,
+  marketData: RealMarketData[]
+): Promise<void> {
+  const supabase = createAdminClient();
+
+  // Fetch all open positions
+  const { data: positions, error: posErr } = await supabase
+    .from("virtual_positions")
+    .select("*")
+    .eq("agent_id", agentId);
+
+  if (posErr || !positions || positions.length === 0) return;
+
+  let totalMarkToMarket = 0;
+
+  for (const pos of positions) {
+    const symbol = pos.token_symbol as string;
+    const currentPrice = findPriceInMarketData(symbol, marketData);
+    if (!currentPrice) continue;
+
+    const result = computePositionPnL(
+      pos.side as "long" | "short",
+      Number(pos.entry_price),
+      currentPrice,
+      Number(pos.quantity),
+      Number(pos.amount_usdc)
+    );
+
+    totalMarkToMarket += result.markToMarketValue;
+
+    // Update position with current price and unrealized P&L
+    await supabase
+      .from("virtual_positions")
+      .update({
+        current_price: currentPrice,
+        unrealized_pnl: result.unrealizedPnl,
+        unrealized_pnl_pct: result.unrealizedPnlPct,
+      })
+      .eq("id", pos.id);
+  }
+
+  // Recalculate portfolio totals
+  const portfolio = await getOrCreatePortfolio(agentId);
+  const totalValue = portfolio.cash_balance + totalMarkToMarket;
+  const totalPnl = totalValue - portfolio.initial_balance;
+  const totalPnlPct =
+    portfolio.initial_balance > 0
+      ? (totalPnl / portfolio.initial_balance) * 100
+      : 0;
+
+  await supabase
+    .from("virtual_portfolios")
+    .update({
+      total_value: totalValue,
+      total_pnl: totalPnl,
+      total_pnl_pct: totalPnlPct,
+    })
+    .eq("agent_id", agentId);
+}
 
 export interface RunResult {
   action: "posted" | "skipped" | "error";
@@ -237,9 +338,10 @@ export async function runAgent(agentId: string): Promise<RunResult> {
       fetchAgentMemory(agentId),
     ]);
 
-    // 3. Build prompt & call LLM (inject memory block)
+    // 3. Select tokens for this agent & build prompt
+    const agentTokens = selectTokensForAgent(marketData, agent);
     const memoryBlock = formatMemoryBlock(memory);
-    const messages = buildMessages(agent, recentPosts, marketData, undefined, memoryBlock);
+    const messages = buildMessages(agent, recentPosts, agentTokens, memoryBlock);
     const raw = await chatCompletion(messages, {
       llmModel: agent.llm,
       temperature: agent.temperature,
@@ -270,6 +372,17 @@ export async function runAgent(agentId: string): Promise<RunResult> {
     // 5. Translate (graceful degradation — EN only on failure)
     const contentLocalized = await translateText(output.natural_text, agent.name);
 
+    // 5b. Translate evidence (graceful — fire-and-forget update after insert)
+    let evidenceLocalized: { en: string; ja: string; zh: string }[] | null = null;
+    if (output.evidence.length > 0) {
+      try {
+        evidenceLocalized = await translateEvidence(output.evidence);
+      } catch (evErr: unknown) {
+        const evMsg = evErr instanceof Error ? evErr.message : String(evErr);
+        console.warn(`[runner] Evidence translation failed for ${agent.name}: ${evMsg}`);
+      }
+    }
+
     // 6. Insert into timeline_posts
     const now = new Date().toISOString();
     const { data: post, error: insertError } = await supabase
@@ -282,6 +395,7 @@ export async function runAgent(agentId: string): Promise<RunResult> {
         direction: output.direction,
         confidence: output.confidence,
         evidence: output.evidence,
+        evidence_localized: evidenceLocalized,
         natural_text: output.natural_text,
         content_localized: contentLocalized,
         reasoning: output.reasoning || null,
@@ -402,6 +516,13 @@ export async function runAgent(agentId: string): Promise<RunResult> {
     return { action: "posted", postId: post.id, output };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+
+    if (err instanceof MarketDataUnavailableError) {
+      console.warn(`[runner] ${agent.name} skipped: ${message}`);
+      await updateNextWake(agentId, agent.cycleIntervalMinutes || 30);
+      return { action: "error", error: message };
+    }
+
     console.error(`[runner] ${agent.name} failed: ${message}`);
 
     // Update next_wake_at even on failure so agent retries next cycle
@@ -627,7 +748,8 @@ export async function runReply(agentId: string): Promise<RunResult> {
     }
 
     // 4. Build reply prompt & call LLM
-    const messages = buildReplyMessages(agent, targetPost, recentPosts, marketData);
+    const agentTokens = selectTokensForAgent(marketData, agent);
+    const messages = buildReplyMessages(agent, targetPost, recentPosts, agentTokens);
     const raw = await chatCompletion(messages, {
       llmModel: agent.llm,
       temperature: agent.temperature,
@@ -808,7 +930,8 @@ export async function runNews(agentId: string): Promise<RunResult> {
     ]);
 
     // 4. Build news prompt & call LLM
-    const messages = buildNewsMessages(agent, marketData, recentPosts);
+    const agentTokens = selectTokensForAgent(marketData, agent);
+    const messages = buildNewsMessages(agent, agentTokens, recentPosts);
     const raw = await chatCompletion(messages, {
       llmModel: agent.llm,
       temperature: agent.temperature,
@@ -1041,7 +1164,10 @@ export async function runVirtualTrade(
  * Close all virtual positions older than 7 days for a given agent.
  * Calculates realized P&L based on current market price vs entry price.
  */
-export async function closeExpiredPositions(agentId: string): Promise<void> {
+export async function closeExpiredPositions(
+  agentId: string,
+  existingMarketData?: RealMarketData[]
+): Promise<void> {
   const supabase = createAdminClient();
 
   try {
@@ -1066,8 +1192,8 @@ export async function closeExpiredPositions(agentId: string): Promise<void> {
       return;
     }
 
-    // Fetch current market prices
-    const marketData = await fetchMarketContext();
+    // Fetch current market prices (reuse if provided)
+    const marketData = existingMarketData ?? await fetchMarketContext();
 
     // Fetch portfolio for cash balance update
     const portfolio = await getOrCreatePortfolio(agentId);

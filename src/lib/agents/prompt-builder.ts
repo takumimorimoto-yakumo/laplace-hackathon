@@ -2,8 +2,7 @@
 // Prompt Builder — Agent Config → LLM Prompts
 // ============================================================
 
-import type { Agent, MarketToken, TimelinePost } from "@/lib/types";
-import { seedTokens } from "@/lib/tokens";
+import type { Agent, TimelinePost } from "@/lib/types";
 import type { AgentPostOutput } from "./response-schema";
 import type { ChatMessage } from "./llm-client";
 
@@ -16,6 +15,12 @@ export interface RealMarketData {
   volume24h: number;
   tvl: number | null;
   marketCap: number | null;
+  coingeckoId: string;
+  name: string;
+  volumeRank: number;
+  marketCapRank: number;
+  volatility24h: number;
+  sparkline7d: number[];
 }
 
 // ---------- Three Laws of the Agent World ----------
@@ -85,19 +90,12 @@ Respond with a single JSON object (no markdown, no extra text):
 
 // ---------- Token List ----------
 
-function buildTokenList(tokens: MarketToken[] = seedTokens): string {
-  return tokens
-    .map((t) => `- ${t.symbol} (${t.name}): ${t.address}`)
-    .join("\n");
-}
-
-// ---------- Market Summary ----------
-
-export function buildMarketSummary(tokens: MarketToken[] = seedTokens): string {
+function buildTokenList(tokens: RealMarketData[]): string {
   return tokens
     .map((t) => {
-      const dir = t.change24h >= 0 ? "+" : "";
-      return `${t.symbol}: $${t.price} (${dir}${t.change24h}% 24h) | Vol: $${(t.volume24h / 1e6).toFixed(0)}M | Bullish: ${t.bullishPercent}%`;
+      const parts = [`- ${t.symbol} (${t.name})`];
+      if (t.marketCapRank > 0) parts[0] += ` [MCap Rank #${t.marketCapRank}]`;
+      return parts[0];
     })
     .join("\n");
 }
@@ -109,7 +107,7 @@ export function buildRealMarketSummary(data: RealMarketData[]): string {
     .map((d) => {
       const dir = d.change24h >= 0 ? "+" : "";
       const parts = [
-        `${d.symbol}: $${d.price} (${dir}${d.change24h}% 24h)`,
+        `${d.symbol}: $${d.price} (${dir}${d.change24h.toFixed(1)}% 24h)`,
         `Vol: $${(d.volume24h / 1e6).toFixed(0)}M`,
       ];
       if (d.marketCap !== null) {
@@ -117,6 +115,9 @@ export function buildRealMarketSummary(data: RealMarketData[]): string {
       }
       if (d.tvl !== null) {
         parts.push(`TVL: $${(d.tvl / 1e6).toFixed(0)}M`);
+      }
+      if (d.volatility24h > 0) {
+        parts.push(`\u03C3: ${(d.volatility24h * 100).toFixed(1)}%`);
       }
       return parts.join(" | ");
     })
@@ -188,7 +189,7 @@ const SELF_REFLECTION_RULES = `
 
 export function buildSystemPrompt(
   agent: Agent,
-  tokens?: MarketToken[],
+  marketData: RealMarketData[],
   memoryBlock?: string | null
 ): string {
   const parts = [
@@ -201,7 +202,7 @@ export function buildSystemPrompt(
   }
 
   parts.push(THREE_LAWS);
-  parts.push(`## Available Tokens (Solana)\n${buildTokenList(tokens)}`);
+  parts.push(`## Available Tokens (Solana)\n${buildTokenList(marketData)}`);
   parts.push(OUTPUT_SCHEMA);
 
   return parts.join("\n\n");
@@ -211,11 +212,9 @@ export function buildSystemPrompt(
 
 export function buildUserPrompt(
   recentPosts: TimelinePost[],
-  realMarketData?: RealMarketData[]
+  realMarketData: RealMarketData[]
 ): string {
-  const marketSummary = realMarketData
-    ? buildRealMarketSummary(realMarketData)
-    : buildMarketSummary();
+  const marketSummary = buildRealMarketSummary(realMarketData);
 
   return `
 ## Current Market Data
@@ -233,12 +232,11 @@ Based on your analysis style and modules, pick a token and make your prediction.
 export function buildMessages(
   agent: Agent,
   recentPosts: TimelinePost[],
-  realMarketData?: RealMarketData[],
-  tokens?: MarketToken[],
+  realMarketData: RealMarketData[],
   memoryBlock?: string | null
 ): ChatMessage[] {
   return [
-    { role: "system", content: buildSystemPrompt(agent, tokens, memoryBlock) },
+    { role: "system", content: buildSystemPrompt(agent, realMarketData, memoryBlock) },
     { role: "user", content: buildUserPrompt(recentPosts, realMarketData) },
   ];
 }
@@ -254,7 +252,7 @@ export function buildReplyMessages(
   agent: Agent,
   targetPost: TimelinePost,
   recentPosts: TimelinePost[],
-  realMarketData?: RealMarketData[]
+  realMarketData: RealMarketData[]
 ): ChatMessage[] {
   // Build outlook-based debate guidance
   let debateGuidance = "";
@@ -317,9 +315,7 @@ ${REPLY_OUTPUT_SCHEMA}
       ? targetPost.evidence.map((e) => `  - ${e}`).join("\n")
       : "  (no evidence cited)";
 
-  const marketSummary = realMarketData
-    ? buildRealMarketSummary(realMarketData)
-    : buildMarketSummary();
+  const marketSummary = buildRealMarketSummary(realMarketData);
 
   const userPrompt = `
 ## Post You Are Replying To
@@ -352,7 +348,7 @@ Write your reply. Do you agree or disagree? What's your own stance?
  */
 export function buildNewsMessages(
   agent: Agent,
-  realMarketData?: RealMarketData[],
+  realMarketData: RealMarketData[],
   recentPosts?: TimelinePost[]
 ): ChatMessage[] {
   const systemPrompt = `
@@ -368,14 +364,12 @@ Write a brief market news update about a notable observation in the Solana ecosy
 - Write as a news reporter, not an analyst.
 
 ## Available Tokens (Solana)
-${buildTokenList()}
+${buildTokenList(realMarketData)}
 
 ${NEWS_OUTPUT_SCHEMA}
 `.trim();
 
-  const marketSummary = realMarketData
-    ? buildRealMarketSummary(realMarketData)
-    : buildMarketSummary();
+  const marketSummary = buildRealMarketSummary(realMarketData);
 
   const postsContext = recentPosts
     ? formatRecentPosts(recentPosts)

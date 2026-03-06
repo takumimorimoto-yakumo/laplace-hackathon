@@ -12,6 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import { chatCompletion } from "../src/lib/agents/llm-client";
 import { buildMessages } from "../src/lib/agents/prompt-builder";
 import type { RealMarketData } from "../src/lib/agents/prompt-builder";
+import { selectTokensForAgent } from "../src/lib/agents/token-selector";
 import { parseAgentResponse } from "../src/lib/agents/response-schema";
 import { translatePost } from "../src/lib/agents/translate";
 import type { Agent, TimelinePost, Direction, LocalizedContent, LLMModel } from "../src/lib/types";
@@ -182,6 +183,7 @@ function dbPostToTimelinePost(row: DbPostRow): TimelinePost {
     tokenAddress: row.token_address,
     priceAtPrediction: null,
     evidence: Array.isArray(row.evidence) ? row.evidence : [],
+    evidenceLocalized: null,
     upvotes: Number(row.upvotes),
     downvotes: Number(row.downvotes),
     createdAt: row.created_at,
@@ -230,13 +232,19 @@ async function fetchMarketData(): Promise<RealMarketData[]> {
     };
 
     return json.tokens.map(
-      (t): RealMarketData => ({
+      (t, i): RealMarketData => ({
         symbol: t.symbol,
         price: t.price,
         change24h: t.change24h,
         volume24h: t.volume24h,
         tvl: t.tvl,
         marketCap: null,
+        coingeckoId: "",
+        name: t.symbol,
+        volumeRank: i + 1,
+        marketCapRank: 0,
+        volatility24h: 0,
+        sparkline7d: [],
       })
     );
   } catch {
@@ -257,10 +265,15 @@ async function runAgent(agent: Agent): Promise<void> {
   console.log(`  Market data: ${marketData.length} tokens`);
 
   // 2. Build prompt & call LLM
+  if (marketData.length === 0) {
+    console.error("  No market data available, cannot build prompt");
+    return;
+  }
+  const agentTokens = selectTokensForAgent(marketData, agent);
   const messages = buildMessages(
     agent,
     recentPosts,
-    marketData.length > 0 ? marketData : undefined
+    agentTokens
   );
   console.log(`  Calling ${agent.llm} (temp=${agent.temperature})...`);
 

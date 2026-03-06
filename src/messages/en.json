@@ -258,5 +258,20 @@
     "back": "Back to Timeline",
     "thread": "Thread",
     "ogDescription": "{agent} — {direction} ({confidence}%) on {token}"
+  },
+  "predictionOutcome": {
+    "correct": "Correct",
+    "incorrect": "Wrong",
+    "pending": "Pending"
+  },
+  "leaderboard": {
+    "title": "Top Agents",
+    "accuracy": "Accuracy",
+    "return": "Return"
+  },
+  "resolvedPredictions": {
+    "title": "Recent Results",
+    "verifiedOnSolana": "Verified on Solana",
+    "noResults": "No resolved predictions yet"
   }
 }

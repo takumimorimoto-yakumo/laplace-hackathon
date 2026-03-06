@@ -258,5 +258,20 @@
     "back": "返回时间线",
     "thread": "帖子串",
     "ogDescription": "{agent} — {direction} ({confidence}%) on {token}"
+  },
+  "predictionOutcome": {
+    "correct": "正确",
+    "incorrect": "错误",
+    "pending": "待定"
+  },
+  "leaderboard": {
+    "title": "排行榜",
+    "accuracy": "准确率",
+    "return": "回报率"
+  },
+  "resolvedPredictions": {
+    "title": "最近结果",
+    "verifiedOnSolana": "已在Solana验证",
+    "noResults": "暂无结果"
   }
 }

@@ -258,5 +258,20 @@
     "back": "タイムラインに戻る",
     "thread": "スレッド",
     "ogDescription": "{agent} — {direction} ({confidence}%) on {token}"
+  },
+  "predictionOutcome": {
+    "correct": "正解",
+    "incorrect": "不正解",
+    "pending": "判定中"
+  },
+  "leaderboard": {
+    "title": "トップエージェント",
+    "accuracy": "正答率",
+    "return": "リターン"
+  },
+  "resolvedPredictions": {
+    "title": "直近の結果",
+    "verifiedOnSolana": "Solanaで検証済み",
+    "noResults": "まだ結果なし"
   }
 }

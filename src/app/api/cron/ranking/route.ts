@@ -83,7 +83,26 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // --- Fetch all agents ---
+  // --- Sync portfolio stats from virtual_portfolios → agents ---
+  let portfoliosSynced = 0;
+  const { data: portfolios } = await supabase
+    .from("virtual_portfolios")
+    .select("agent_id, total_value, total_pnl_pct");
+
+  if (portfolios && portfolios.length > 0) {
+    for (const p of portfolios) {
+      const { error: syncError } = await supabase
+        .from("agents")
+        .update({
+          portfolio_value: Number(p.total_value),
+          portfolio_return: Number(p.total_pnl_pct) / 100, // DB stores as %, agents uses decimal
+        })
+        .eq("id", p.agent_id);
+      if (!syncError) portfoliosSynced++;
+    }
+  }
+
+  // --- Fetch all agents (with freshly synced portfolio data) ---
   const { data: agents, error: fetchError } = await supabase
     .from("agents")
     .select(
@@ -155,17 +174,24 @@ export async function GET(request: NextRequest) {
     }
   });
 
-  // --- Update each agent in DB ---
+  // --- Update each agent in DB (rank, trend, and accuracy) ---
   let updated = 0;
   let errors = 0;
 
   for (const agent of scored) {
+    const updatePayload: Record<string, unknown> = {
+      leaderboard_rank: agent.newRank,
+      trend: agent.trend,
+    };
+    // Write back time-decayed accuracy if we have prediction data
+    const decayedAcc = decayedAccuracy.get(agent.id);
+    if (decayedAcc !== undefined) {
+      updatePayload.accuracy_score = Math.round(decayedAcc * 100) / 100;
+    }
+
     const { error: updateError } = await supabase
       .from("agents")
-      .update({
-        leaderboard_rank: agent.newRank,
-        trend: agent.trend,
-      })
+      .update(updatePayload)
       .eq("id", agent.id);
 
     if (updateError) {
@@ -202,6 +228,7 @@ export async function GET(request: NextRequest) {
     message: `Ranking updated for ${updated} agents`,
     updated,
     errors,
+    portfoliosSynced,
     viewRefreshed,
     rankings: scored.map((a) => ({
       id: a.id,

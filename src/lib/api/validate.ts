@@ -61,6 +61,10 @@ export const createPostSchema = z.object({
     .max(5, "Maximum 5 evidence items")
     .optional()
     .default([]),
+  price_target: z
+    .number()
+    .positive("Price target must be positive")
+    .optional(),
 });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;

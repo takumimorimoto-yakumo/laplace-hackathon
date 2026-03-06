@@ -19,6 +19,11 @@ import {
   internalError,
 } from "@/lib/api/errors";
 import { logApiRequest, buildLogEntry } from "@/lib/api/logger";
+import { translatePost } from "@/lib/agents/translate";
+import { runVirtualTrade } from "@/lib/agents/runner";
+import type { AgentPostOutput } from "@/lib/agents/response-schema";
+import type { Direction } from "@/lib/types";
+import { fetchMarketContext } from "@/lib/agents/market-context";
 
 // ---------- POST /api/posts ----------
 
@@ -162,12 +167,17 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
+  // Determine post_type: bullish/bearish with token info → prediction
+  const isPrediction =
+    input.direction !== "neutral" && !!input.token_symbol && !!input.token_address;
+  const postType = isPrediction ? "prediction" : "original";
+
   // Insert post
   const { data: post, error: insertError } = await supabase
     .from("timeline_posts")
     .insert({
       agent_id: auth.agentId,
-      post_type: "original",
+      post_type: postType,
       natural_text: cleanText,
       direction: input.direction,
       confidence: input.confidence,
@@ -189,6 +199,121 @@ export async function POST(request: NextRequest) {
       })
     );
     return res;
+  }
+
+  // Fire-and-forget: translate post content and update content_localized
+  translatePost(cleanText)
+    .then((translations) => {
+      return supabase
+        .from("timeline_posts")
+        .update({
+          content_localized: {
+            en: cleanText,
+            ja: translations.ja,
+            zh: translations.zh,
+          },
+        })
+        .eq("id", post.id);
+    })
+    .catch((err) => {
+      console.warn(`[posts] Translation failed for post ${post.id}:`, err);
+    });
+
+  // Virtual trade for external agents (fire-and-forget)
+  if (isPrediction && input.token_symbol && input.token_address) {
+    const tradeOutput: AgentPostOutput = {
+      token_symbol: input.token_symbol,
+      token_address: input.token_address,
+      direction: input.direction as Direction,
+      confidence: input.confidence,
+      evidence: input.evidence,
+      natural_text: cleanText,
+      reasoning: "",
+      uncertainty: "",
+      confidence_rationale: "",
+      price_target: input.price_target ?? null,
+    };
+
+    // 1. Virtual trade (position + portfolio)
+    runVirtualTrade(auth.agentId, post.id, tradeOutput).catch((err) => {
+      console.warn(`[posts] Virtual trade failed for agent ${auth.agentId}:`, err);
+    });
+
+    // 2. Record prediction + auto-create prediction market
+    (async () => {
+      try {
+        const marketData = await fetchMarketContext();
+        const upper = input.token_symbol!.toUpperCase();
+        const match = marketData.find((d) => d.symbol.toUpperCase() === upper);
+        const predictionPrice = match?.price ?? null;
+
+        if (predictionPrice) {
+          const now = new Date().toISOString();
+
+          // Record prediction
+          const { error: predError } = await supabase
+            .from("predictions")
+            .insert({
+              agent_id: auth.agentId,
+              post_id: post.id,
+              token_address: input.token_address!,
+              token_symbol: input.token_symbol!,
+              direction: input.direction,
+              confidence: input.confidence,
+              price_at_prediction: predictionPrice,
+              predicted_at: now,
+              time_horizon: "days",
+            });
+
+          if (predError) {
+            console.warn(
+              `[posts] Failed to record prediction for agent ${auth.agentId}: ${predError.message}`
+            );
+          }
+
+          // Auto-create prediction market if confidence >= 0.75 + price_target
+          if (input.price_target && input.confidence >= 0.75) {
+            const { count } = await supabase
+              .from("prediction_markets")
+              .select("*", { count: "exact", head: true })
+              .eq("proposer_agent_id", auth.agentId)
+              .eq("token_symbol", input.token_symbol!)
+              .eq("is_resolved", false);
+
+            if ((count ?? 0) < 2) {
+              const ratio = input.price_target / predictionPrice;
+              if (ratio >= 0.5 && ratio <= 1.5) {
+                const conditionType =
+                  input.direction === "bullish" ? "price_above" : "price_below";
+                const deadline = new Date(
+                  Date.now() + 7 * 24 * 60 * 60 * 1000
+                ).toISOString();
+
+                const { error: marketError } = await supabase
+                  .from("prediction_markets")
+                  .insert({
+                    proposer_agent_id: auth.agentId,
+                    source_post_id: post.id,
+                    token_symbol: input.token_symbol!,
+                    condition_type: conditionType,
+                    threshold: input.price_target,
+                    price_at_creation: predictionPrice,
+                    deadline,
+                  });
+
+                if (marketError) {
+                  console.warn(
+                    `[posts] Failed to create prediction market: ${marketError.message}`
+                  );
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[posts] Prediction recording failed for agent ${auth.agentId}:`, err);
+      }
+    })();
   }
 
   // Update agent's last_active_at

@@ -112,10 +112,10 @@ export function setRateLimitHeaders(
 
 // Pre-configured rate limit configs
 export const RATE_LIMITS = {
-  /** 30 posts per hour, min 5 seconds between posts */
+  /** 30 posts per day, min 5 seconds between posts */
   post: {
     maxRequests: 30,
-    windowMs: 60 * 60 * 1000,
+    windowMs: 24 * 60 * 60 * 1000,
     minIntervalMs: 5 * 1000,
   },
   /** 5 registrations per hour per IP */

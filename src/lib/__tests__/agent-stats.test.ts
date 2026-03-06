@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  generatePortfolioHistory,
-  generateAccuracyHistory,
   computePredictionStats,
   computeRentalPlan,
 } from "../agent-stats";
 import type { Agent } from "../types";
+import type { ResolvedPrediction } from "../supabase/queries";
 
 const mockAgent: Agent = {
   id: "agent-001",
@@ -26,74 +25,64 @@ const mockAgent: Agent = {
   temperature: 0.4,
   cycleIntervalMinutes: 60,
   isSystem: true,
+  totalVotesGiven: 0,
+  followerCount: 0,
+  followingCount: 0,
+  replyCount: 0,
 };
 
-describe("generatePortfolioHistory", () => {
-  it("returns 30 snapshots", () => {
-    const snapshots = generatePortfolioHistory(mockAgent);
-    expect(snapshots).toHaveLength(30);
-  });
-
-  it("last snapshot value equals agent portfolioValue", () => {
-    const snapshots = generatePortfolioHistory(mockAgent);
-    expect(snapshots[snapshots.length - 1].value).toBe(mockAgent.portfolioValue);
-  });
-
-  it("every snapshot has a date string", () => {
-    const snapshots = generatePortfolioHistory(mockAgent);
-    for (const s of snapshots) {
-      expect(s.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    }
-  });
-
-  it("values are positive numbers", () => {
-    const snapshots = generatePortfolioHistory(mockAgent);
-    for (const s of snapshots) {
-      expect(s.value).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe("generateAccuracyHistory", () => {
-  it("returns 30 snapshots", () => {
-    const snapshots = generateAccuracyHistory(mockAgent);
-    expect(snapshots).toHaveLength(30);
-  });
-
-  it("last snapshot accuracy equals agent accuracy", () => {
-    const snapshots = generateAccuracyHistory(mockAgent);
-    expect(snapshots[snapshots.length - 1].accuracy).toBe(mockAgent.accuracy);
-  });
-
-  it("all accuracy values are between 0.4 and 0.95", () => {
-    const snapshots = generateAccuracyHistory(mockAgent);
-    for (const s of snapshots) {
-      expect(s.accuracy).toBeGreaterThanOrEqual(0.4);
-      expect(s.accuracy).toBeLessThanOrEqual(0.95);
-    }
-  });
-});
+const mockPredictions: ResolvedPrediction[] = [
+  {
+    id: "p1",
+    tokenSymbol: "SOL",
+    direction: "bullish",
+    confidence: 0.8,
+    priceAtPrediction: 100,
+    priceAtResolution: 110,
+    outcome: "correct",
+    directionScore: 1.0,
+    calibrationScore: 0.85,
+    finalScore: 85,
+    resolvedAt: "2026-03-01T00:00:00Z",
+    txSignature: null,
+  },
+  {
+    id: "p2",
+    tokenSymbol: "JUP",
+    direction: "bearish",
+    confidence: 0.6,
+    priceAtPrediction: 2.0,
+    priceAtResolution: 2.1,
+    outcome: "incorrect",
+    directionScore: 0,
+    calibrationScore: 0.5,
+    finalScore: 15,
+    resolvedAt: "2026-03-02T00:00:00Z",
+    txSignature: null,
+  },
+];
 
 describe("computePredictionStats", () => {
-  it("returns correct total predictions", () => {
-    const stats = computePredictionStats(mockAgent);
-    expect(stats.totalPredictions).toBe(Math.round(mockAgent.totalVotes / 20));
+  it("returns correct total and correct predictions from real data", () => {
+    const stats = computePredictionStats(mockPredictions, mockAgent);
+    expect(stats.totalPredictions).toBe(2);
+    expect(stats.correctPredictions).toBe(1);
   });
 
-  it("returns correct predictions based on accuracy", () => {
-    const stats = computePredictionStats(mockAgent);
-    const expectedCorrect = Math.round(stats.totalPredictions * mockAgent.accuracy);
-    expect(stats.correctPredictions).toBe(expectedCorrect);
+  it("computes average calibration score", () => {
+    const stats = computePredictionStats(mockPredictions, mockAgent);
+    expect(stats.calibrationScore).toBeCloseTo((0.85 + 0.5) / 2, 1);
   });
 
-  it("calibration score is within valid range", () => {
-    const stats = computePredictionStats(mockAgent);
-    expect(stats.calibrationScore).toBeGreaterThan(0);
-    expect(stats.calibrationScore).toBeLessThanOrEqual(1);
+  it("returns zeros for empty predictions", () => {
+    const stats = computePredictionStats([], mockAgent);
+    expect(stats.totalPredictions).toBe(0);
+    expect(stats.correctPredictions).toBe(0);
+    expect(stats.calibrationScore).toBe(0);
   });
 
   it("totalVotesEarned matches agent totalVotes", () => {
-    const stats = computePredictionStats(mockAgent);
+    const stats = computePredictionStats(mockPredictions, mockAgent);
     expect(stats.totalVotesEarned).toBe(mockAgent.totalVotes);
   });
 });

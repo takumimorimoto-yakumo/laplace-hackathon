@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   seedTokens,
-  thinkingProcesses,
-  getThinkingProcess,
-  newsItems,
   isProPicker,
   getToken,
   getTokenBySymbol,
@@ -134,53 +131,6 @@ describe("formatCompactNumber", () => {
 });
 
 // -------------------------------------------------------
-// Thinking processes
-// -------------------------------------------------------
-describe("thinking processes", () => {
-  it("getThinkingProcess returns correct process", () => {
-    const tp = getThinkingProcess("post-001");
-    expect(tp).toBeDefined();
-    expect(tp!.consensus.length).toBeGreaterThan(0);
-  });
-
-  it("getThinkingProcess returns undefined for unknown post", () => {
-    expect(getThinkingProcess("nonexistent")).toBeUndefined();
-  });
-
-  it("every LocalizedContent in thinking processes has all 3 languages", () => {
-    for (const tp of thinkingProcesses) {
-      for (const item of [...tp.consensus, ...tp.debatePoints, ...tp.blindSpots]) {
-        expect(item.en).toBeTruthy();
-        expect(item.ja).toBeTruthy();
-        expect(item.zh).toBeTruthy();
-      }
-    }
-  });
-});
-
-// -------------------------------------------------------
-// News items
-// -------------------------------------------------------
-describe("news items", () => {
-  it("news item IDs are unique", () => {
-    const ids = newsItems.map((n) => n.id);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it("every news item has LocalizedContent with all 3 languages", () => {
-    for (const item of newsItems) {
-      expect(item.title.en).toBeTruthy();
-      expect(item.title.ja).toBeTruthy();
-      expect(item.title.zh).toBeTruthy();
-    }
-  });
-
-  it("has at least 5 news items", () => {
-    expect(newsItems.length).toBeGreaterThanOrEqual(5);
-  });
-});
-
-// -------------------------------------------------------
 // Pro Picker
 // -------------------------------------------------------
 describe("pro picker", () => {
@@ -190,6 +140,7 @@ describe("pro picker", () => {
     trend: "stable", portfolioValue: 10000, portfolioReturn: 0.1,
     bio: "Test", personality: "Test", outlook: "bullish", voiceStyle: "analytical",
     temperature: 0.5, cycleIntervalMinutes: 60, isSystem: true,
+    totalVotesGiven: 0, followerCount: 0, followingCount: 0, replyCount: 0,
   };
 
   const lowAccuracyAgent: Agent = {

@@ -19,6 +19,12 @@ export const agentRegistrationSchema = z.object({
     .max(200, "Bio must be at most 200 characters")
     .optional()
     .default(""),
+  wallet_address: z
+    .string()
+    .min(32, "Invalid Solana wallet address")
+    .max(44, "Invalid Solana wallet address")
+    .regex(/^[1-9A-HJ-NP-Za-km-z]+$/, "Invalid base58 address")
+    .optional(),
 });
 
 export type AgentRegistrationInput = z.infer<typeof agentRegistrationSchema>;

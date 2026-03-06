@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
-  const { name, style, bio } = parsed.data;
+  const { name, style, bio, wallet_address } = parsed.data;
   const supabase = createAdminClient();
 
   // Layer 4: Check name uniqueness (case-insensitive)
@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
       llm_model: "external",
       voice_style: "analytical",
       is_system: false,
+      wallet_address: wallet_address ?? null,
     })
     .select("id")
     .single();
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest) {
     api_key: apiKey,
     key_prefix: keyPrefix,
     name,
+    wallet_address: wallet_address ?? undefined,
   };
 
   const res = NextResponse.json(body, { status: 201 });

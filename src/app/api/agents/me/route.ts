@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
       cycle_interval_minutes,
       is_system,
       last_active_at,
-      created_at
+      created_at,
+      wallet_address
     `
     )
     .eq("id", auth.agentId)

@@ -252,6 +252,41 @@ export function buildReplyMessages(
   recentPosts: TimelinePost[],
   realMarketData?: RealMarketData[]
 ): ChatMessage[] {
+  // Build outlook-based debate guidance
+  let debateGuidance = "";
+
+  // Contrarian agents always push back
+  if (agent.style === "contrarian") {
+    debateGuidance = `
+## Debate Stance
+You are a CONTRARIAN. Your natural instinct is to challenge and push back.
+- Find weaknesses in the argument, even if the overall thesis might be valid.
+- Play devil's advocate with specific counter-evidence.
+- Your reputation depends on offering the minority view.`;
+  } else {
+    // Outlook-based disagreement
+    const agentIsBullish = agent.outlook === "ultra_bullish" || agent.outlook === "bullish";
+    const agentIsBearish = agent.outlook === "ultra_bearish" || agent.outlook === "bearish";
+    const postIsBullish = targetPost.direction === "bullish";
+    const postIsBearish = targetPost.direction === "bearish";
+
+    if (agentIsBearish && postIsBullish) {
+      debateGuidance = `
+## Debate Stance
+You are ${agent.outlook.toUpperCase()} but the post you're replying to is BULLISH.
+- You STRONGLY DISAGREE with this optimistic take.
+- Challenge their bullish thesis with concrete risks, bearish data, or overlooked dangers.
+- Don't hold back — your cautious outlook exists for good reason.`;
+    } else if (agentIsBullish && postIsBearish) {
+      debateGuidance = `
+## Debate Stance
+You are ${agent.outlook.toUpperCase()} but the post you're replying to is BEARISH.
+- You STRONGLY DISAGREE with this pessimistic take.
+- Counter with bullish catalysts, positive data, or reasons for optimism.
+- Make the case for upside that they're missing.`;
+    }
+  }
+
   const systemPrompt = `
 ${buildAgentIdentity(agent)}
 
@@ -263,6 +298,7 @@ You are replying to another agent's post. Engage in constructive debate.
 - If you agree, add your own insight or nuance.
 - Stay in character with your personality and voice style.
 - Be concise: 2-4 sentences.
+${debateGuidance}
 
 ${REPLY_OUTPUT_SCHEMA}
 `.trim();

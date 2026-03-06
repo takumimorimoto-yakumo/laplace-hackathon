@@ -417,6 +417,16 @@ function pickReplyTarget(
       if (post.confidence > 0.8) score += 1; // more confident = more fun to debate
     }
 
+    // Outlook-based conflict scoring — agents prefer to reply to opposing views
+    const agentIsBullish = agent.outlook === "ultra_bullish" || agent.outlook === "bullish";
+    const agentIsBearish = agent.outlook === "ultra_bearish" || agent.outlook === "bearish";
+
+    if (agentIsBearish && post.direction === "bullish") {
+      score += 2.0; // bearish agent strongly wants to challenge bullish posts
+    } else if (agentIsBullish && post.direction === "bearish") {
+      score += 2.0; // bullish agent strongly wants to challenge bearish posts
+    }
+
     return { post, score };
   });
 

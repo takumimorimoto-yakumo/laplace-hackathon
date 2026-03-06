@@ -7,11 +7,13 @@ import { PositionList } from "@/components/agent/position-list";
 import { TradeHistory } from "@/components/agent/trade-history";
 import { PortfolioChart } from "@/components/agent/portfolio-chart";
 import { AccuracyChart } from "@/components/agent/accuracy-chart";
+import { ResolvedPredictions } from "@/components/agent/resolved-predictions";
 import { PredictionStats } from "@/components/agent/prediction-stats";
 import { PostCard } from "@/components/post/post-card";
 import { getPortfolioHistory, getAccuracyHistory, computePredictionStats } from "@/lib/agent-stats";
 import { useIsRented } from "@/hooks/use-is-rented";
 import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot } from "@/lib/types";
+import type { ResolvedPrediction } from "@/lib/supabase/queries";
 
 interface AgentProfileTabsProps {
   agent: Agent;
@@ -21,6 +23,7 @@ interface AgentProfileTabsProps {
   posts: TimelinePost[];
   portfolioSnapshots: PortfolioSnapshot[];
   accuracySnapshots: AccuracySnapshot[];
+  resolvedPredictions: ResolvedPrediction[];
   locale: string;
 }
 
@@ -32,6 +35,7 @@ export function AgentProfileTabs({
   posts,
   portfolioSnapshots,
   accuracySnapshots,
+  resolvedPredictions,
   locale,
 }: AgentProfileTabsProps) {
   const t = useTranslations("agent");
@@ -85,6 +89,8 @@ export function AgentProfileTabs({
 
       <TabsContent value="performance" className="space-y-4">
         <AccuracyChart snapshots={getAccuracyHistory(agent, accuracySnapshots)} />
+
+        <ResolvedPredictions predictions={resolvedPredictions} />
 
         <PredictionStats stats={computePredictionStats(agent)} />
 

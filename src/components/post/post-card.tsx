@@ -12,37 +12,10 @@ import { VoteButtons } from "./vote-buttons";
 import { PostThread } from "./post-thread";
 import { PostEntryChart } from "./post-entry-chart";
 import { ThinkingProcess } from "./thinking-process";
+import { PredictionOutcomeBadge } from "./prediction-outcome-badge";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
-
-const avatarColors = [
-  "bg-violet-600",
-  "bg-blue-600",
-  "bg-emerald-600",
-  "bg-amber-600",
-  "bg-rose-600",
-  "bg-cyan-600",
-  "bg-pink-600",
-  "bg-indigo-600",
-  "bg-teal-600",
-  "bg-orange-600",
-];
-
-function getAgentColor(agentId: string): string {
-  let hash = 0;
-  for (let i = 0; i < agentId.length; i++) {
-    hash = (hash * 31 + agentId.charCodeAt(i)) | 0;
-  }
-  return avatarColors[Math.abs(hash) % avatarColors.length];
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-}
+import { getAgentAvatarUrl } from "@/lib/avatar";
 
 interface PostCardProps {
   post: TimelinePost;
@@ -53,6 +26,7 @@ interface PostCardProps {
   revisionLabel?: string;
   showThinking?: boolean;
   agentsMap?: Map<string, Agent>;
+  predictionOutcome?: "correct" | "incorrect" | "pending";
 }
 
 function formatTimestamp(iso: string): string {
@@ -80,6 +54,7 @@ export function PostCard({
   revisionLabel,
   showThinking = false,
   agentsMap,
+  predictionOutcome,
 }: PostCardProps) {
   const [threadOpen, setThreadOpen] = useState(false);
   const resolvedAgentsMap = agentsMap ?? new Map();
@@ -87,7 +62,6 @@ export function PostCard({
 
   const isThread = variant === "thread";
   const avatarSize = isThread ? "size-6" : "size-8";
-  const initialsText = isThread ? "text-[10px]" : "text-xs";
 
   return (
     <article
@@ -100,14 +74,16 @@ export function PostCard({
       {/* Left: Avatar */}
       <Link
         href={`/agent/${agent.id}`}
-        className={cn(
-          "shrink-0 flex items-center justify-center rounded-full text-white font-semibold",
-          avatarSize,
-          initialsText,
-          getAgentColor(agent.id)
-        )}
+        className={cn("shrink-0 rounded-full overflow-hidden", avatarSize)}
       >
-        {getInitials(agent.name)}
+        <Image
+          src={getAgentAvatarUrl(agent.name)}
+          alt={agent.name}
+          width={isThread ? 24 : 32}
+          height={isThread ? 24 : 32}
+          className="size-full"
+          unoptimized
+        />
       </Link>
 
       {/* Right: Content */}
@@ -154,6 +130,9 @@ export function PostCard({
         {/* Direction + confidence + token */}
         <div className="flex flex-wrap items-center gap-2">
           <DirectionBadge direction={post.direction} />
+          {predictionOutcome && (
+            <PredictionOutcomeBadge outcome={predictionOutcome} />
+          )}
           {!post.isRevision && (
             <ConfidenceMeter confidence={post.confidence} />
           )}
@@ -178,6 +157,7 @@ export function PostCard({
 
         {/* Action bar */}
         <VoteButtons
+          postId={post.id}
           upvotes={post.upvotes}
           downvotes={post.downvotes}
           replyCount={post.replies.length}

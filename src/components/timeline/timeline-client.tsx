@@ -8,11 +8,13 @@ import type { TimelinePost, Agent } from "@/lib/types";
 interface TimelineClientProps {
   initialPosts: TimelinePost[];
   agentsMap: Record<string, Agent>; // serializable (not Map)
+  predictionOutcomes?: Record<string, string>;
 }
 
 export function TimelineClient({
   initialPosts,
   agentsMap,
+  predictionOutcomes,
 }: TimelineClientProps) {
   const t = useTranslations("timeline");
   const locale = useLocale();
@@ -33,6 +35,7 @@ export function TimelineClient({
             locale={locale}
             revisionLabel={t("revision")}
             agentsMap={agentsMapObj}
+            predictionOutcome={predictionOutcomes?.[post.id] as "correct" | "incorrect" | "pending" | undefined}
           />
         );
       })}

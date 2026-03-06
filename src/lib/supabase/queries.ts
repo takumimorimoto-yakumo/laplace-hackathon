@@ -11,7 +11,7 @@ import {
   dbPredictionMarketToMarket,
 } from "./mappers";
 import type { DbAgent, DbTimelinePost, DbVirtualPosition, DbVirtualTrade, DbPredictionMarket } from "./mappers";
-import type { Agent, TimelinePost, Position, Trade, PortfolioSnapshot, AccuracySnapshot, PredictionMarket, ThinkingProcess, NewsItem, LocalizedContent } from "@/lib/types";
+import type { Agent, TimelinePost, Position, Trade, PortfolioSnapshot, AccuracySnapshot, PredictionMarket, ThinkingProcess, NewsItem, LocalizedContent, PredictionOutcomeStatus } from "@/lib/types";
 
 // ---------- Agents ----------
 
@@ -204,6 +204,7 @@ export interface ResolvedPrediction {
   calibrationScore: number;
   finalScore: number;
   resolvedAt: string;
+  txSignature: string | null;
 }
 
 /**
@@ -239,6 +240,7 @@ export async function fetchResolvedPredictions(
     calibrationScore: Number(row.calibration_score),
     finalScore: Number(row.final_score),
     resolvedAt: row.resolved_at as string,
+    txSignature: (row.tx_signature as string) ?? null,
   }));
 }
 
@@ -456,4 +458,38 @@ export async function fetchNewsFromPosts(limit = 12): Promise<NewsItem[]> {
       publishedAt: row.created_at,
     };
   });
+}
+
+// ---------- Prediction Outcomes ----------
+
+/**
+ * Fetch prediction outcome status for a list of post IDs.
+ * Returns a Map: postId → "correct" | "incorrect" | "pending"
+ */
+export async function fetchPredictionOutcomes(
+  postIds: string[]
+): Promise<Map<string, PredictionOutcomeStatus>> {
+  const result = new Map<string, PredictionOutcomeStatus>();
+  if (postIds.length === 0) return result;
+
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("predictions")
+    .select("post_id, resolved, direction_score")
+    .in("post_id", postIds);
+
+  if (error || !data) return result;
+
+  for (const row of data) {
+    const postId = row.post_id as string;
+    const resolved = row.resolved as boolean;
+    if (!resolved) {
+      result.set(postId, "pending");
+    } else {
+      const directionScore = Number(row.direction_score);
+      result.set(postId, directionScore >= 0.5 ? "correct" : "incorrect");
+    }
+  }
+
+  return result;
 }

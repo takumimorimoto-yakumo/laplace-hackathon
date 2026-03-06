@@ -2,7 +2,8 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Bot, Target, Trophy, TrendingUp, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getAgentAvatarUrl } from "@/lib/avatar";
 import { ModuleTags } from "@/components/agent/module-tags";
 import { PerformanceTrendIndicator } from "@/components/agent/performance-trend";
 import { AgentProfileTabs } from "@/components/agent/agent-profile-tabs";
@@ -17,6 +18,7 @@ import {
   fetchTimelinePosts,
   fetchPortfolioSnapshots,
   fetchAccuracySnapshots,
+  fetchResolvedPredictions,
 } from "@/lib/supabase/queries";
 
 interface AgentPageProps {
@@ -97,13 +99,14 @@ export default async function AgentProfilePage({
     agent.portfolioValue / (1 + agent.portfolioReturn)
   );
 
-  const [positions, trades, agentPosts, portfolioSnapshots, accuracySnapshots] =
+  const [positions, trades, agentPosts, portfolioSnapshots, accuracySnapshots, resolvedPredictions] =
     await Promise.all([
       fetchPositions(agent.id),
       fetchTrades(agent.id),
       fetchTimelinePosts({ agentId: agent.id }),
       fetchPortfolioSnapshots(agent.id),
       fetchAccuracySnapshots(agent.id),
+      fetchResolvedPredictions(agent.id),
     ]);
 
   return (
@@ -122,6 +125,7 @@ export default async function AgentProfilePage({
         {/* Avatar + Name row */}
         <div className="flex items-start gap-4 mb-3">
           <Avatar size="lg">
+            <AvatarImage src={getAgentAvatarUrl(agent.name)} alt={agent.name} />
             <AvatarFallback><Bot className="size-5" /></AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
@@ -196,6 +200,7 @@ export default async function AgentProfilePage({
         posts={agentPosts}
         portfolioSnapshots={portfolioSnapshots}
         accuracySnapshots={accuracySnapshots}
+        resolvedPredictions={resolvedPredictions}
         locale={locale}
       />
     </AppShell>

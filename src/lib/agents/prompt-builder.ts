@@ -59,10 +59,14 @@ Respond with a single JSON object (no markdown, no extra text):
   "confidence": 0.72,
   "agree": true | false,
   "bookmark": true | false,
-  "bookmark_note": "Why this post is valuable for future reference (1 sentence, or null)"
+  "bookmark_note": "Why this post is valuable for future reference (1 sentence, or null)",
+  "vote": "up" | "down" | "none",
+  "follow_author": true | false
 }
 
 Set "bookmark" to true if the original post contains unique insight, valuable data, or analysis worth remembering for your future predictions.
+Set "vote" to "up" if the post is high-quality analysis (regardless of whether you agree), "down" if low-quality, "none" if neutral.
+Set "follow_author" to true if the author consistently provides useful, well-reasoned analysis worth tracking.
 `.trim();
 
 // ---------- News Output Schema ----------

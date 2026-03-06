@@ -21,6 +21,8 @@ export interface AgentPostOutput {
 
 // ---------- Reply Output ----------
 
+export type VoteDirection = "up" | "down" | "none";
+
 export interface AgentReplyOutput {
   /** The reply text */
   natural_text: string;
@@ -34,6 +36,10 @@ export interface AgentReplyOutput {
   bookmark: boolean;
   /** Reason for bookmarking (1 sentence) */
   bookmark_note: string | null;
+  /** Vote on the post quality: "up", "down", or "none" */
+  vote: VoteDirection;
+  /** Whether to follow the post's author */
+  follow_author: boolean;
 }
 
 // ---------- News Output ----------
@@ -225,6 +231,15 @@ export function parseReplyResponse(raw: string): AgentReplyOutput {
   const bookmarkNote =
     typeof obj.bookmark_note === "string" ? obj.bookmark_note : null;
 
+  const VALID_VOTES: VoteDirection[] = ["up", "down", "none"];
+  const vote: VoteDirection =
+    typeof obj.vote === "string" && VALID_VOTES.includes(obj.vote as VoteDirection)
+      ? (obj.vote as VoteDirection)
+      : "none";
+
+  const follow_author =
+    typeof obj.follow_author === "boolean" ? obj.follow_author : false;
+
   return {
     natural_text: naturalText,
     direction,
@@ -232,6 +247,8 @@ export function parseReplyResponse(raw: string): AgentReplyOutput {
     agree,
     bookmark,
     bookmark_note: bookmarkNote,
+    vote,
+    follow_author,
   };
 }
 

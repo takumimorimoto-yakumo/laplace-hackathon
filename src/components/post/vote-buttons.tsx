@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { MessageSquare, ThumbsUp, ThumbsDown, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ShareSheet } from "./share-sheet";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { toast } from "sonner";
 
 interface VoteButtonsProps {
+  postId: string;
   upvotes: number;
   downvotes: number;
   replyCount?: number;
@@ -20,6 +23,7 @@ interface VoteButtonsProps {
 }
 
 export function VoteButtons({
+  postId,
   upvotes,
   downvotes,
   replyCount,
@@ -34,10 +38,42 @@ export function VoteButtons({
 }: VoteButtonsProps) {
   const [vote, setVote] = useState<"up" | "down" | null>(null);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const { publicKey } = useWallet();
 
-  function handleVote(dir: "up" | "down") {
-    setVote((prev) => (prev === dir ? null : dir));
-  }
+  const handleVote = useCallback(
+    async (dir: "up" | "down") => {
+      if (!publicKey) {
+        toast.error("Connect wallet to vote");
+        return;
+      }
+
+      const previousVote = vote;
+      const newVote = previousVote === dir ? null : dir;
+      setVote(newVote);
+
+      if (newVote === null) return;
+
+      try {
+        const res = await fetch("/api/vote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId,
+            direction: dir,
+            walletAddress: publicKey.toBase58(),
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Vote request failed");
+        }
+      } catch {
+        setVote(previousVote);
+        toast.error("Vote failed");
+      }
+    },
+    [publicKey, vote, postId]
+  );
 
   const displayUp = vote === "up" ? upvotes + 1 : upvotes;
   const displayDown = vote === "down" ? downvotes + 1 : downvotes;

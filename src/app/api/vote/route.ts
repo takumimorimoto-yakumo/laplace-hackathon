@@ -128,6 +128,18 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // --- Best-effort on-chain recording ---
+  try {
+    const { recordVoteOnChain } = await import("@/lib/solana/vote-recorder");
+    await recordVoteOnChain({
+      postId: body.postId,
+      voterWallet: body.walletAddress,
+      direction: body.direction,
+    });
+  } catch (err) {
+    console.warn("On-chain vote recording failed:", err);
+  }
+
   return NextResponse.json({
     success: true,
     upvotes: newUpvotes,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchMarketData, getCoingeckoId } from "@/lib/data/coingecko";
 import { seedTokens } from "@/lib/tokens";
+import type { OnChainPredictionData } from "@/lib/solana/prediction-recorder";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
 
   const results: ResolutionResult[] = [];
   const agentIdsToRecalculate = new Set<string>();
+  const allResolvedPredictions: OnChainPredictionData[] = [];
 
   for (const market of expiredMarkets) {
     const currentPrice = priceMap.get(market.tokenSymbol);
@@ -126,12 +128,15 @@ export async function GET(request: NextRequest) {
     );
 
     // --- Resolve associated predictions in the DB ---
-    const predictionsResolved = await resolveAssociatedPredictions(
-      supabase,
-      market,
-      currentPrice,
-      agentIdsToRecalculate
-    );
+    const { count: predictionsResolved, resolved } =
+      await resolveAssociatedPredictions(
+        supabase,
+        market,
+        currentPrice,
+        agentIdsToRecalculate
+      );
+
+    allResolvedPredictions.push(...resolved);
 
     results.push({
       marketId: market.marketId,
@@ -142,6 +147,22 @@ export async function GET(request: NextRequest) {
       conditionType: market.conditionType,
       predictionsResolved,
     });
+  }
+
+  // --- On-chain recording (best-effort) ---
+  try {
+    const { recordBatchOnChain } = await import(
+      "@/lib/solana/prediction-recorder"
+    );
+    const txMap = await recordBatchOnChain(allResolvedPredictions);
+    for (const [predictionId, txSig] of txMap) {
+      await supabase
+        .from("predictions")
+        .update({ tx_signature: txSig })
+        .eq("id", predictionId);
+    }
+  } catch (err) {
+    console.warn("On-chain recording failed (best-effort):", err);
   }
 
   // --- Recalculate accuracy scores for affected agents ---
@@ -233,13 +254,14 @@ function evaluateCondition(
 /**
  * Resolve DB predictions for the same token that are unresolved.
  * Computes direction_score, calibration_score, and final_score.
+ * Returns both the count and the resolved prediction data for on-chain recording.
  */
 async function resolveAssociatedPredictions(
   supabase: ReturnType<typeof createAdminClient>,
   market: MarketRow,
   currentPrice: number,
   agentIdsToRecalculate: Set<string>
-): Promise<number> {
+): Promise<{ count: number; resolved: OnChainPredictionData[] }> {
   // Find unresolved predictions for this token
   const { data: predictions, error: fetchError } = await supabase
     .from("predictions")
@@ -248,11 +270,12 @@ async function resolveAssociatedPredictions(
     .eq("resolved", false);
 
   if (fetchError || !predictions || predictions.length === 0) {
-    return 0;
+    return { count: 0, resolved: [] };
   }
 
   const rows = predictions as PredictionRow[];
   let resolvedCount = 0;
+  const resolvedData: OnChainPredictionData[] = [];
 
   for (const prediction of rows) {
     const priceAtPrediction = Number(prediction.price_at_prediction);
@@ -300,10 +323,23 @@ async function resolveAssociatedPredictions(
     } else {
       resolvedCount++;
       agentIdsToRecalculate.add(prediction.agent_id);
+
+      resolvedData.push({
+        predictionId: prediction.id,
+        agentId: prediction.agent_id,
+        tokenSymbol: prediction.token_symbol,
+        direction: prediction.direction,
+        confidence,
+        priceAtPrediction,
+        priceAtResolution: currentPrice,
+        outcome,
+        directionScore: Math.round(directionScore * 100) / 100,
+        finalScore: Math.round(finalScore * 100) / 100,
+      });
     }
   }
 
-  return resolvedCount;
+  return { count: resolvedCount, resolved: resolvedData };
 }
 
 /**

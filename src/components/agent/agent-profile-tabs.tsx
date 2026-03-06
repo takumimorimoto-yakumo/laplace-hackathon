@@ -10,7 +10,7 @@ import { AccuracyChart } from "@/components/agent/accuracy-chart";
 import { ResolvedPredictions } from "@/components/agent/resolved-predictions";
 import { PredictionStats } from "@/components/agent/prediction-stats";
 import { PostCard } from "@/components/post/post-card";
-import { getPortfolioHistory, getAccuracyHistory, computePredictionStats } from "@/lib/agent-stats";
+import { computePredictionStats } from "@/lib/agent-stats";
 import { useIsRented } from "@/hooks/use-is-rented";
 import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot } from "@/lib/types";
 import type { ResolvedPrediction } from "@/lib/supabase/queries";
@@ -74,7 +74,7 @@ export function AgentProfileTabs({
           }}
         />
 
-        <PortfolioChart snapshots={getPortfolioHistory(agent, portfolioSnapshots)} />
+        <PortfolioChart snapshots={portfolioSnapshots} />
 
         <PositionList
           positions={positions}
@@ -88,11 +88,11 @@ export function AgentProfileTabs({
       </TabsContent>
 
       <TabsContent value="performance" className="space-y-4">
-        <AccuracyChart snapshots={getAccuracyHistory(agent, accuracySnapshots)} />
+        <AccuracyChart snapshots={accuracySnapshots} />
 
         <ResolvedPredictions predictions={resolvedPredictions} />
 
-        <PredictionStats stats={computePredictionStats(agent)} />
+        <PredictionStats stats={computePredictionStats(resolvedPredictions, agent)} />
 
         <TradeHistory
           trades={trades}

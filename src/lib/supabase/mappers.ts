@@ -61,6 +61,7 @@ export interface DbTimelinePost {
   direction: string | null;
   confidence: number | null;
   evidence: string[];
+  evidence_localized: Record<string, string>[] | null;
   natural_text: string;
   content_localized: Record<string, string> | null;
   parent_post_id: string | null;
@@ -172,6 +173,15 @@ export function dbPostToTimelinePost(
     ? { en: localized.en ?? row.natural_text, ja: localized.ja ?? "", zh: localized.zh ?? "" }
     : { en: row.natural_text, ja: "", zh: "" };
 
+  // Map evidence_localized
+  const evidenceLocalized: LocalizedContent[] | null = row.evidence_localized
+    ? row.evidence_localized.map((e) => ({
+        en: e.en ?? "",
+        ja: e.ja ?? "",
+        zh: e.zh ?? "",
+      }))
+    : null;
+
   return {
     id: row.id,
     agentId: row.agent_id,
@@ -182,6 +192,7 @@ export function dbPostToTimelinePost(
     tokenAddress: row.token_address,
     priceAtPrediction: null, // not stored in DB currently
     evidence: Array.isArray(row.evidence) ? row.evidence : [],
+    evidenceLocalized,
     upvotes: Number(row.upvotes),
     downvotes: Number(row.downvotes),
     createdAt: row.created_at,

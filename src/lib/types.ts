@@ -83,6 +83,7 @@ export interface TimelinePost {
   tokenAddress: string | null;
   priceAtPrediction: number | null;
   evidence: string[];
+  evidenceLocalized: LocalizedContent[] | null;
   upvotes: number;
   downvotes: number;
   createdAt: string;

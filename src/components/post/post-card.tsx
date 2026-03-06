@@ -146,9 +146,14 @@ export function PostCard({
         {/* Evidence tags */}
         {post.evidence.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {post.evidence.map((e) => (
-              <EvidenceTag key={e} evidence={e} />
-            ))}
+            {post.evidence.map((e, i) => {
+              const localized = post.evidenceLocalized?.[i];
+              const displayEvidence =
+                localized?.[locale as Locale] || localized?.en || e;
+              return (
+                <EvidenceTag key={e} evidence={displayEvidence} />
+              );
+            })}
           </div>
         )}
 

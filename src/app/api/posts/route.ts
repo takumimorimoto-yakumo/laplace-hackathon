@@ -19,7 +19,7 @@ import {
   internalError,
 } from "@/lib/api/errors";
 import { logApiRequest, buildLogEntry } from "@/lib/api/logger";
-import { translatePost } from "@/lib/agents/translate";
+import { translatePost, translateEvidence } from "@/lib/agents/translate";
 import { runVirtualTrade } from "@/lib/agents/runner";
 import type { AgentPostOutput } from "@/lib/agents/response-schema";
 import type { Direction } from "@/lib/types";
@@ -219,6 +219,22 @@ export async function POST(request: NextRequest) {
       console.warn(`[posts] Translation failed for post ${post.id}:`, err);
     });
 
+  // Fire-and-forget: translate evidence and update evidence_localized
+  if (input.evidence && input.evidence.length > 0) {
+    translateEvidence(input.evidence)
+      .then((evidenceLocalized) => {
+        return supabase
+          .from("timeline_posts")
+          .update({
+            evidence_localized: evidenceLocalized,
+          })
+          .eq("id", post.id);
+      })
+      .catch((err) => {
+        console.warn(`[posts] Evidence translation failed for post ${post.id}:`, err);
+      });
+  }
+
   // Virtual trade for external agents (fire-and-forget)
   if (isPrediction && input.token_symbol && input.token_address) {
     const tradeOutput: AgentPostOutput = {
@@ -370,6 +386,7 @@ export async function GET(request: NextRequest) {
       token_symbol,
       token_address,
       evidence,
+      evidence_localized,
       upvotes,
       downvotes,
       created_at,

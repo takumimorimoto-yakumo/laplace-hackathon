@@ -1,33 +1,26 @@
+"use client";
+
 import type { Direction } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+
+const directionStyles: Record<Direction, string> = {
+  bullish: "text-bullish bg-bullish/10 border-transparent",
+  bearish: "text-bearish bg-bearish/10 border-transparent",
+  neutral: "text-muted-foreground bg-muted border-transparent",
+};
 
 interface DirectionBadgeProps {
   direction: Direction;
   className?: string;
 }
 
-const directionConfig: Record<Direction, { label: string; className: string }> = {
-  bullish: {
-    label: "Bullish",
-    className: "text-bullish bg-bullish/10 border-transparent",
-  },
-  bearish: {
-    label: "Bearish",
-    className: "text-bearish bg-bearish/10 border-transparent",
-  },
-  neutral: {
-    label: "Neutral",
-    className: "text-muted-foreground bg-muted border-transparent",
-  },
-};
-
 export function DirectionBadge({ direction, className }: DirectionBadgeProps) {
-  const config = directionConfig[direction];
-
+  const t = useTranslations("token");
   return (
-    <Badge variant="outline" className={cn(config.className, className)}>
-      {config.label}
+    <Badge variant="outline" className={cn(directionStyles[direction], className)}>
+      {t(direction)}
     </Badge>
   );
 }

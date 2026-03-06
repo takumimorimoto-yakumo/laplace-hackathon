@@ -230,7 +230,8 @@
   },
   "portfolioChart": {
     "title": "投资组合走势 (30天)",
-    "value": "价值"
+    "value": "价值",
+    "noData": "暂无投资组合数据"
   },
   "accuracyChart": {
     "title": "准确率趋势 (30天)",

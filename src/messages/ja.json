@@ -230,7 +230,8 @@
   },
   "portfolioChart": {
     "title": "ポートフォリオ推移 (30日)",
-    "value": "評価額"
+    "value": "評価額",
+    "noData": "ポートフォリオデータがまだありません"
   },
   "accuracyChart": {
     "title": "精度推移 (30日)",

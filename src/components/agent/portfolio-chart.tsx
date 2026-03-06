@@ -12,6 +12,18 @@ interface PortfolioChartProps {
 
 export function PortfolioChart({ snapshots, className }: PortfolioChartProps) {
   const t = useTranslations("portfolioChart");
+
+  if (snapshots.length === 0) {
+    return (
+      <div className="rounded-lg border border-border p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-2">{t("title")}</h3>
+        <p className="text-sm text-muted-foreground py-8 text-center">
+          {t("noData")}
+        </p>
+      </div>
+    );
+  }
+
   const values = snapshots.map((s) => s.value);
   const lastValue = values[values.length - 1] ?? 0;
   const firstValue = values[0] ?? 0;

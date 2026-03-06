@@ -230,7 +230,8 @@
   },
   "portfolioChart": {
     "title": "Portfolio Value (30d)",
-    "value": "Value"
+    "value": "Value",
+    "noData": "No portfolio data yet"
   },
   "accuracyChart": {
     "title": "Accuracy Trend (30d)",

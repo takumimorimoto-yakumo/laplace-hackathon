@@ -4,7 +4,6 @@ import { AppShell } from "@/components/layout/app-shell";
 import { MarketOverview } from "@/components/market/market-overview";
 import { MarketPageContent } from "@/components/market/market-page-content";
 import { seedTokens, generatePriceHistory48h } from "@/lib/tokens";
-import { newsItems as mockNewsItems } from "@/lib/mock-data";
 import {
   fetchSolanaEcosystemTokens,
   resolveSolanaAddress,
@@ -133,7 +132,7 @@ export default async function MarketPage() {
   const locale = await getLocale();
   const { tokens, allAgents } = await getMarketTokens();
   const dbNews = await fetchNewsFromPosts();
-  const newsItems = dbNews.length > 0 ? dbNews : mockNewsItems;
+  const newsItems = dbNews;
 
   const totalVolume = tokens.reduce((sum, t) => sum + t.volume24h, 0);
   const totalTvl = tokens.reduce((sum, t) => sum + (t.tvl ?? 0), 0);

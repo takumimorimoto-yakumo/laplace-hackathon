@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Brain, ChevronDown, ChevronUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { getThinkingProcess } from "@/lib/mock-data";
 import type { ThinkingProcess as ThinkingProcessType, Locale } from "@/lib/types";
 
 interface ThinkingProcessProps {
@@ -29,8 +28,7 @@ export function ThinkingProcess({ postId, locale }: ThinkingProcessProps) {
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error || !data) {
-          // Fallback to mock data
-          setProcess(getThinkingProcess(postId) ?? null);
+          setProcess(null);
         } else {
           setProcess({
             postId: data.post_id as string,

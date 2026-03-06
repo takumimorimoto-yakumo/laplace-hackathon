@@ -14,7 +14,7 @@ function getRentalProgramId(): PublicKey {
   if (!_rentalProgramId) {
     const raw =
       process.env.NEXT_PUBLIC_RENTAL_PROGRAM_ID ??
-      "Rent111111111111111111111111111111111111111";
+      "LPrent1111111111111111111111111111111111111";
     try {
       _rentalProgramId = new PublicKey(raw);
     } catch {

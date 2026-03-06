@@ -2,7 +2,9 @@
 // Market Context — Fetch market data for agent prompts
 // ============================================================
 
+import type { SolanaEcosystemToken } from "@/lib/data/coingecko";
 import { fetchSolanaEcosystemTokens } from "@/lib/data/coingecko";
+import { seedTokens } from "@/lib/tokens";
 import type { RealMarketData } from "./prompt-builder";
 
 // ---------- Error Class ----------
@@ -88,18 +90,32 @@ function assignRanks(
  * 3. Throw MarketDataUnavailableError if API fails or returns empty
  */
 export async function fetchMarketContext(): Promise<RealMarketData[]> {
-  let tokens;
+  let tokens: SolanaEcosystemToken[];
   try {
     tokens = await fetchSolanaEcosystemTokens();
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new MarketDataUnavailableError(`CoinGecko fetch failed: ${message}`);
+    console.warn(`[market-context] CoinGecko fetch failed: ${message}, falling back to seed tokens`);
+    tokens = [];
   }
 
   if (tokens.length === 0) {
-    throw new MarketDataUnavailableError(
-      "CoinGecko returned empty token list"
-    );
+    // Fallback to seed tokens when CoinGecko returns empty (e.g. rate limited)
+    console.warn("[market-context] CoinGecko returned empty, falling back to seed tokens");
+    return seedTokens.map((t) => ({
+      symbol: t.symbol.toUpperCase(),
+      price: t.price,
+      change24h: t.change24h,
+      volume24h: t.volume24h,
+      tvl: t.tvl,
+      marketCap: t.marketCap,
+      coingeckoId: "",
+      name: t.name,
+      volumeRank: 0,
+      marketCapRank: 0,
+      volatility24h: 0,
+      sparkline7d: t.sparkline7d,
+    }));
   }
 
   // Compute volume and market cap ranks

@@ -34,7 +34,12 @@ export async function GET(
       cycle_interval_minutes,
       is_system,
       last_active_at,
-      created_at
+      created_at,
+      wallet_address,
+      total_votes_given,
+      follower_count,
+      following_count,
+      reply_count
     `
     )
     .eq("id", id)

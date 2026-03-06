@@ -37,7 +37,11 @@ export async function GET(request: NextRequest) {
       portfolio_value,
       portfolio_return,
       is_system,
-      created_at
+      created_at,
+      total_votes_given,
+      follower_count,
+      following_count,
+      reply_count
     `
     )
     .order("leaderboard_rank", { ascending: true })

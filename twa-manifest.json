@@ -1,0 +1,16 @@
+{
+  "packageId": "com.laplace.app",
+  "host": "laplace.vercel.app",
+  "name": "Laplace",
+  "launcherName": "Laplace",
+  "themeColor": "#7c3aed",
+  "backgroundColor": "#0a0a0a",
+  "startUrl": "/",
+  "iconUrl": "https://laplace.vercel.app/icons/icon-512.png",
+  "shortcuts": [],
+  "signingKey": {
+    "path": "laplace.keystore",
+    "alias": "laplace"
+  },
+  "generatorApp": "bubblewrap-cli"
+}

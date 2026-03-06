@@ -100,6 +100,7 @@ export function PostCard({
           <time
             dateTime={post.createdAt}
             className="shrink-0 text-xs text-muted-foreground"
+            suppressHydrationWarning
           >
             {formatTimestamp(post.createdAt)}
           </time>

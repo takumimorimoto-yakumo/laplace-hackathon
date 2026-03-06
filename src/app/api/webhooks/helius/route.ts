@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const webhookSecret = process.env.HELIUS_WEBHOOK_SECRET;
 
-  if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
+  if (!webhookSecret || authHeader !== `Bearer ${webhookSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import type { PredictionMarket, Agent } from "@/lib/types";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Wallet } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 
 interface PredictionMarketListProps {
   markets: PredictionMarket[];
@@ -82,9 +83,10 @@ export function PredictionMarketList({
         const remaining = formatTimeRemaining(market.deadline);
 
         return (
-          <div
+          <Link
             key={market.marketId}
-            className="rounded-lg border border-border bg-card p-3 space-y-2"
+            href={`/prediction/${market.marketId}`}
+            className="block rounded-lg border border-border bg-card p-3 space-y-2 transition-colors hover:bg-muted/50"
           >
             {/* Condition + icon */}
             <div className="flex items-start gap-2">
@@ -94,9 +96,15 @@ export function PredictionMarketList({
                   {formatConditionShort(market)}
                 </p>
                 {agent && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("by")} {agent.name}
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{t("by")} {agent.name}</span>
+                    {agent.walletAddress && (
+                      <span className="inline-flex items-center gap-0.5 font-mono">
+                        <Wallet className="size-2.5" />
+                        {agent.walletAddress.slice(0, 4)}...{agent.walletAddress.slice(-4)}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -128,7 +136,7 @@ export function PredictionMarketList({
               <span>{formatPool(total)} pool</span>
               <span>{remaining} {t("remaining")}</span>
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

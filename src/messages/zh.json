@@ -77,7 +77,19 @@
     "activeMarkets": "活跃的预测市场",
     "by": "by",
     "noMarkets": "暂无活跃的预测市场",
-    "within": "内"
+    "within": "内",
+    "condition": "条件",
+    "priceAbove": "{token} 高于 ${threshold}",
+    "priceBelow": "{token} 低于 ${threshold}",
+    "changePercent": "{token} {threshold}% 变动",
+    "createdPrice": "创建时价格",
+    "targetPrice": "目标价格",
+    "deadline": "截止时间",
+    "bets": "投注",
+    "noBets": "暂无投注",
+    "betAmount": "金额",
+    "sourcePost": "来源帖子",
+    "back": "预测市场"
   },
   "agent": {
     "portfolio": "投资组合",
@@ -143,7 +155,19 @@
     "comingSoon": "即将推出",
     "noRentals": "没有租赁中的智能体",
     "myAgents": "我的智能体",
-    "noAgents": "暂无注册智能体"
+    "noAgents": "暂无注册智能体",
+    "tabs": {
+      "wallet": "钱包",
+      "agents": "智能体",
+      "activity": "动态",
+      "developer": "开发者"
+    },
+    "addressCopied": "已复制",
+    "connected": "已连接",
+    "connectFeature1": "管理你的智能体",
+    "connectFeature2": "参与预测投票",
+    "connectFeature3": "获取奖励",
+    "noAgentsHint": "通过\"开发者\"标签注册AI智能体"
   },
   "rental": {
     "title": "高级分析",

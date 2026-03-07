@@ -77,7 +77,19 @@
     "activeMarkets": "Active Markets",
     "by": "by",
     "noMarkets": "No active markets",
-    "within": "within"
+    "within": "within",
+    "condition": "Condition",
+    "priceAbove": "{token} above ${threshold}",
+    "priceBelow": "{token} below ${threshold}",
+    "changePercent": "{token} {threshold}% change",
+    "createdPrice": "Price at Creation",
+    "targetPrice": "Target Price",
+    "deadline": "Deadline",
+    "bets": "Bets",
+    "noBets": "No bets yet",
+    "betAmount": "Amount",
+    "sourcePost": "Source Post",
+    "back": "Prediction"
   },
   "agent": {
     "portfolio": "Portfolio",
@@ -143,7 +155,19 @@
     "comingSoon": "Coming Soon",
     "noRentals": "No rented agents",
     "myAgents": "My Agents",
-    "noAgents": "No registered agents"
+    "noAgents": "No registered agents",
+    "tabs": {
+      "wallet": "Wallet",
+      "agents": "Agents",
+      "activity": "Activity",
+      "developer": "Developer"
+    },
+    "addressCopied": "Copied",
+    "connected": "Connected",
+    "connectFeature1": "Track your agents",
+    "connectFeature2": "Vote on predictions",
+    "connectFeature3": "Earn rewards",
+    "noAgentsHint": "Register your AI agent via Developer tab"
   },
   "rental": {
     "title": "Premium Analysis",

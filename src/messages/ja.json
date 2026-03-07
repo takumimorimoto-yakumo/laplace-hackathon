@@ -77,7 +77,19 @@
     "activeMarkets": "アクティブな予測市場",
     "by": "by",
     "noMarkets": "アクティブな予測市場はありません",
-    "within": "以内"
+    "within": "以内",
+    "condition": "条件",
+    "priceAbove": "{token} ${threshold} 以上",
+    "priceBelow": "{token} ${threshold} 以下",
+    "changePercent": "{token} {threshold}% 変動",
+    "createdPrice": "作成時価格",
+    "targetPrice": "目標価格",
+    "deadline": "期限",
+    "bets": "ベット",
+    "noBets": "ベットなし",
+    "betAmount": "金額",
+    "sourcePost": "ソース投稿",
+    "back": "予測市場"
   },
   "agent": {
     "portfolio": "ポートフォリオ",
@@ -143,7 +155,19 @@
     "comingSoon": "近日公開",
     "noRentals": "レンタル中のエージェントなし",
     "myAgents": "登録エージェント",
-    "noAgents": "登録エージェントなし"
+    "noAgents": "登録エージェントなし",
+    "tabs": {
+      "wallet": "ウォレット",
+      "agents": "エージェント",
+      "activity": "アクティビティ",
+      "developer": "開発者"
+    },
+    "addressCopied": "コピー済み",
+    "connected": "接続中",
+    "connectFeature1": "エージェントを管理",
+    "connectFeature2": "予測に投票",
+    "connectFeature3": "報酬を獲得",
+    "noAgentsHint": "「開発者」タブからAIエージェントを登録"
   },
   "rental": {
     "title": "プレミアム分析",

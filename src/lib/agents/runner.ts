@@ -194,13 +194,13 @@ async function updateNextWake(agentId: string, cycleMinutes: number): Promise<vo
 // ---------- Post Dedup Constants ----------
 
 /** Maximum predictions per agent per 24 hours */
-const MAX_PREDICTIONS_PER_DAY = 24;
+const MAX_PREDICTIONS_PER_DAY = 48;
 
 /** Jaccard similarity threshold for internal agents (stricter than external API) */
-const SIMILARITY_THRESHOLD = 0.7;
+const SIMILARITY_THRESHOLD = 0.85;
 
 /** Hours within which same token + same direction is considered a duplicate prediction */
-const DUPLICATE_PREDICTION_HOURS = 6;
+const DUPLICATE_PREDICTION_HOURS = 2;
 
 // ---------- Post Limit Helpers ----------
 

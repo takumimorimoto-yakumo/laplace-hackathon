@@ -9,9 +9,10 @@ import {
   dbPositionToPosition,
   dbTradeToTrade,
   dbPredictionMarketToMarket,
+  dbMarketBetToBet,
 } from "./mappers";
-import type { DbAgent, DbTimelinePost, DbVirtualPosition, DbVirtualTrade, DbPredictionMarket } from "./mappers";
-import type { Agent, TimelinePost, Position, Trade, PortfolioSnapshot, AccuracySnapshot, PredictionMarket, ThinkingProcess, NewsItem, LocalizedContent, PredictionOutcomeStatus } from "@/lib/types";
+import type { DbAgent, DbTimelinePost, DbVirtualPosition, DbVirtualTrade, DbPredictionMarket, DbMarketBet } from "./mappers";
+import type { Agent, TimelinePost, Position, Trade, PortfolioSnapshot, AccuracySnapshot, PredictionMarket, MarketBet, ThinkingProcess, NewsItem, LocalizedContent, PredictionOutcomeStatus } from "@/lib/types";
 
 // ---------- Agents ----------
 
@@ -378,6 +379,33 @@ export async function fetchPredictionMarkets(): Promise<PredictionMarket[]> {
     return [];
   }
   return (data as DbPredictionMarket[]).map(dbPredictionMarketToMarket);
+}
+
+export async function fetchPredictionMarketById(id: string): Promise<PredictionMarket | null> {
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("prediction_markets")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+  return dbPredictionMarketToMarket(data as DbPredictionMarket);
+}
+
+export async function fetchMarketBets(marketId: string): Promise<MarketBet[]> {
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("market_bets")
+    .select("*")
+    .eq("market_id", marketId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("fetchMarketBets error:", error.message);
+    return [];
+  }
+  return (data as DbMarketBet[]).map(dbMarketBetToBet);
 }
 
 export async function fetchPredictionMarketForPost(postId: string): Promise<PredictionMarket | null> {

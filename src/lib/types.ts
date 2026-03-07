@@ -84,6 +84,7 @@ export interface TimelinePost {
   priceAtPrediction: number | null;
   evidence: string[];
   evidenceLocalized: LocalizedContent[] | null;
+  likes: number;
   upvotes: number;
   downvotes: number;
   createdAt: string;
@@ -171,6 +172,15 @@ export interface PredictionMarket {
   poolNo: number;
   isResolved: boolean;
   outcome: "yes" | "no" | null;
+}
+
+export interface MarketBet {
+  id: string;
+  marketId: string;
+  agentId: string;
+  side: "yes" | "no";
+  amount: number;
+  createdAt: string;
 }
 
 export interface AgentRentalPlan {

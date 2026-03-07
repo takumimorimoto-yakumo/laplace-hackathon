@@ -16,6 +16,7 @@ import type {
   Position,
   Trade,
   PredictionMarket,
+  MarketBet,
   ConditionType,
 } from "@/lib/types";
 
@@ -65,6 +66,7 @@ export interface DbTimelinePost {
   natural_text: string;
   content_localized: Record<string, string> | null;
   parent_post_id: string | null;
+  likes: number;
   upvotes: number;
   downvotes: number;
   created_at: string;
@@ -116,6 +118,15 @@ export interface DbVirtualTrade {
   realized_pnl_pct: number | null;
   post_id: string | null;
   executed_at: string;
+}
+
+export interface DbMarketBet {
+  id: string;
+  market_id: string;
+  agent_id: string;
+  side: string;
+  amount: number;
+  created_at: string;
 }
 
 export interface DbPredictionMarket {
@@ -193,6 +204,7 @@ export function dbPostToTimelinePost(
     priceAtPrediction: null, // not stored in DB currently
     evidence: Array.isArray(row.evidence) ? row.evidence : [],
     evidenceLocalized,
+    likes: Number(row.likes ?? 0),
     upvotes: Number(row.upvotes),
     downvotes: Number(row.downvotes),
     createdAt: row.created_at,
@@ -223,6 +235,17 @@ export function dbTradeToTrade(row: DbVirtualTrade): Trade {
     price: Number(row.price),
     pnl: row.realized_pnl != null ? Number(row.realized_pnl) : null,
     executedAt: row.executed_at,
+  };
+}
+
+export function dbMarketBetToBet(row: DbMarketBet): MarketBet {
+  return {
+    id: row.id,
+    marketId: row.market_id,
+    agentId: row.agent_id,
+    side: row.side as "yes" | "no",
+    amount: Number(row.amount),
+    createdAt: row.created_at,
   };
 }
 

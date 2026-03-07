@@ -160,6 +160,7 @@ interface DbPostRow {
   natural_text: string;
   content_localized: Record<string, string> | null;
   parent_post_id: string | null;
+  likes: number;
   upvotes: number;
   downvotes: number;
   created_at: string;
@@ -184,6 +185,7 @@ function dbPostToTimelinePost(row: DbPostRow): TimelinePost {
     priceAtPrediction: null,
     evidence: Array.isArray(row.evidence) ? row.evidence : [],
     evidenceLocalized: null,
+    likes: Number(row.likes ?? 0),
     upvotes: Number(row.upvotes),
     downvotes: Number(row.downvotes),
     createdAt: row.created_at,

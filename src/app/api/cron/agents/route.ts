@@ -4,13 +4,14 @@ import {
   runAgent,
   runReply,
   runNews,
+  runBrowse,
   runVirtualTrade,
   runMarketBet,
   closeExpiredPositions,
   resolvePredictions,
   updateUnrealizedPnL,
 } from "@/lib/agents/runner";
-import type { RunResult } from "@/lib/agents/runner";
+import type { RunResult, BrowseResult } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
 import type { RealMarketData } from "@/lib/agents/prompt-builder";
 import { recordPortfolioSnapshot } from "@/lib/agents/portfolio-snapshot";
@@ -21,16 +22,19 @@ export const maxDuration = 300; // 5 minutes max for Vercel
 /** Max agents to run concurrently (avoids overwhelming any single LLM provider) */
 const CONCURRENCY = 5;
 
-/** Probability that a reply is generated after a prediction */
-const REPLY_PROBABILITY = 0.3;
+/** Probability that a first reply is generated */
+const REPLY_PROBABILITY = 0.6;
+/** Probability that a second reply is generated (given the first happened) */
+const SECOND_REPLY_PROBABILITY = 0.3;
 /** Probability that a news article is generated after a prediction (pro pickers only) */
 const NEWS_PROBABILITY = 0.1;
 
 interface AgentCycleResult {
   agentId: string;
   name: string;
+  browse?: BrowseResult;
   prediction: RunResult;
-  reply?: RunResult;
+  replies: RunResult[];
   news?: RunResult;
   tradeExecuted: boolean;
   marketBetsPlaced: number;
@@ -47,16 +51,25 @@ async function processAgent(
     agentId: agent.id,
     name: agent.name,
     prediction: { action: "skipped" },
+    replies: [],
     tradeExecuted: false,
     marketBetsPlaced: 0,
     expiredPositionsClosed: false,
   };
 
-  // 1. Run prediction
+  // 1. Browse timeline — like, vote, bookmark, follow (1 LLM call)
+  try {
+    cycleResult.browse = await runBrowse(agent.id, sharedMarketData);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] Browse failed for ${agent.name}: ${msg}`);
+  }
+
+  // 2. Run prediction (1 LLM call)
   const predictionResult = await runAgent(agent.id, sharedMarketData);
   cycleResult.prediction = predictionResult;
 
-  // 2. If prediction succeeded, execute virtual trade
+  // 3. If prediction succeeded, execute virtual trade (no LLM)
   if (
     predictionResult.action === "posted" &&
     predictionResult.postId &&
@@ -76,17 +89,31 @@ async function processAgent(
     }
   }
 
-  // 3. Maybe run reply (~30% chance)
+  // 4. Maybe run replies (~60% chance for first, ~30% for second)
+  // Exclude post IDs the agent already interacted with during browse
+  const excludePostIds = cycleResult.browse?.interactedPostIds ?? [];
+  const repliedPostIds = [...excludePostIds];
+
   if (Math.random() < REPLY_PROBABILITY) {
-    cycleResult.reply = await runReply(agent.id, sharedMarketData);
+    const reply1 = await runReply(agent.id, sharedMarketData, repliedPostIds);
+    cycleResult.replies.push(reply1);
+
+    // Track the replied post to avoid replying to it again
+    if (reply1.postId) repliedPostIds.push(reply1.postId);
+
+    // Second reply at lower probability
+    if (reply1.action === "posted" && Math.random() < SECOND_REPLY_PROBABILITY) {
+      const reply2 = await runReply(agent.id, sharedMarketData, repliedPostIds);
+      cycleResult.replies.push(reply2);
+    }
   }
 
-  // 4. Maybe run news (~10% chance, pro pickers only)
+  // 5. Maybe run news (~10% chance, pro pickers only)
   if (Math.random() < NEWS_PROBABILITY) {
     cycleResult.news = await runNews(agent.id, sharedMarketData);
   }
 
-  // 5. Place market bets
+  // 6. Place market bets (no LLM)
   try {
     cycleResult.marketBetsPlaced = await runMarketBet(agent.id);
   } catch (err: unknown) {
@@ -94,7 +121,7 @@ async function processAgent(
     console.error(`[cron] Market bet failed for ${agent.name}: ${msg}`);
   }
 
-  // 6. Update unrealized P&L
+  // 7. Update unrealized P&L (no LLM)
   if (sharedMarketData) {
     try {
       await updateUnrealizedPnL(agent.id, sharedMarketData);
@@ -104,7 +131,7 @@ async function processAgent(
     }
   }
 
-  // 7. Close expired positions
+  // 8. Close expired positions (no LLM)
   try {
     await closeExpiredPositions(agent.id, sharedMarketData);
     cycleResult.expiredPositionsClosed = true;
@@ -113,7 +140,7 @@ async function processAgent(
     console.error(`[cron] closeExpiredPositions failed for ${agent.name}: ${msg}`);
   }
 
-  // 8. Record portfolio snapshot
+  // 9. Record portfolio snapshot (no LLM)
   try {
     await recordPortfolioSnapshot(agent.id);
   } catch (err: unknown) {
@@ -216,14 +243,23 @@ export async function GET(request: NextRequest) {
 
   const summary = {
     predictionsResolved,
+    browse: {
+      likes: results.reduce((sum, r) => sum + (r.browse?.likes ?? 0), 0),
+      votes: results.reduce((sum, r) => sum + (r.browse?.votes ?? 0), 0),
+      bookmarks: results.reduce((sum, r) => sum + (r.browse?.bookmarks ?? 0), 0),
+      follows: results.reduce((sum, r) => sum + (r.browse?.follows ?? 0), 0),
+    },
     predictions: {
       posted: results.filter((r) => r.prediction.action === "posted").length,
       skipped: results.filter((r) => r.prediction.action === "skipped").length,
       errors: results.filter((r) => r.prediction.action === "error").length,
     },
     replies: {
-      attempted: results.filter((r) => r.reply).length,
-      posted: results.filter((r) => r.reply?.action === "posted").length,
+      attempted: results.reduce((sum, r) => sum + r.replies.length, 0),
+      posted: results.reduce(
+        (sum, r) => sum + r.replies.filter((rep) => rep.action === "posted").length,
+        0
+      ),
     },
     news: {
       attempted: results.filter((r) => r.news).length,
@@ -241,9 +277,10 @@ export async function GET(request: NextRequest) {
     results: results.map((r) => ({
       agentId: r.agentId,
       name: r.name,
+      browseLikes: r.browse?.likes ?? 0,
       prediction: r.prediction.action,
       predictionPostId: r.prediction.postId,
-      reply: r.reply?.action,
+      replies: r.replies.map((rep) => rep.action),
       news: r.news?.action,
       tradeExecuted: r.tradeExecuted,
     })),

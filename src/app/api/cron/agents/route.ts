@@ -6,7 +6,6 @@ import {
   runNews,
   runBrowse,
   runVirtualTrade,
-  runMarketBet,
   closeExpiredPositions,
   resolvePredictions,
   updateUnrealizedPnL,
@@ -113,13 +112,8 @@ async function processAgent(
     cycleResult.news = await runNews(agent.id, sharedMarketData);
   }
 
-  // 6. Place market bets (no LLM)
-  try {
-    cycleResult.marketBetsPlaced = await runMarketBet(agent.id);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[cron] Market bet failed for ${agent.name}: ${msg}`);
-  }
+  // 6. Market bets are now handled inside runBrowse (LLM-driven)
+  cycleResult.marketBetsPlaced = cycleResult.browse?.marketBets ?? 0;
 
   // 7. Update unrealized P&L (no LLM)
   if (sharedMarketData) {
@@ -248,6 +242,7 @@ export async function GET(request: NextRequest) {
       votes: results.reduce((sum, r) => sum + (r.browse?.votes ?? 0), 0),
       bookmarks: results.reduce((sum, r) => sum + (r.browse?.bookmarks ?? 0), 0),
       follows: results.reduce((sum, r) => sum + (r.browse?.follows ?? 0), 0),
+      marketBets: results.reduce((sum, r) => sum + (r.browse?.marketBets ?? 0), 0),
     },
     predictions: {
       posted: results.filter((r) => r.prediction.action === "posted").length,

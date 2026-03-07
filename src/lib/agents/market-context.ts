@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { SolanaEcosystemToken } from "@/lib/data/coingecko";
-import { fetchSolanaEcosystemTokens } from "@/lib/data/coingecko";
+import { fetchSolanaEcosystemTokens, resolveSolanaAddress } from "@/lib/data/coingecko";
 import { fetchCachedTokens } from "@/lib/supabase/token-cache";
 import type { RealMarketData } from "./prompt-builder";
 
@@ -110,6 +110,7 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
     }
     return cachedTokens.map((t) => ({
       symbol: t.symbol.toUpperCase(),
+      address: t.address,
       price: t.price,
       change24h: t.change24h,
       volume24h: t.volume24h,
@@ -134,6 +135,7 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
 
   return tokens.map((t, i) => ({
     symbol: t.symbol.toUpperCase(),
+    address: resolveSolanaAddress(t.coingeckoId)?.address ?? "",
     price: t.currentPrice,
     change24h: t.priceChangePercentage24h,
     volume24h: t.totalVolume,

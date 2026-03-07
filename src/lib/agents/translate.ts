@@ -23,7 +23,7 @@ export async function translatePost(englishText: string): Promise<TranslationRes
       { role: "system", content: TRANSLATION_PROMPT },
       { role: "user", content: englishText },
     ],
-    { temperature: 0.3, maxTokens: 1024 }
+    { temperature: 0.3, maxTokens: 2048 }
   );
 
   // Parse response — strip markdown code blocks, then extract JSON

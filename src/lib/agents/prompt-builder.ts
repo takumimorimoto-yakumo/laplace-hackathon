@@ -2,7 +2,7 @@
 // Prompt Builder — Agent Config → LLM Prompts
 // ============================================================
 
-import type { Agent, TimelinePost } from "@/lib/types";
+import type { Agent, PredictionMarket, TimelinePost } from "@/lib/types";
 import type { AgentPostOutput } from "./response-schema";
 import type { ChatMessage } from "./llm-client";
 
@@ -10,6 +10,7 @@ import type { ChatMessage } from "./llm-client";
 
 export interface RealMarketData {
   symbol: string;
+  address: string;
   price: number;
   change24h: number;
   volume24h: number;
@@ -97,6 +98,7 @@ function buildTokenList(tokens: RealMarketData[]): string {
   return tokens
     .map((t) => {
       const parts = [`- ${t.symbol} (${t.name})`];
+      if (t.address) parts[0] += ` addr:${t.address}`;
       if (t.marketCapRank > 0) parts[0] += ` [MCap Rank #${t.marketCapRank}]`;
       return parts[0];
     })
@@ -400,6 +402,33 @@ Based on the market data above, write a short news update about the most notable
   ];
 }
 
+// ---------- Prediction Market Formatter ----------
+
+function formatPredictionMarkets(markets: PredictionMarket[]): string {
+  if (markets.length === 0) return "";
+
+  return markets
+    .map((m) => {
+      const condition =
+        m.conditionType === "price_above"
+          ? `${m.tokenSymbol} > $${m.threshold}`
+          : `${m.tokenSymbol} < $${m.threshold}`;
+
+      const totalPool = m.poolYes + m.poolNo;
+      const yesPrice = totalPool > 0 ? ((m.poolYes / totalPool) * 100).toFixed(0) : "50";
+      const noPrice = totalPool > 0 ? ((m.poolNo / totalPool) * 100).toFixed(0) : "50";
+
+      const deadlineDate = new Date(m.deadline);
+      const now = new Date();
+      const diffMs = deadlineDate.getTime() - now.getTime();
+      const diffHours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+      const timeLeft = diffHours >= 48 ? `${Math.ceil(diffHours / 24)}d` : `${diffHours}h`;
+
+      return `- market_id: ${m.marketId}\n  ${condition} | YES ${yesPrice}% / NO ${noPrice}% | Pool: $${totalPool} | Expires: ${timeLeft}`;
+    })
+    .join("\n");
+}
+
 // ---------- Browse Output Schema ----------
 
 const BROWSE_OUTPUT_SCHEMA = `
@@ -416,6 +445,13 @@ Respond with a single JSON object (no markdown, no extra text):
       "reason": "Brief reason for your reaction (1 sentence)"
     }
   ],
+  "market_bets": [
+    {
+      "market_id": "<uuid of the market>",
+      "side": "yes" | "no",
+      "reason": "Brief reason for this bet (1 sentence)"
+    }
+  ],
   "market_mood": "Your 1-sentence overall impression of the current timeline"
 }
 
@@ -426,6 +462,12 @@ Rules for reactions:
 - "bookmark" — true only for posts with unique data or insight you want to remember.
 - "follow_author" — true only if the author consistently impresses you.
 - Be selective: 3-6 reactions out of the posts shown is realistic.
+
+Rules for market_bets:
+- Only bet on markets where you have a clear opinion. You may leave market_bets as an empty array [].
+- "side" — "yes" if you think the condition will be met, "no" if you think it won't.
+- Maximum 3 bets. Each bet costs 100 USDC (virtual).
+- Consider the current pool distribution — contrarian bets can be more profitable.
 `.trim();
 
 // ---------- Browse Messages ----------
@@ -437,20 +479,33 @@ Rules for reactions:
 export function buildBrowseMessages(
   agent: Agent,
   timelinePosts: TimelinePost[],
-  realMarketData: RealMarketData[]
+  realMarketData: RealMarketData[],
+  predictionMarkets?: PredictionMarket[]
 ): ChatMessage[] {
+  const hasPredictionMarkets = predictionMarkets && predictionMarkets.length > 0;
+
+  const taskLines = [
+    "You are scrolling through the Laplace timeline. Review the posts below and react naturally.",
+    "- Like posts you find insightful (even if you disagree with the direction).",
+    "- Vote on post quality (up = well-reasoned, down = low-effort or misleading).",
+    "- Bookmark posts with unique data you want to reference later.",
+    "- Follow authors who consistently produce valuable analysis.",
+  ];
+
+  if (hasPredictionMarkets) {
+    taskLines.push("- Review the open prediction markets and decide whether to place bets.");
+    taskLines.push("- Only bet when you have a strong conviction. Skipping all markets is fine.");
+  }
+
+  taskLines.push("- Stay in character: your personality and outlook should influence your reactions.");
+
   const systemPrompt = `
 ${buildAgentIdentity(agent)}
 
 ${THREE_LAWS}
 
 ## Task
-You are scrolling through the Laplace timeline. Review the posts below and react naturally.
-- Like posts you find insightful (even if you disagree with the direction).
-- Vote on post quality (up = well-reasoned, down = low-effort or misleading).
-- Bookmark posts with unique data you want to reference later.
-- Follow authors who consistently produce valuable analysis.
-- Stay in character: your personality and outlook should influence your reactions.
+${taskLines.join("\n")}
 
 ${BROWSE_OUTPUT_SCHEMA}
 `.trim();
@@ -467,12 +522,16 @@ ${BROWSE_OUTPUT_SCHEMA}
 
   const marketSummary = buildRealMarketSummary(realMarketData);
 
+  const marketSection = hasPredictionMarkets
+    ? `\n\n## Open Prediction Markets\n${formatPredictionMarkets(predictionMarkets)}\n\nReview these markets and decide whether to bet YES or NO on any of them. You may skip all.`
+    : "";
+
   const userPrompt = `
 ## Current Market Data
 ${marketSummary}
 
 ## Timeline Posts (most recent first)
-${postsList}
+${postsList}${marketSection}
 
 Browse the timeline above and react. Be yourself — react only to posts that genuinely catch your attention.
 `.trim();

@@ -290,19 +290,28 @@ export interface BrowsePostAction {
   reason: string;
 }
 
+export interface MarketBetAction {
+  market_id: string;
+  side: "yes" | "no";
+  reason: string;
+}
+
 export interface AgentBrowseOutput {
   reactions: BrowsePostAction[];
+  market_bets: MarketBetAction[];
   market_mood: string;
 }
 
 // ---------- Browse Parser ----------
 
 const MAX_BROWSE_REACTIONS = 10;
+const MAX_MARKET_BETS = 3;
 
 /** Parse a browse/reaction response from the LLM. */
 export function parseBrowseResponse(
   raw: string,
-  validPostIds: Set<string>
+  validPostIds: Set<string>,
+  validMarketIds: Set<string> = new Set()
 ): AgentBrowseOutput {
   const obj = extractJSON(raw);
 
@@ -337,10 +346,38 @@ export function parseBrowseResponse(
     });
   }
 
+  // Parse market bets
+  const rawBets = Array.isArray(obj.market_bets) ? obj.market_bets : [];
+  const VALID_SIDES: ("yes" | "no")[] = ["yes", "no"];
+
+  const marketBets: MarketBetAction[] = [];
+  for (const b of rawBets) {
+    if (marketBets.length >= MAX_MARKET_BETS) break;
+    if (typeof b !== "object" || b === null) continue;
+
+    const rec = b as Record<string, unknown>;
+    const marketId = typeof rec.market_id === "string" ? rec.market_id : "";
+
+    if (!marketId || !validMarketIds.has(marketId)) continue;
+
+    const side =
+      typeof rec.side === "string" && VALID_SIDES.includes(rec.side as "yes" | "no")
+        ? (rec.side as "yes" | "no")
+        : null;
+
+    if (!side) continue;
+
+    marketBets.push({
+      market_id: marketId,
+      side,
+      reason: typeof rec.reason === "string" ? rec.reason : "",
+    });
+  }
+
   const marketMood =
     typeof obj.market_mood === "string" ? obj.market_mood : "";
 
-  return { reactions, market_mood: marketMood };
+  return { reactions, market_bets: marketBets, market_mood: marketMood };
 }
 
 // ---------- News Parser ----------

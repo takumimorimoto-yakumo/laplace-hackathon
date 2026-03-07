@@ -3,7 +3,7 @@
 // ============================================================
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchAgent, fetchTimelinePosts, fetchAgentFollowing } from "@/lib/supabase/queries";
+import { fetchAgent, fetchTimelinePosts, fetchAgentFollowing, fetchPredictionMarkets } from "@/lib/supabase/queries";
 import { chatCompletion } from "./llm-client";
 import {
   buildMessages,
@@ -157,13 +157,13 @@ async function translateText(
   text: string,
   agentName: string
 ): Promise<Record<string, string>> {
-  let contentLocalized: Record<string, string> = { en: text };
+  let contentLocalized: Record<string, string> = { en: text, ja: text, zh: text };
   try {
     const translations = await translatePost(text);
     contentLocalized = {
       en: text,
-      ja: translations.ja,
-      zh: translations.zh,
+      ja: translations.ja || text,
+      zh: translations.zh || text,
     };
   } catch (translateErr: unknown) {
     const msg =
@@ -410,6 +410,16 @@ export async function runAgent(
       return { action: "skipped", error: "Content too similar to recent post" };
     }
 
+    // 4d. Resolve token_address from market data if LLM omitted it
+    if (!output.token_address && output.token_symbol) {
+      const match = marketData.find(
+        (m) => m.symbol.toUpperCase() === output.token_symbol.toUpperCase()
+      );
+      if (match?.address) {
+        output.token_address = match.address;
+      }
+    }
+
     // 5. Translate (graceful degradation — EN only on failure)
     const contentLocalized = await translateText(output.natural_text, agent.name);
 
@@ -453,12 +463,15 @@ export async function runAgent(
 
     // 6a. Store thinking process for this prediction
     if (output.evidence.length > 0 || output.uncertainty || output.reasoning) {
-      const consensus = output.evidence.map((e) => ({ en: e, ja: "", zh: "" }));
+      const consensus = output.evidence.map((e, i) => {
+        const evLoc = evidenceLocalized?.[i];
+        return { en: e, ja: evLoc?.ja || e, zh: evLoc?.zh || e };
+      });
       const debatePoints = output.uncertainty
-        ? [{ en: output.uncertainty, ja: "", zh: "" }]
+        ? [{ en: output.uncertainty, ja: output.uncertainty, zh: output.uncertainty }]
         : [];
       const blindSpots = output.confidence_rationale
-        ? [{ en: output.confidence_rationale, ja: "", zh: "" }]
+        ? [{ en: output.confidence_rationale, ja: output.confidence_rationale, zh: output.confidence_rationale }]
         : [];
 
       const { error: tpError } = await supabase
@@ -803,13 +816,21 @@ export interface BrowseResult {
   votes: number;
   bookmarks: number;
   follows: number;
+  marketBets: number;
   /** Post IDs the agent interacted with (to avoid replying to the same post) */
   interactedPostIds: string[];
 }
 
+/** Default virtual bet amount per market (used by LLM-driven browse bets) */
+const BET_AMOUNT_BROWSE = 100;
+
+/** Maximum prediction markets to show in the browse prompt */
+const MAX_BROWSE_MARKETS = 5;
+
 /**
  * Browse the timeline and react to posts: like, vote, bookmark, follow.
- * Uses a single LLM call to process up to 15 recent posts.
+ * Also reviews open prediction markets and places bets via LLM judgment.
+ * Uses a single LLM call to process up to 15 recent posts + up to 5 markets.
  */
 export async function runBrowse(
   agentId: string,
@@ -820,6 +841,7 @@ export async function runBrowse(
     votes: 0,
     bookmarks: 0,
     follows: 0,
+    marketBets: 0,
     interactedPostIds: [],
   };
 
@@ -829,18 +851,26 @@ export async function runBrowse(
   const keyError = checkApiKey(agent);
   if (keyError) return emptyResult;
 
+  const supabase = createAdminClient();
+
   try {
-    // Fetch recent posts from OTHER agents
-    const [recentPosts, marketData] = await Promise.all([
+    // Fetch recent posts, market data, prediction markets, and existing bets in parallel
+    const [recentPosts, marketData, allPredictionMarkets, existingBetsData] = await Promise.all([
       fetchTimelinePosts({ limit: 20 }),
       existingMarketData ? Promise.resolve(existingMarketData) : fetchMarketContext(),
+      fetchPredictionMarkets(),
+      supabase
+        .from("market_bets")
+        .select("market_id")
+        .eq("agent_id", agentId)
+        .then(({ data }) => data ?? []),
     ]);
 
     const otherPosts = recentPosts
       .filter((p) => p.agentId !== agentId)
       .slice(0, 15);
 
-    if (otherPosts.length === 0) return emptyResult;
+    if (otherPosts.length === 0 && allPredictionMarkets.length === 0) return emptyResult;
 
     // Build valid post ID set for validation
     const validPostIds = new Set(otherPosts.map((p) => p.id));
@@ -848,22 +878,36 @@ export async function runBrowse(
     // Build a map from post ID to agentId for follow resolution
     const postAgentMap = new Map(otherPosts.map((p) => [p.id, p.agentId]));
 
+    // Filter prediction markets: exclude self-proposed and already-bet
+    const alreadyBetMarketIds = new Set(existingBetsData.map((b) => b.market_id as string));
+    const eligibleMarkets = allPredictionMarkets
+      .filter((m) => m.proposerAgentId !== agentId && !alreadyBetMarketIds.has(m.marketId))
+      .slice(0, MAX_BROWSE_MARKETS);
+
+    const validMarketIds = new Set(eligibleMarkets.map((m) => m.marketId));
+
     // Build prompt & call LLM
     const agentTokens = selectTokensForAgent(marketData, agent);
-    const messages = buildBrowseMessages(agent, otherPosts, agentTokens);
+    const messages = buildBrowseMessages(
+      agent,
+      otherPosts,
+      agentTokens,
+      eligibleMarkets.length > 0 ? eligibleMarkets : undefined
+    );
     const raw = await chatCompletion(messages, {
       llmModel: agent.llm,
       temperature: agent.temperature,
     });
 
     // Parse response
-    const output = parseBrowseResponse(raw, validPostIds);
+    const output = parseBrowseResponse(raw, validPostIds, validMarketIds);
 
     const result: BrowseResult = {
       likes: 0,
       votes: 0,
       bookmarks: 0,
       follows: 0,
+      marketBets: 0,
       interactedPostIds: [],
     };
 
@@ -919,8 +963,43 @@ export async function runBrowse(
       }
     }
 
+    // Process market bets
+    for (const bet of output.market_bets) {
+      try {
+        const { error: betErr } = await supabase
+          .from("market_bets")
+          .insert({
+            market_id: bet.market_id,
+            agent_id: agentId,
+            side: bet.side,
+            amount: BET_AMOUNT_BROWSE,
+          });
+
+        if (betErr) {
+          console.warn(`[runner] Browse market bet insert failed: ${betErr.message}`);
+          continue;
+        }
+
+        // Update pool on prediction_markets
+        const market = eligibleMarkets.find((m) => m.marketId === bet.market_id);
+        if (market) {
+          const poolColumn = bet.side === "yes" ? "pool_yes" : "pool_no";
+          const currentPool = bet.side === "yes" ? market.poolYes : market.poolNo;
+          await supabase
+            .from("prediction_markets")
+            .update({ [poolColumn]: currentPool + BET_AMOUNT_BROWSE })
+            .eq("id", bet.market_id);
+        }
+
+        result.marketBets++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[runner] Browse market bet failed: ${msg}`);
+      }
+    }
+
     console.log(
-      `[runner] ${agent.name} browsed: ${result.likes} likes, ${result.votes} votes, ${result.bookmarks} bookmarks, ${result.follows} follows`
+      `[runner] ${agent.name} browsed: ${result.likes} likes, ${result.votes} votes, ${result.bookmarks} bookmarks, ${result.follows} follows, ${result.marketBets} bets`
     );
 
     return result;
@@ -1179,6 +1258,16 @@ export async function runNews(
 
     // 5. Parse news response
     const output = parseNewsResponse(raw);
+
+    // 5a. Resolve token_address from market data if LLM omitted it
+    if (!output.token_address && output.token_symbol) {
+      const match = marketData.find(
+        (m) => m.symbol.toUpperCase() === output.token_symbol.toUpperCase()
+      );
+      if (match?.address) {
+        output.token_address = match.address;
+      }
+    }
 
     // 6. Translate
     const contentLocalized = await translateText(output.natural_text, agent.name);
@@ -1714,124 +1803,7 @@ export async function resolvePredictions(): Promise<number> {
   return resolvedCount;
 }
 
-// ============================================================
-// 7. Market Bet — Agent bets on open prediction markets
-// ============================================================
-
-/** Default virtual bet amount per market */
-const BET_AMOUNT = 100;
-
-/**
- * Place bets on open prediction markets based on the agent's
- * current outlook and token analysis.
- *
- * For each unresolved market the agent has not yet bet on:
- *   - bullish agents bet YES on price_above, NO on price_below
- *   - bearish agents bet NO on price_above, YES on price_below
- *   - neutral / unknown → skip
- *
- * Also updates pool_yes / pool_no on the market.
- */
-export async function runMarketBet(agentId: string): Promise<number> {
-  const supabase = createAdminClient();
-
-  const agent = await fetchAgent(agentId);
-  if (!agent) return 0;
-
-  // Fetch open markets
-  const { data: markets, error: mErr } = await supabase
-    .from("prediction_markets")
-    .select("id, token_symbol, condition_type, threshold, pool_yes, pool_no, proposer_agent_id")
-    .eq("is_resolved", false);
-
-  if (mErr || !markets || markets.length === 0) return 0;
-
-  // Fetch markets this agent already bet on
-  const { data: existingBets } = await supabase
-    .from("market_bets")
-    .select("market_id")
-    .eq("agent_id", agentId);
-
-  const alreadyBet = new Set((existingBets ?? []).map((b) => b.market_id as string));
-
-  // Determine agent's bias per token from recent predictions
-  const { data: recentPreds } = await supabase
-    .from("predictions")
-    .select("token_symbol, direction")
-    .eq("agent_id", agentId)
-    .order("predicted_at", { ascending: false })
-    .limit(20);
-
-  // Build per-token direction map: latest prediction direction per token
-  const tokenDirection = new Map<string, string>();
-  for (const p of recentPreds ?? []) {
-    const sym = (p.token_symbol as string).toUpperCase();
-    if (!tokenDirection.has(sym)) {
-      tokenDirection.set(sym, p.direction as string);
-    }
-  }
-
-  let betsPlaced = 0;
-
-  for (const market of markets) {
-    const marketId = market.id as string;
-
-    // Skip if already bet or proposer is self
-    if (alreadyBet.has(marketId)) continue;
-    if ((market.proposer_agent_id as string) === agentId) continue;
-
-    const symbol = (market.token_symbol as string).toUpperCase();
-    const conditionType = market.condition_type as string;
-
-    // Determine bias: token-specific prediction > agent outlook
-    let bias = tokenDirection.get(symbol) ?? agent.outlook;
-
-    // Map outlook strings to bullish/bearish
-    if (bias === "ultra_bullish") bias = "bullish";
-    if (bias === "ultra_bearish") bias = "bearish";
-
-    let side: "yes" | "no";
-    if (bias === "bullish") {
-      side = conditionType === "price_above" ? "yes" : "no";
-    } else if (bias === "bearish") {
-      side = conditionType === "price_above" ? "no" : "yes";
-    } else {
-      // neutral / unknown — skip
-      continue;
-    }
-
-    // Insert bet
-    const { error: betErr } = await supabase
-      .from("market_bets")
-      .insert({
-        market_id: marketId,
-        agent_id: agentId,
-        side,
-        amount: BET_AMOUNT,
-      });
-
-    if (betErr) {
-      // Likely unique constraint — already bet
-      continue;
-    }
-
-    // Update pool
-    const poolColumn = side === "yes" ? "pool_yes" : "pool_no";
-    const currentPool = Number(market[poolColumn] ?? 0);
-    await supabase
-      .from("prediction_markets")
-      .update({ [poolColumn]: currentPool + BET_AMOUNT })
-      .eq("id", marketId);
-
-    betsPlaced++;
-  }
-
-  if (betsPlaced > 0) {
-    console.log(`[runner] ${agent.name} placed ${betsPlaced} market bet(s)`);
-  }
-
-  return betsPlaced;
-}
+// (Market betting is now handled inside runBrowse via LLM-driven decisions)
 
 // ============================================================
 // 8. Bookmark Management
@@ -1882,3 +1854,11 @@ async function upsertBookmark(
       .in("id", toDelete);
   }
 }
+
+// ---------- Market Bet (stub — integrated into runBrowse) ----------
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function runMarketBet(agentId: string): Promise<number> {
+  return 0;
+}
+

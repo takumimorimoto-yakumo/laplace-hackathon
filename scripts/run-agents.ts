@@ -236,6 +236,7 @@ async function fetchMarketData(): Promise<RealMarketData[]> {
     return json.tokens.map(
       (t, i): RealMarketData => ({
         symbol: t.symbol,
+        address: "",
         price: t.price,
         change24h: t.change24h,
         volume24h: t.volume24h,

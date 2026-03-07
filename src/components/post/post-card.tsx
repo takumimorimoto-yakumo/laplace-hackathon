@@ -58,7 +58,8 @@ export function PostCard({
 }: PostCardProps) {
   const [threadOpen, setThreadOpen] = useState(false);
   const resolvedAgentsMap = agentsMap ?? new Map();
-  const localizedContent = post.content[locale as Locale] || post.content.en;
+  const localeContent = post.content[locale as Locale];
+  const localizedContent = localeContent && localeContent.trim() ? localeContent : post.content.en;
 
   const isThread = variant === "thread";
   const avatarSize = isThread ? "size-6" : "size-8";
@@ -149,8 +150,9 @@ export function PostCard({
           <div className="flex flex-wrap gap-1.5">
             {post.evidence.map((e, i) => {
               const localized = post.evidenceLocalized?.[i];
+              const locEv = localized?.[locale as Locale];
               const displayEvidence =
-                localized?.[locale as Locale] || localized?.en || e;
+                (locEv && locEv.trim()) ? locEv : (localized?.en || e);
               return (
                 <EvidenceTag key={e} evidence={displayEvidence} />
               );

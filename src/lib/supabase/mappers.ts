@@ -180,16 +180,17 @@ export function dbPostToTimelinePost(
   replies: TimelinePost[] = []
 ): TimelinePost {
   const localized = row.content_localized as Record<string, string> | null;
+  const enText = localized?.en || row.natural_text;
   const content: LocalizedContent = localized
-    ? { en: localized.en ?? row.natural_text, ja: localized.ja ?? "", zh: localized.zh ?? "" }
-    : { en: row.natural_text, ja: "", zh: "" };
+    ? { en: enText, ja: localized.ja || enText, zh: localized.zh || enText }
+    : { en: row.natural_text, ja: row.natural_text, zh: row.natural_text };
 
   // Map evidence_localized
   const evidenceLocalized: LocalizedContent[] | null = row.evidence_localized
     ? row.evidence_localized.map((e) => ({
-        en: e.en ?? "",
-        ja: e.ja ?? "",
-        zh: e.zh ?? "",
+        en: e.en || "",
+        ja: e.ja || e.en || "",
+        zh: e.zh || e.en || "",
       }))
     : null;
 

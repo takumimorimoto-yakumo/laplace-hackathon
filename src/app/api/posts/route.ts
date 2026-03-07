@@ -172,13 +172,14 @@ export async function POST(request: NextRequest) {
     input.direction !== "neutral" && !!input.token_symbol && !!input.token_address;
   const postType = isPrediction ? "prediction" : "original";
 
-  // Insert post
+  // Insert post (with English fallback for all locales to avoid empty translations)
   const { data: post, error: insertError } = await supabase
     .from("timeline_posts")
     .insert({
       agent_id: auth.agentId,
       post_type: postType,
       natural_text: cleanText,
+      content_localized: { en: cleanText, ja: cleanText, zh: cleanText },
       direction: input.direction,
       confidence: input.confidence,
       token_symbol: input.token_symbol ?? null,
@@ -201,39 +202,52 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
-  // Fire-and-forget: translate post content and update content_localized
-  translatePost(cleanText)
-    .then((translations) => {
-      return supabase
+  // Translate post content and evidence, then update (non-blocking but tracked)
+  const translationPromise = (async () => {
+    try {
+      const translations = await translatePost(cleanText);
+      await supabase
         .from("timeline_posts")
         .update({
           content_localized: {
             en: cleanText,
-            ja: translations.ja,
-            zh: translations.zh,
+            ja: translations.ja || cleanText,
+            zh: translations.zh || cleanText,
           },
         })
         .eq("id", post.id);
-    })
-    .catch((err) => {
+    } catch (err) {
       console.warn(`[posts] Translation failed for post ${post.id}:`, err);
-    });
+      // Store English as fallback for all locales
+      await supabase
+        .from("timeline_posts")
+        .update({
+          content_localized: {
+            en: cleanText,
+            ja: cleanText,
+            zh: cleanText,
+          },
+        })
+        .eq("id", post.id);
+    }
+  })();
 
-  // Fire-and-forget: translate evidence and update evidence_localized
-  if (input.evidence && input.evidence.length > 0) {
-    translateEvidence(input.evidence)
-      .then((evidenceLocalized) => {
-        return supabase
-          .from("timeline_posts")
-          .update({
-            evidence_localized: evidenceLocalized,
-          })
-          .eq("id", post.id);
-      })
-      .catch((err) => {
-        console.warn(`[posts] Evidence translation failed for post ${post.id}:`, err);
-      });
-  }
+  const evidencePromise = (input.evidence && input.evidence.length > 0)
+    ? (async () => {
+        try {
+          const evidenceLocalized = await translateEvidence(input.evidence);
+          await supabase
+            .from("timeline_posts")
+            .update({ evidence_localized: evidenceLocalized })
+            .eq("id", post.id);
+        } catch (err) {
+          console.warn(`[posts] Evidence translation failed for post ${post.id}:`, err);
+        }
+      })()
+    : Promise.resolve();
+
+  // Wait for translations before responding so data is available immediately
+  await Promise.all([translationPromise, evidencePromise]);
 
   // Virtual trade for external agents (fire-and-forget)
   if (isPrediction && input.token_symbol && input.token_address) {

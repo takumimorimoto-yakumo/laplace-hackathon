@@ -1,43 +1,35 @@
 "use client";
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
-import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { getConnection } from "@/lib/solana/connection";
+import { PublicKey, LAMPORTS_PER_SOL, Connection } from "@solana/web3.js";
 
 interface BalanceState {
   sol: number | null;
   loading: boolean;
+  refresh: () => void;
 }
 
-const DEFAULT_STATE: BalanceState = { sol: null, loading: false };
+interface StoreState {
+  sol: number | null;
+  loading: boolean;
+}
 
-function createBalanceStore(publicKeyStr: string | null) {
-  let state: BalanceState = DEFAULT_STATE;
+const DEFAULT: StoreState = { sol: null, loading: false };
+
+function createBalanceStore(connection: Connection, publicKeyStr: string | null) {
+  let state: StoreState = publicKeyStr ? { sol: null, loading: true } : DEFAULT;
   const listeners = new Set<() => void>();
 
   function emit() {
-    for (const listener of listeners) {
-      listener();
-    }
+    for (const listener of listeners) listener();
   }
 
-  function subscribe(listener: () => void) {
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }
+  function fetchBalance() {
+    if (!publicKeyStr) return;
+    state = { ...state, loading: true };
+    emit();
 
-  function getSnapshot(): BalanceState {
-    return state;
-  }
-
-  if (publicKeyStr) {
-    state = { sol: null, loading: true };
-
-    const connection = getConnection();
     const pk = new PublicKey(publicKeyStr);
-
     connection
       .getBalance(pk)
       .then((lamports) => {
@@ -51,26 +43,45 @@ function createBalanceStore(publicKeyStr: string | null) {
       });
   }
 
-  return { subscribe, getSnapshot };
+  if (publicKeyStr) {
+    fetchBalance();
+  }
+
+  return {
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+    getSnapshot: () => state,
+    refresh: fetchBalance,
+  };
 }
 
-export function useSolBalance(publicKey: PublicKey | null): BalanceState {
+/**
+ * Fetch SOL balance using the provided Connection (from wallet adapter).
+ * This ensures the same RPC endpoint / network is used as the connected wallet.
+ */
+export function useSolBalance(
+  connection: Connection,
+  publicKey: PublicKey | null
+): BalanceState {
   const publicKeyStr = useMemo(
     () => (publicKey ? publicKey.toBase58() : null),
     [publicKey]
   );
 
   const store = useMemo(
-    () => createBalanceStore(publicKeyStr),
-    [publicKeyStr]
+    () => createBalanceStore(connection, publicKeyStr),
+    [connection, publicKeyStr]
   );
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => store.subscribe(onStoreChange),
     [store]
   );
-
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
 
-  return useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT_STATE);
+  const { sol, loading } = useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT);
+
+  return { sol, loading, refresh: store.refresh };
 }

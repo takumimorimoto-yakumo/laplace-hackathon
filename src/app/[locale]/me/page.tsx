@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Activity, Bot, Code, Copy, Check, Target, Trophy, Wallet } from "lucide-react";
+import { Activity, Bot, Code, Copy, Check, Target, Trophy, Wallet, RefreshCw, ExternalLink, LogOut } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { VotingScoreCard } from "@/components/me/voting-score-card";
 import { LikedBookmarkedTabs } from "@/components/me/liked-bookmarked-tabs";
 import { DeveloperApiSection } from "@/components/me/developer-api-section";
 import { WalletButton } from "@/components/wallet/wallet-button";
-import { useWallet } from "@/components/wallet/wallet-provider";
+import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
 import { useSolBalance } from "@/hooks/use-sol-balance";
 import { useUserRentals } from "@/hooks/use-user-rentals";
 import { useUserRegisteredAgents } from "@/hooks/use-user-registered-agents";
@@ -26,9 +27,11 @@ export default function MePage() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
 
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey, disconnect } = useWallet();
+  const { connection } = useConnection();
   const walletAddress = publicKey?.toBase58() ?? null;
-  const { sol } = useSolBalance(publicKey ?? null);
+  const { sol, loading: balanceLoading, refresh: refreshBalance } = useSolBalance(connection, publicKey ?? null);
+  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === "mainnet-beta" ? "mainnet-beta" : "devnet";
   const { rentals } = useUserRentals(walletAddress);
   const { agents: registeredAgents } = useUserRegisteredAgents(walletAddress);
   const { stats } = useUserVotingStats(walletAddress);
@@ -105,17 +108,90 @@ export default function MePage() {
             </div>
             <div className="text-right">
               <p className="text-lg font-semibold font-mono">
-                {sol !== null ? sol.toFixed(2) : "\u2014"} SOL
+                {balanceLoading ? "..." : sol !== null ? sol.toFixed(4) : "\u2014"} SOL
               </p>
             </div>
           </div>
 
-          <Tabs defaultValue="agents">
-            <TabsList variant="line" className="w-full">
-              <TabsTrigger value="agents"><Bot className="size-4" /> {t("tabs.agents")}</TabsTrigger>
-              <TabsTrigger value="activity"><Activity className="size-4" /> {t("tabs.activity")}</TabsTrigger>
-              <TabsTrigger value="developer"><Code className="size-4" /> {t("tabs.developer")}</TabsTrigger>
+          <Tabs defaultValue="wallet">
+            <TabsList variant="line" className="w-full overflow-x-auto scrollbar-hide">
+              <TabsTrigger value="wallet" className="shrink-0"><Wallet className="size-4" /> {t("tabs.wallet")}</TabsTrigger>
+              <TabsTrigger value="agents" className="shrink-0"><Bot className="size-4" /> {t("tabs.agents")}</TabsTrigger>
+              <TabsTrigger value="activity" className="shrink-0"><Activity className="size-4" /> {t("tabs.activity")}</TabsTrigger>
+              <TabsTrigger value="developer" className="shrink-0"><Code className="size-4" /> {t("tabs.developer")}</TabsTrigger>
             </TabsList>
+
+            {/* Tab 0: Wallet */}
+            <TabsContent value="wallet" className="pt-4 pb-20">
+              {/* Balance Card */}
+              <div className="rounded-lg border border-border bg-card p-5 mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm text-muted-foreground">{t("walletBalance")}</p>
+                  <button
+                    onClick={refreshBalance}
+                    disabled={balanceLoading}
+                    className="rounded-md p-1.5 hover:bg-muted transition-colors disabled:opacity-50"
+                    aria-label={t("refreshBalance")}
+                  >
+                    <RefreshCw className={`size-4 text-muted-foreground ${balanceLoading ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+                <p className="text-3xl font-bold font-mono">
+                  {balanceLoading ? "..." : sol !== null ? sol.toFixed(4) : "\u2014"} <span className="text-lg text-muted-foreground">SOL</span>
+                </p>
+              </div>
+
+              {/* Wallet Details */}
+              <div className="rounded-lg border border-border bg-card divide-y divide-border">
+                {/* Address */}
+                <div className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">{t("walletAddress")}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-mono text-foreground truncate">{address}</p>
+                    <button
+                      onClick={handleCopyAddress}
+                      className="shrink-0 rounded-md p-1 hover:bg-muted transition-colors"
+                      aria-label={addressCopied ? t("addressCopied") : "Copy"}
+                    >
+                      {addressCopied ? (
+                        <Check className="size-3.5 text-bullish" />
+                      ) : (
+                        <Copy className="size-3.5 text-muted-foreground" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Network */}
+                <div className="p-4 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">{t("network")}</p>
+                  <span className="text-sm font-medium text-foreground capitalize">{network}</span>
+                </div>
+
+                {/* Explorer Link */}
+                <div className="p-4">
+                  <a
+                    href={`https://solscan.io/account/${address}${network === "devnet" ? "?cluster=devnet" : ""}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <ExternalLink className="size-4" />
+                    {t("viewOnExplorer")}
+                  </a>
+                </div>
+              </div>
+
+              {/* Disconnect */}
+              <Button
+                variant="outline"
+                className="w-full mt-4"
+                onClick={() => disconnect()}
+              >
+                <LogOut className="size-4 mr-2" />
+                {t("disconnect")}
+              </Button>
+            </TabsContent>
 
             {/* Tab 1: Agents */}
             <TabsContent value="agents" className="pt-4 pb-20">

@@ -10,7 +10,6 @@ import {
   fetchPredictionMarketById,
   fetchMarketBets,
   fetchPostById,
-  fetchAgent,
   fetchAgents,
 } from "@/lib/supabase/queries";
 import { getAgentAvatarUrl } from "@/lib/avatar";
@@ -48,29 +47,15 @@ function formatPrice(price: number): string {
   return `$${price.toFixed(4)}`;
 }
 
-function formatDeadline(deadline: string): string {
-  return new Date(deadline).toLocaleDateString("en-US", {
+function formatDeadline(deadline: string, locale: string): string {
+  const localeMap: Record<string, string> = { en: "en-US", ja: "ja-JP", zh: "zh-CN" };
+  return new Date(deadline).toLocaleDateString(localeMap[locale] ?? "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function formatTimeRemaining(deadline: string): string {
-  const end = new Date(deadline);
-  const now = new Date();
-  const diffMs = end.getTime() - now.getTime();
-
-  if (diffMs <= 0) return "Ended";
-
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffHours / 24);
-  const remainingHours = diffHours % 24;
-
-  if (diffDays > 0) return `${diffDays}d ${remainingHours}h`;
-  return `${diffHours}h`;
 }
 
 export default async function PredictionDetailPage({
@@ -83,18 +68,32 @@ export default async function PredictionDetailPage({
   const market = await fetchPredictionMarketById(id);
   if (!market) notFound();
 
-  const [bets, sourcePost, proposerAgent, agents] = await Promise.all([
+  const [bets, sourcePost, agents] = await Promise.all([
     fetchMarketBets(market.marketId),
     market.sourcePostId ? fetchPostById(market.sourcePostId) : null,
-    fetchAgent(market.proposerAgentId),
     fetchAgents(),
   ]);
 
   const agentsMap = new Map(agents.map((a) => [a.id, a]));
+  const proposerAgent = agentsMap.get(market.proposerAgentId);
   const total = market.poolYes + market.poolNo;
   const yesPercent = total > 0 ? Math.round((market.poolYes / total) * 100) : 50;
   const noPercent = 100 - yesPercent;
-  const remaining = formatTimeRemaining(market.deadline);
+
+  // Compute remaining time with i18n
+  const endDate = new Date(market.deadline);
+  const nowDate = new Date();
+  const diffMs = endDate.getTime() - nowDate.getTime();
+  const remaining = diffMs <= 0
+    ? t("ended")
+    : (() => {
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+        const remainingHours = diffHours % 24;
+        return diffDays > 0
+          ? t("daysHours", { days: diffDays, hours: remainingHours })
+          : t("hoursOnly", { hours: diffHours });
+      })();
 
   return (
     <AppShell>
@@ -160,12 +159,12 @@ export default async function PredictionDetailPage({
           </div>
         </div>
 
-        {/* YES/NO bar — large */}
+        {/* YES/NO bar — large, with min-width for small percentages */}
         <div className="space-y-2">
           <div className="flex h-4 w-full overflow-hidden rounded-full">
             <div
               className="bg-bullish transition-all flex items-center justify-center"
-              style={{ width: `${yesPercent}%` }}
+              style={{ width: `${Math.max(yesPercent, 5)}%` }}
             >
               {yesPercent >= 15 && (
                 <span className="text-[10px] font-semibold text-white">
@@ -175,7 +174,7 @@ export default async function PredictionDetailPage({
             </div>
             <div
               className="bg-bearish transition-all flex items-center justify-center"
-              style={{ width: `${noPercent}%` }}
+              style={{ width: `${Math.max(noPercent, 5)}%` }}
             >
               {noPercent >= 15 && (
                 <span className="text-[10px] font-semibold text-white">
@@ -198,7 +197,7 @@ export default async function PredictionDetailPage({
         <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border pt-3">
           <div className="flex items-center gap-1.5">
             <Clock className="size-3.5" />
-            <span>{formatDeadline(market.deadline)}</span>
+            <span>{formatDeadline(market.deadline, locale)}</span>
           </div>
           <span className="font-medium">{remaining} {t("remaining")}</span>
         </div>
@@ -219,10 +218,12 @@ export default async function PredictionDetailPage({
               const betAgent = agentsMap.get(bet.agentId);
               const betTime = new Date(bet.createdAt);
               const now = new Date();
-              const diffMs = now.getTime() - betTime.getTime();
-              const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-              const diffDays = Math.floor(diffHours / 24);
-              const timeAgo = diffDays > 0 ? `${diffDays}d` : `${diffHours}h`;
+              const betDiffMs = now.getTime() - betTime.getTime();
+              const betDiffHours = Math.floor(betDiffMs / (1000 * 60 * 60));
+              const betDiffDays = Math.floor(betDiffHours / 24);
+              const timeAgo = betDiffDays > 0
+                ? tTimeline("daysAgo", { days: betDiffDays })
+                : tTimeline("hoursAgo", { hours: betDiffHours });
               return (
                 <div
                   key={bet.id}
@@ -289,8 +290,8 @@ export default async function PredictionDetailPage({
           <h2 className="text-sm font-semibold text-foreground mb-3">
             {t("sourcePost")}
           </h2>
-          {await (async () => {
-            const postAgent = await fetchAgent(sourcePost.agentId);
+          {(() => {
+            const postAgent = agentsMap.get(sourcePost.agentId);
             if (!postAgent) return null;
             return (
               <PostCard

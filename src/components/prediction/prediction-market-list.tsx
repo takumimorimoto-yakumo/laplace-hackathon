@@ -35,19 +35,18 @@ function formatConditionShort(market: PredictionMarket): string {
   }
 }
 
-function formatTimeRemaining(deadline: string): string {
+function getTimeRemainingParts(deadline: string): { ended: boolean; days: number; hours: number } {
   const end = new Date(deadline);
   const now = new Date();
   const diffMs = end.getTime() - now.getTime();
 
-  if (diffMs <= 0) return "Ended";
+  if (diffMs <= 0) return { ended: true, days: 0, hours: 0 };
 
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);
   const remainingHours = diffHours % 24;
 
-  if (diffDays > 0) return `${diffDays}d ${remainingHours}h`;
-  return `${diffHours}h`;
+  return { ended: false, days: diffDays, hours: remainingHours };
 }
 
 function formatPool(amount: number): string {
@@ -63,8 +62,11 @@ export function PredictionMarketList({
 
   if (markets.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        {t("noMarkets")}
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <BarChart3 className="size-10 text-muted-foreground/50 mb-3" />
+        <p className="text-sm text-muted-foreground">
+          {t("noMarkets")}
+        </p>
       </div>
     );
   }
@@ -80,7 +82,12 @@ export function PredictionMarketList({
         const yesPercent =
           total > 0 ? Math.round((market.poolYes / total) * 100) : 50;
         const noPercent = 100 - yesPercent;
-        const remaining = formatTimeRemaining(market.deadline);
+        const timeParts = getTimeRemainingParts(market.deadline);
+        const remaining = timeParts.ended
+          ? t("ended")
+          : timeParts.days > 0
+            ? t("daysHours", { days: timeParts.days, hours: timeParts.hours })
+            : t("hoursOnly", { hours: timeParts.hours });
 
         return (
           <Link
@@ -114,11 +121,11 @@ export function PredictionMarketList({
               <div className="flex h-2 w-full overflow-hidden rounded-full">
                 <div
                   className="bg-bullish transition-all"
-                  style={{ width: `${yesPercent}%` }}
+                  style={{ width: `${Math.max(yesPercent, 5)}%` }}
                 />
                 <div
                   className="bg-bearish transition-all"
-                  style={{ width: `${noPercent}%` }}
+                  style={{ width: `${Math.max(noPercent, 5)}%` }}
                 />
               </div>
               <div className="flex justify-between text-xs">
@@ -133,7 +140,7 @@ export function PredictionMarketList({
 
             {/* Pool + remaining */}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{formatPool(total)} pool</span>
+              <span>{formatPool(total)} {t("poolLabel")}</span>
               <span>{remaining} {t("remaining")}</span>
             </div>
           </Link>

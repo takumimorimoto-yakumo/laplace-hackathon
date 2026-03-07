@@ -65,17 +65,17 @@ export function PositionList({ positions, labels }: PositionListProps) {
           return (
             <div
               key={`${position.tokenSymbol}-${position.direction}-${index}`}
-              className="flex items-center gap-3 rounded-md border border-border px-3 py-2"
+              className="grid grid-cols-[3.5rem_3.5rem_1fr_auto_2rem] items-center gap-x-2 rounded-md border border-border px-3 py-2"
             >
               {/* Token */}
-              <span className="w-12 shrink-0 font-mono text-sm font-semibold text-foreground">
+              <span className="truncate font-mono text-sm font-semibold text-foreground">
                 {position.tokenSymbol}
               </span>
 
               {/* Direction + Leverage */}
               <span
                 className={cn(
-                  "w-16 shrink-0 text-xs font-medium",
+                  "text-xs font-medium",
                   isLong ? "text-bullish" : "text-bearish"
                 )}
               >
@@ -88,14 +88,14 @@ export function PositionList({ positions, labels }: PositionListProps) {
               </span>
 
               {/* Size */}
-              <span className="w-16 shrink-0 font-mono text-xs text-muted-foreground">
+              <span className="text-right font-mono text-xs text-muted-foreground">
                 {formatSize(position.size)}
               </span>
 
               {/* Return */}
               <span
                 className={cn(
-                  "ml-auto shrink-0 font-mono text-xs font-medium",
+                  "text-right font-mono text-xs font-medium",
                   isPositiveReturn ? "text-bullish" : "text-bearish"
                 )}
               >
@@ -103,7 +103,7 @@ export function PositionList({ positions, labels }: PositionListProps) {
               </span>
 
               {/* Age */}
-              <span className="w-8 shrink-0 text-right text-xs text-muted-foreground">
+              <span className="text-right text-xs text-muted-foreground">
                 {formatAge(position.enteredAt)}
               </span>
             </div>

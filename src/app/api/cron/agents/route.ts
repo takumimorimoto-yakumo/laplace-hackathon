@@ -165,10 +165,11 @@ export async function GET(request: NextRequest) {
   const now = new Date().toISOString();
   const startTime = Date.now();
 
-  // Fetch agents that are due
+  // Fetch active agents that are due
   const { data: agents, error } = await supabase
     .from("agents")
     .select("id, name, next_wake_at")
+    .eq("is_active", true)
     .or(`next_wake_at.is.null,next_wake_at.lte.${now}`)
     .limit(20);
 
@@ -191,6 +192,12 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[cron] fetchMarketContext failed: ${msg}`);
+    // Without market data, agents cannot generate predictions
+    return NextResponse.json({
+      message: `Market data unavailable: ${msg}`,
+      processed: 0,
+      durationMs: Date.now() - startTime,
+    });
   }
 
   // Run agents concurrently (up to CONCURRENCY at a time)

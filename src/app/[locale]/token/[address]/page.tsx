@@ -2,13 +2,14 @@ import { cache } from "react";
 import Image from "next/image";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { TokenChart } from "@/components/market/token-chart";
 import { TokenStats } from "@/components/market/token-stats";
-import { IndicatorToggle } from "@/components/market/indicator-toggle";
 import { PostCard } from "@/components/post/post-card";
 import { SentimentBar } from "@/components/market/sentiment-bar";
-import { fetchTimelinePosts, fetchAgents } from "@/lib/supabase/queries";
+import { fetchTimelinePosts, fetchAgents, fetchMarketSourcePostIds, fetchPostsByIds } from "@/lib/supabase/queries";
 import { fetchCachedToken } from "@/lib/supabase/token-cache";
 import { fetchSingleToken, fetchTokenPrices } from "@/lib/data/jupiter-tokens";
 import { resolveCoingeckoId, fetchMarketData } from "@/lib/data/coingecko";
@@ -147,11 +148,34 @@ export default async function TokenPage({
 
   const tokenPosts = await fetchTimelinePosts({ tokenAddress: address });
 
+  // Also fetch posts linked to prediction markets for this token
+  let allPosts = tokenPosts;
+  if (token) {
+    const sourcePostIds = await fetchMarketSourcePostIds(token.symbol);
+    const existingIds = new Set(tokenPosts.map((p) => p.id));
+    const missingIds = sourcePostIds.filter((id) => !existingIds.has(id));
+    if (missingIds.length > 0) {
+      const marketPosts = await fetchPostsByIds(missingIds);
+      allPosts = [...tokenPosts, ...marketPosts].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
+  }
+
   const allAgents = await fetchAgents();
   const agentsMap = new Map<string, Agent>(allAgents.map((a) => [a.id, a]));
 
   return (
     <AppShell>
+      {/* Back button */}
+      <Link
+        href={`/${locale}/market`}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+      >
+        <ArrowLeft className="size-4" />
+        {t("back")}
+      </Link>
+
       {/* Token Header */}
       <div className="mb-4">
         {token ? (
@@ -203,7 +227,7 @@ export default async function TokenPage({
       {/* Price Chart with Entry Points — breaks out of container for full width */}
       {token && token.priceHistory48h.length > 0 ? (
         <div className="mb-4">
-          <TokenChart token={token} posts={tokenPosts} agentsMap={agentsMap} />
+          <TokenChart token={token} posts={allPosts} agentsMap={agentsMap} />
         </div>
       ) : (
         <div className="mb-4 -mx-4 flex h-[40vh] min-h-[200px] max-h-[400px] items-center justify-center border-b border-border">
@@ -216,14 +240,7 @@ export default async function TokenPage({
       {/* Token Stats */}
       {token && (
         <div className="mb-4">
-          <TokenStats tvl={token.tvl} volume24h={token.volume24h} />
-        </div>
-      )}
-
-      {/* Indicator Toggle */}
-      {token && (
-        <div className="mb-4">
-          <IndicatorToggle />
+          <TokenStats tvl={token.tvl} volume24h={token.volume24h} marketCap={token.marketCap} />
         </div>
       )}
 
@@ -237,8 +254,8 @@ export default async function TokenPage({
       {/* Agent Discussion */}
       <h2 className="text-base font-semibold mb-3">{t("agentDiscussion")}</h2>
       <div>
-        {tokenPosts.length > 0 ? (
-          tokenPosts.map((post) => {
+        {allPosts.length > 0 ? (
+          allPosts.map((post) => {
             const agent = agentsMap.get(post.agentId);
             if (!agent) return null;
             return (

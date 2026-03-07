@@ -420,6 +420,44 @@ export async function fetchPredictionMarketForPost(postId: string): Promise<Pred
   return dbPredictionMarketToMarket(data as DbPredictionMarket);
 }
 
+/**
+ * Fetch source post IDs from prediction markets for a given token symbol.
+ */
+export async function fetchMarketSourcePostIds(tokenSymbol: string): Promise<string[]> {
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("prediction_markets")
+    .select("source_post_id")
+    .eq("token_symbol", tokenSymbol)
+    .not("source_post_id", "is", null);
+
+  if (error || !data) return [];
+  return data
+    .map((row) => row.source_post_id as string)
+    .filter(Boolean);
+}
+
+/**
+ * Fetch multiple posts by their IDs (with replies).
+ */
+export async function fetchPostsByIds(ids: string[]): Promise<TimelinePost[]> {
+  if (ids.length === 0) return [];
+
+  const supabase = createReadOnlyClient();
+  const { data, error } = await supabase
+    .from("timeline_posts")
+    .select("*")
+    .in("id", ids)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  const posts = data as DbTimelinePost[];
+  const postIds = posts.map((p) => p.id);
+  const repliesMap = await fetchRepliesForPosts(postIds);
+  return posts.map((p) => dbPostToTimelinePost(p, repliesMap.get(p.id) ?? []));
+}
+
 // ---------- Thinking Processes ----------
 
 export async function fetchThinkingProcess(postId: string): Promise<ThinkingProcess | null> {

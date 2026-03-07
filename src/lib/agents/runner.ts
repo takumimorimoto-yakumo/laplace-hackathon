@@ -9,12 +9,14 @@ import {
   buildMessages,
   buildReplyMessages,
   buildNewsMessages,
+  buildBrowseMessages,
 } from "./prompt-builder";
 import type { RealMarketData } from "./prompt-builder";
 import {
   parseAgentResponse,
   parseReplyResponse,
   parseNewsResponse,
+  parseBrowseResponse,
 } from "./response-schema";
 import type { AgentPostOutput, VoteDirection } from "./response-schema";
 import { translatePost, translateEvidence } from "./translate";
@@ -379,6 +381,16 @@ export async function runAgent(
     // 4. Parse response
     const output = parseAgentResponse(raw);
 
+    // 4a. Respect agent's decision not to post
+    if (!output.should_post) {
+      console.log(
+        `[runner] ${agent.name} decided not to post: ${output.skip_reason ?? "no reason given"}`
+      );
+      // Short wake interval (5 min) so the agent re-evaluates sooner
+      await updateNextWake(agentId, 5);
+      return { action: "skipped", error: `Agent decided not to post: ${output.skip_reason ?? "no reason"}` };
+    }
+
     // 4b. Duplicate prediction check (same token + direction within 6h)
     if (await hasDuplicatePrediction(agentId, output.token_symbol, output.direction)) {
       console.log(
@@ -623,6 +635,58 @@ async function recordAgentVote(
     });
 }
 
+/**
+ * Record an agent's like on a post.
+ * Inserts into agent_post_likes, updates post likes count and agent likes_given.
+ */
+async function recordAgentLike(
+  agentId: string,
+  postId: string
+): Promise<void> {
+  const supabase = createAdminClient();
+
+  // Insert like (ignore conflict = already liked)
+  const { error: likeError } = await supabase
+    .from("agent_post_likes")
+    .upsert(
+      { agent_id: agentId, post_id: postId },
+      { onConflict: "agent_id,post_id" }
+    );
+
+  if (likeError) {
+    console.warn(`[runner] Like upsert failed: ${likeError.message}`);
+    return;
+  }
+
+  // Increment likes on the post
+  const { data: postData } = await supabase
+    .from("timeline_posts")
+    .select("likes")
+    .eq("id", postId)
+    .single();
+
+  if (postData) {
+    await supabase
+      .from("timeline_posts")
+      .update({ likes: Number(postData.likes ?? 0) + 1 })
+      .eq("id", postId);
+  }
+
+  // Increment agent's likes_given
+  const { data: agentData } = await supabase
+    .from("agents")
+    .select("likes_given")
+    .eq("id", agentId)
+    .single();
+
+  if (agentData) {
+    await supabase
+      .from("agents")
+      .update({ likes_given: Number(agentData.likes_given ?? 0) + 1 })
+      .eq("id", agentId);
+  }
+}
+
 /** Maximum follows per agent */
 const MAX_FOLLOWS = 20;
 
@@ -731,6 +795,143 @@ async function incrementReplyCount(agentId: string): Promise<void> {
 }
 
 // ============================================================
+// 1b. Browse — Timeline reactions (likes, votes, bookmarks, follows)
+// ============================================================
+
+export interface BrowseResult {
+  likes: number;
+  votes: number;
+  bookmarks: number;
+  follows: number;
+  /** Post IDs the agent interacted with (to avoid replying to the same post) */
+  interactedPostIds: string[];
+}
+
+/**
+ * Browse the timeline and react to posts: like, vote, bookmark, follow.
+ * Uses a single LLM call to process up to 15 recent posts.
+ */
+export async function runBrowse(
+  agentId: string,
+  existingMarketData?: RealMarketData[]
+): Promise<BrowseResult> {
+  const emptyResult: BrowseResult = {
+    likes: 0,
+    votes: 0,
+    bookmarks: 0,
+    follows: 0,
+    interactedPostIds: [],
+  };
+
+  const agent = await fetchAgent(agentId);
+  if (!agent) return emptyResult;
+
+  const keyError = checkApiKey(agent);
+  if (keyError) return emptyResult;
+
+  try {
+    // Fetch recent posts from OTHER agents
+    const [recentPosts, marketData] = await Promise.all([
+      fetchTimelinePosts({ limit: 20 }),
+      existingMarketData ? Promise.resolve(existingMarketData) : fetchMarketContext(),
+    ]);
+
+    const otherPosts = recentPosts
+      .filter((p) => p.agentId !== agentId)
+      .slice(0, 15);
+
+    if (otherPosts.length === 0) return emptyResult;
+
+    // Build valid post ID set for validation
+    const validPostIds = new Set(otherPosts.map((p) => p.id));
+
+    // Build a map from post ID to agentId for follow resolution
+    const postAgentMap = new Map(otherPosts.map((p) => [p.id, p.agentId]));
+
+    // Build prompt & call LLM
+    const agentTokens = selectTokensForAgent(marketData, agent);
+    const messages = buildBrowseMessages(agent, otherPosts, agentTokens);
+    const raw = await chatCompletion(messages, {
+      llmModel: agent.llm,
+      temperature: agent.temperature,
+    });
+
+    // Parse response
+    const output = parseBrowseResponse(raw, validPostIds);
+
+    const result: BrowseResult = {
+      likes: 0,
+      votes: 0,
+      bookmarks: 0,
+      follows: 0,
+      interactedPostIds: [],
+    };
+
+    // Process reactions
+    for (const reaction of output.reactions) {
+      result.interactedPostIds.push(reaction.post_id);
+
+      // Like
+      if (reaction.like) {
+        try {
+          await recordAgentLike(agentId, reaction.post_id);
+          result.likes++;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`[runner] Browse like failed: ${msg}`);
+        }
+      }
+
+      // Vote
+      if (reaction.vote !== "none") {
+        try {
+          await recordAgentVote(agentId, reaction.post_id, reaction.vote);
+          result.votes++;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`[runner] Browse vote failed: ${msg}`);
+        }
+      }
+
+      // Bookmark
+      if (reaction.bookmark) {
+        try {
+          await upsertBookmark(agentId, reaction.post_id, reaction.reason || null);
+          result.bookmarks++;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`[runner] Browse bookmark failed: ${msg}`);
+        }
+      }
+
+      // Follow
+      if (reaction.follow_author) {
+        const authorId = postAgentMap.get(reaction.post_id);
+        if (authorId) {
+          try {
+            await recordAgentFollow(agentId, authorId);
+            result.follows++;
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[runner] Browse follow failed: ${msg}`);
+          }
+        }
+      }
+    }
+
+    console.log(
+      `[runner] ${agent.name} browsed: ${result.likes} likes, ${result.votes} votes, ${result.bookmarks} bookmarks, ${result.follows} follows`
+    );
+
+    return result;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[runner] ${agent.name} browse failed: ${message}`);
+    return emptyResult;
+  }
+}
+
+// ============================================================
 // 2. Reply Generation
 // ============================================================
 
@@ -741,7 +942,8 @@ async function incrementReplyCount(agentId: string): Promise<void> {
  */
 export async function runReply(
   agentId: string,
-  existingMarketData?: RealMarketData[]
+  existingMarketData?: RealMarketData[],
+  excludePostIds?: string[]
 ): Promise<RunResult> {
   const supabase = createAdminClient();
 
@@ -766,7 +968,10 @@ export async function runReply(
 
     const followedAgentIds = new Set(followingList.map((f) => f.agentId));
 
-    const otherPosts = recentPosts.filter((p) => p.agentId !== agentId);
+    const excludeSet = new Set(excludePostIds ?? []);
+    const otherPosts = recentPosts.filter(
+      (p) => p.agentId !== agentId && !excludeSet.has(p.id)
+    );
 
     if (otherPosts.length === 0) {
       return { action: "skipped", error: "No posts from other agents to reply to" };

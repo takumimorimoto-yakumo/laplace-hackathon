@@ -7,6 +7,10 @@ import type { Direction, NewsCategory } from "@/lib/types";
 // ---------- Prediction Output ----------
 
 export interface AgentPostOutput {
+  /** Whether the agent decided to post (false = skip this cycle) */
+  should_post: boolean;
+  /** Reason for skipping (only when should_post is false) */
+  skip_reason: string | null;
   token_symbol: string;
   token_address: string;
   direction: Direction;
@@ -146,6 +150,27 @@ function extractJSON(raw: string): Record<string, unknown> {
 export function parseAgentResponse(raw: string): AgentPostOutput {
   const obj = extractJSON(raw);
 
+  // Check should_post first — if false, return early with skip info
+  const shouldPost = obj.should_post !== false; // default true for backward compat
+  if (!shouldPost) {
+    const skipReason =
+      typeof obj.skip_reason === "string" ? obj.skip_reason : "Agent decided not to post";
+    return {
+      should_post: false,
+      skip_reason: skipReason,
+      token_symbol: "",
+      token_address: "",
+      direction: "neutral",
+      confidence: 0,
+      evidence: [],
+      natural_text: "",
+      reasoning: "",
+      uncertainty: "",
+      confidence_rationale: "",
+      price_target: null,
+    };
+  }
+
   // Validate required fields
   const tokenSymbol =
     typeof obj.token_symbol === "string" ? obj.token_symbol : "";
@@ -190,6 +215,8 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
       : null;
 
   return {
+    should_post: true,
+    skip_reason: null,
     token_symbol: tokenSymbol,
     token_address: tokenAddress,
     direction,
@@ -250,6 +277,70 @@ export function parseReplyResponse(raw: string): AgentReplyOutput {
     vote,
     follow_author,
   };
+}
+
+// ---------- Browse Output ----------
+
+export interface BrowsePostAction {
+  post_id: string;
+  like: boolean;
+  vote: VoteDirection;
+  bookmark: boolean;
+  follow_author: boolean;
+  reason: string;
+}
+
+export interface AgentBrowseOutput {
+  reactions: BrowsePostAction[];
+  market_mood: string;
+}
+
+// ---------- Browse Parser ----------
+
+const MAX_BROWSE_REACTIONS = 10;
+
+/** Parse a browse/reaction response from the LLM. */
+export function parseBrowseResponse(
+  raw: string,
+  validPostIds: Set<string>
+): AgentBrowseOutput {
+  const obj = extractJSON(raw);
+
+  const rawReactions = Array.isArray(obj.reactions) ? obj.reactions : [];
+
+  const reactions: BrowsePostAction[] = [];
+  for (const r of rawReactions) {
+    if (reactions.length >= MAX_BROWSE_REACTIONS) break;
+    if (typeof r !== "object" || r === null) continue;
+
+    const rec = r as Record<string, unknown>;
+    const postId = typeof rec.post_id === "string" ? rec.post_id : "";
+
+    // Skip reactions to unknown post IDs
+    if (!postId || !validPostIds.has(postId)) continue;
+
+    const VALID_VOTES: VoteDirection[] = ["up", "down", "none"];
+    const vote: VoteDirection =
+      typeof rec.vote === "string" &&
+      VALID_VOTES.includes(rec.vote as VoteDirection)
+        ? (rec.vote as VoteDirection)
+        : "none";
+
+    reactions.push({
+      post_id: postId,
+      like: typeof rec.like === "boolean" ? rec.like : false,
+      vote,
+      bookmark: typeof rec.bookmark === "boolean" ? rec.bookmark : false,
+      follow_author:
+        typeof rec.follow_author === "boolean" ? rec.follow_author : false,
+      reason: typeof rec.reason === "string" ? rec.reason : "",
+    });
+  }
+
+  const marketMood =
+    typeof obj.market_mood === "string" ? obj.market_mood : "";
+
+  return { reactions, market_mood: marketMood };
 }
 
 // ---------- News Parser ----------

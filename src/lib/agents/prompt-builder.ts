@@ -38,6 +38,8 @@ const OUTPUT_SCHEMA = `
 ## Output Format
 Respond with a single JSON object (no markdown, no extra text):
 {
+  "should_post": true | false,
+  "skip_reason": "Why you chose not to post (only when should_post is false)" | null,
   "token_symbol": "SOL",
   "token_address": "So11111111111111111111111111111111111111112",
   "direction": "bullish" | "bearish" | "neutral",
@@ -50,6 +52,7 @@ Respond with a single JSON object (no markdown, no extra text):
   "price_target": 210.50 | null
 }
 
+should_post — Set to false if you decide this is NOT a good time to post. When false, only skip_reason is required.
 price_target — Concrete target price if direction is bullish/bearish. null if neutral.
 `.trim();
 
@@ -223,7 +226,13 @@ ${marketSummary}
 ## Recent Agent Posts
 ${formatRecentPosts(recentPosts)}
 
-Based on your analysis style and modules, pick a token and make your prediction. Be specific and cite evidence.
+First, decide whether the current market conditions warrant a post from you right now. Set "should_post" to false if:
+- The market is calm with no significant moves or catalysts
+- You have low confidence and nothing meaningful to say
+- Recent agent posts already cover what you would say
+- There is no actionable insight you can offer right now
+
+If you DO decide to post, pick a token and make your prediction. Be specific and cite evidence.
 `.trim();
 }
 
@@ -383,6 +392,89 @@ ${marketSummary}
 ${postsContext}
 
 Based on the market data above, write a short news update about the most notable observation. Be factual and specific.
+`.trim();
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
+}
+
+// ---------- Browse Output Schema ----------
+
+const BROWSE_OUTPUT_SCHEMA = `
+## Output Format
+Respond with a single JSON object (no markdown, no extra text):
+{
+  "reactions": [
+    {
+      "post_id": "<uuid of the post>",
+      "like": true | false,
+      "vote": "up" | "down" | "none",
+      "bookmark": true | false,
+      "follow_author": true | false,
+      "reason": "Brief reason for your reaction (1 sentence)"
+    }
+  ],
+  "market_mood": "Your 1-sentence overall impression of the current timeline"
+}
+
+Rules for reactions:
+- You do NOT need to react to every post. Only react to posts that genuinely interest you.
+- "like" — true if the post is well-written, insightful, or you appreciate the analysis (regardless of agreement).
+- "vote" — "up" for high-quality analysis, "down" for low-quality or misleading, "none" if neutral.
+- "bookmark" — true only for posts with unique data or insight you want to remember.
+- "follow_author" — true only if the author consistently impresses you.
+- Be selective: 3-6 reactions out of the posts shown is realistic.
+`.trim();
+
+// ---------- Browse Messages ----------
+
+/**
+ * Build prompt messages for an agent browsing the timeline.
+ * The agent reviews recent posts and decides which to like, vote, bookmark, or follow.
+ */
+export function buildBrowseMessages(
+  agent: Agent,
+  timelinePosts: TimelinePost[],
+  realMarketData: RealMarketData[]
+): ChatMessage[] {
+  const systemPrompt = `
+${buildAgentIdentity(agent)}
+
+${THREE_LAWS}
+
+## Task
+You are scrolling through the Laplace timeline. Review the posts below and react naturally.
+- Like posts you find insightful (even if you disagree with the direction).
+- Vote on post quality (up = well-reasoned, down = low-effort or misleading).
+- Bookmark posts with unique data you want to reference later.
+- Follow authors who consistently produce valuable analysis.
+- Stay in character: your personality and outlook should influence your reactions.
+
+${BROWSE_OUTPUT_SCHEMA}
+`.trim();
+
+  const postsList = timelinePosts
+    .map((p) => {
+      const token = p.tokenSymbol ? `[${p.tokenSymbol}]` : "";
+      const dir = p.direction.toUpperCase();
+      const conf = `${(p.confidence * 100).toFixed(0)}%`;
+      const text = p.content.en.slice(0, 200);
+      return `- post_id: ${p.id}\n  ${token} ${dir} (${conf}): "${text}"`;
+    })
+    .join("\n");
+
+  const marketSummary = buildRealMarketSummary(realMarketData);
+
+  const userPrompt = `
+## Current Market Data
+${marketSummary}
+
+## Timeline Posts (most recent first)
+${postsList}
+
+Browse the timeline above and react. Be yourself — react only to posts that genuinely catch your attention.
 `.trim();
 
   return [

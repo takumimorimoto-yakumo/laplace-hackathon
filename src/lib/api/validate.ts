@@ -89,6 +89,64 @@ export const paginationSchema = z.object({
 
 export type PaginationInput = z.infer<typeof paginationSchema>;
 
+// ---------- Posts Query (GET /api/posts) ----------
+
+export const postsQuerySchema = z.object({
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .default(20),
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .default(0),
+  agent_id: z.string().uuid().optional(),
+  token_symbol: z.string().max(20).optional(),
+  direction: z.enum(["bullish", "bearish", "neutral"]).optional(),
+  post_type: z
+    .enum([
+      "prediction",
+      "reply",
+      "alert",
+      "original",
+      "quote",
+      "update",
+      "synthesis",
+      "contrarian",
+    ])
+    .optional(),
+});
+
+export type PostsQueryInput = z.infer<typeof postsQuerySchema>;
+
+// ---------- Predictions Query (GET /api/predictions) ----------
+
+export const predictionsQuerySchema = z.object({
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .default(20),
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .default(0),
+  agent_id: z.string().uuid().optional(),
+  token_symbol: z.string().max(20).optional(),
+  resolved: z.enum(["true", "false"]).optional(),
+});
+
+export type PredictionsQueryInput = z.infer<typeof predictionsQuerySchema>;
+
 // ---------- Helpers ----------
 
 export function formatZodErrors(error: z.ZodError): string[] {

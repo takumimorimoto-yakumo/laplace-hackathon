@@ -12,13 +12,14 @@ import {
 } from "@/lib/agents/runner";
 import type { RunResult } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
+import type { RealMarketData } from "@/lib/agents/prompt-builder";
 import { recordPortfolioSnapshot } from "@/lib/agents/portfolio-snapshot";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for Vercel
 
-/** Hard time budget — stop processing new agents after this (leave 30s buffer) */
-const TIME_BUDGET_MS = 270_000; // 4.5 minutes
+/** Max agents to run concurrently (avoids overwhelming any single LLM provider) */
+const CONCURRENCY = 5;
 
 /** Probability that a reply is generated after a prediction */
 const REPLY_PROBABILITY = 0.3;
@@ -36,8 +37,123 @@ interface AgentCycleResult {
   expiredPositionsClosed: boolean;
 }
 
+// ---------- Single-agent pipeline ----------
+
+async function processAgent(
+  agent: { id: string; name: string },
+  sharedMarketData: Awaited<ReturnType<typeof fetchMarketContext>> | undefined,
+): Promise<AgentCycleResult> {
+  const cycleResult: AgentCycleResult = {
+    agentId: agent.id,
+    name: agent.name,
+    prediction: { action: "skipped" },
+    tradeExecuted: false,
+    marketBetsPlaced: 0,
+    expiredPositionsClosed: false,
+  };
+
+  // 1. Run prediction
+  const predictionResult = await runAgent(agent.id, sharedMarketData);
+  cycleResult.prediction = predictionResult;
+
+  // 2. If prediction succeeded, execute virtual trade
+  if (
+    predictionResult.action === "posted" &&
+    predictionResult.postId &&
+    predictionResult.output
+  ) {
+    try {
+      await runVirtualTrade(
+        agent.id,
+        predictionResult.postId,
+        predictionResult.output,
+        sharedMarketData
+      );
+      cycleResult.tradeExecuted = true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[cron] Virtual trade failed for ${agent.name}: ${msg}`);
+    }
+  }
+
+  // 3. Maybe run reply (~30% chance)
+  if (Math.random() < REPLY_PROBABILITY) {
+    cycleResult.reply = await runReply(agent.id, sharedMarketData);
+  }
+
+  // 4. Maybe run news (~10% chance, pro pickers only)
+  if (Math.random() < NEWS_PROBABILITY) {
+    cycleResult.news = await runNews(agent.id, sharedMarketData);
+  }
+
+  // 5. Place market bets
+  try {
+    cycleResult.marketBetsPlaced = await runMarketBet(agent.id);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] Market bet failed for ${agent.name}: ${msg}`);
+  }
+
+  // 6. Update unrealized P&L
+  if (sharedMarketData) {
+    try {
+      await updateUnrealizedPnL(agent.id, sharedMarketData);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[cron] updateUnrealizedPnL failed for ${agent.name}: ${msg}`);
+    }
+  }
+
+  // 7. Close expired positions
+  try {
+    await closeExpiredPositions(agent.id, sharedMarketData);
+    cycleResult.expiredPositionsClosed = true;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] closeExpiredPositions failed for ${agent.name}: ${msg}`);
+  }
+
+  // 8. Record portfolio snapshot
+  try {
+    await recordPortfolioSnapshot(agent.id);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] recordPortfolioSnapshot failed for ${agent.name}: ${msg}`);
+  }
+
+  return cycleResult;
+}
+
+// ---------- Concurrency pool ----------
+
+/**
+ * Run async tasks with a concurrency limit.
+ * Launches up to `limit` tasks at a time, starting the next as each completes.
+ */
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let index = 0;
+
+  async function worker(): Promise<void> {
+    while (index < items.length) {
+      const i = index++;
+      results[i] = await fn(items[i]);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+// ---------- Main handler ----------
+
 export async function GET(request: NextRequest) {
-  // Verify cron secret (reject if not configured or mismatch)
+  // Verify cron secret
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
@@ -47,13 +163,14 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
   const now = new Date().toISOString();
+  const startTime = Date.now();
 
   // Fetch agents that are due
   const { data: agents, error } = await supabase
     .from("agents")
     .select("id, name, next_wake_at")
     .or(`next_wake_at.is.null,next_wake_at.lte.${now}`)
-    .limit(10); // Process max 10 at a time (each takes ~20-30s with LLM calls)
+    .limit(20);
 
   if (error) {
     console.error("Failed to fetch due agents:", error);
@@ -68,7 +185,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch market data ONCE for the entire cron cycle
-  let sharedMarketData;
+  let sharedMarketData: RealMarketData[] | undefined;
   try {
     sharedMarketData = await fetchMarketContext();
   } catch (err: unknown) {
@@ -76,102 +193,10 @@ export async function GET(request: NextRequest) {
     console.error(`[cron] fetchMarketContext failed: ${msg}`);
   }
 
-  // Run each agent sequentially (to avoid overwhelming LLM APIs)
-  const startTime = Date.now();
-  const results: AgentCycleResult[] = [];
-  let timeoutReached = false;
-
-  for (const agent of agents) {
-    // Time guard: stop before Vercel kills the function
-    if (Date.now() - startTime > TIME_BUDGET_MS) {
-      console.warn(
-        `[cron] Time budget reached after ${results.length} agents, deferring remaining ${agents.length - results.length} to next cycle`
-      );
-      timeoutReached = true;
-      break;
-    }
-    const cycleResult: AgentCycleResult = {
-      agentId: agent.id,
-      name: agent.name,
-      prediction: { action: "skipped" },
-      tradeExecuted: false,
-      marketBetsPlaced: 0,
-      expiredPositionsClosed: false,
-    };
-
-    // 1. Run prediction (main mode) — reuse shared market data
-    const predictionResult = await runAgent(agent.id, sharedMarketData);
-    cycleResult.prediction = predictionResult;
-
-    // 2. If prediction succeeded, execute virtual trade (reuse market data)
-    if (
-      predictionResult.action === "posted" &&
-      predictionResult.postId &&
-      predictionResult.output
-    ) {
-      try {
-        await runVirtualTrade(
-          agent.id,
-          predictionResult.postId,
-          predictionResult.output,
-          sharedMarketData
-        );
-        cycleResult.tradeExecuted = true;
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[cron] Virtual trade failed for ${agent.name}: ${msg}`);
-      }
-    }
-
-    // 3. Maybe run reply (~30% chance) — reuse shared market data
-    if (Math.random() < REPLY_PROBABILITY) {
-      cycleResult.reply = await runReply(agent.id, sharedMarketData);
-    }
-
-    // 4. Maybe run news (~10% chance, pro pickers only) — reuse shared market data
-    if (Math.random() < NEWS_PROBABILITY) {
-      cycleResult.news = await runNews(agent.id, sharedMarketData);
-    }
-
-    // 5. Place market bets on open prediction markets
-    try {
-      cycleResult.marketBetsPlaced = await runMarketBet(agent.id);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[cron] Market bet failed for ${agent.name}: ${msg}`);
-    }
-
-    // 6. Update unrealized P&L (mark-to-market) — reuse shared market data
-    if (sharedMarketData) {
-      try {
-        await updateUnrealizedPnL(agent.id, sharedMarketData);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[cron] updateUnrealizedPnL failed for ${agent.name}: ${msg}`);
-      }
-    }
-
-    // 7. Close expired positions (reuse shared market data)
-    try {
-      await closeExpiredPositions(agent.id, sharedMarketData);
-      cycleResult.expiredPositionsClosed = true;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(
-        `[cron] closeExpiredPositions failed for ${agent.name}: ${msg}`
-      );
-    }
-
-    // 8. Record portfolio snapshot (after P&L is updated)
-    try {
-      await recordPortfolioSnapshot(agent.id);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[cron] recordPortfolioSnapshot failed for ${agent.name}: ${msg}`);
-    }
-
-    results.push(cycleResult);
-  }
+  // Run agents concurrently (up to CONCURRENCY at a time)
+  const results = await runWithConcurrency(agents, CONCURRENCY, (agent) =>
+    processAgent(agent, sharedMarketData)
+  );
 
   // Resolve predictions older than 24h (once per cron cycle)
   let predictionsResolved = 0;
@@ -202,9 +227,8 @@ export async function GET(request: NextRequest) {
   };
 
   return NextResponse.json({
-    message: `Processed ${results.length}/${agents.length} agents${timeoutReached ? " (time budget reached)" : ""}`,
+    message: `Processed ${results.length} agents (concurrency: ${CONCURRENCY})`,
     processed: results.length,
-    timeoutReached,
     durationMs: Date.now() - startTime,
     summary,
     results: results.map((r) => ({

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Code } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DeveloperApiSheet } from "@/components/me/developer-api-sheet";
 
 export function DeveloperApiSection() {
@@ -17,12 +18,9 @@ export function DeveloperApiSection() {
           <h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
         </div>
         <p className="text-sm text-muted-foreground">{t("description")}</p>
-        <button
-          onClick={() => setOpen(true)}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
+        <Button onClick={() => setOpen(true)}>
           {t("registerButton")}
-        </button>
+        </Button>
       </div>
       <DeveloperApiSheet open={open} onOpenChange={setOpen} />
     </>

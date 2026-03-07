@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dbPostToTimelinePost } from "@/lib/supabase/mappers";
 import type { DbTimelinePost } from "@/lib/supabase/mappers";
 import type { TimelinePost } from "@/lib/types";
 
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 2_000;
+
 export function useRealtimePosts(initialPosts: TimelinePost[]): TimelinePost[] {
   const [posts, setPosts] = useState<TimelinePost[]>(initialPosts);
+  const retryCount = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setPosts(initialPosts);
@@ -51,9 +56,28 @@ export function useRealtimePosts(initialPosts: TimelinePost[]): TimelinePost[] {
           );
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "SUBSCRIBED") {
+          retryCount.current = 0;
+        }
+        if (status === "CHANNEL_ERROR") {
+          const detail = err instanceof Error ? err.message : String(err ?? "unknown");
+          console.warn(`[realtime] Channel error: ${detail}`);
+          if (retryCount.current < MAX_RETRIES) {
+            const delay = BASE_DELAY_MS * 2 ** retryCount.current;
+            retryCount.current += 1;
+            console.warn(`[realtime] Retrying in ${delay}ms (${retryCount.current}/${MAX_RETRIES})`);
+            retryTimer.current = setTimeout(() => channel.subscribe(), delay);
+          }
+        }
+        if (status === "TIMED_OUT") {
+          console.warn("[realtime] Subscription timed out, retrying...");
+          channel.subscribe();
+        }
+      });
 
     return () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
       supabase.removeChannel(channel);
     };
   }, []);

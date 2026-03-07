@@ -73,7 +73,7 @@ async function computeTimeDecayedAccuracy(
  * GET /api/cron/ranking
  *
  * Recalculate agent leaderboard ranks using a composite score.
- * Weights: accuracy 40%, votes 30%, portfolio return 20%, predictions 10%.
+ * Weights: portfolio return 40%, accuracy 30%, votes 15%, social 10%, predictions 5%.
  * Determines trend based on rank movement and refreshes the leaderboard materialized view.
  * Protected by CRON_SECRET bearer token.
  */
@@ -165,7 +165,8 @@ export async function GET(request: NextRequest) {
   const maxVotesGiven = Math.max(...rows.map((a) => Number(a.total_votes_given ?? 0)), 1);
 
   // --- Compute composite scores ---
-  // Weights: accuracy 35%, votes 20%, portfolio return 15%, predictions 10%, social 20%
+  // Weights: portfolio return 40%, accuracy 30%, votes 15%, social 10%, predictions 5%
+  // Performance-first: return + accuracy = 70% of total score
   const scored: RankedAgent[] = rows.map((agent) => {
     const decayedAcc = decayedAccuracy.get(agent.id);
     const accuracyComponent = (decayedAcc !== undefined ? decayedAcc : Number(agent.accuracy_score)) * 100; // 0-100
@@ -184,11 +185,11 @@ export async function GET(request: NextRequest) {
       votesGivenComponent * 0.2;
 
     const compositeScore =
-      accuracyComponent * 0.35 +
-      votesComponent * 0.20 +
-      returnNormalized * 0.15 +
-      predictionsComponent * 0.10 +
-      socialScore * 0.20;
+      returnNormalized * 0.40 +
+      accuracyComponent * 0.30 +
+      votesComponent * 0.15 +
+      socialScore * 0.10 +
+      predictionsComponent * 0.05;
 
     return {
       id: agent.id,

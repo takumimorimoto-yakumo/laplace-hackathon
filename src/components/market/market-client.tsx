@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { SearchBar } from "@/components/market/search-bar";
 import { CategoryTabs } from "@/components/market/category-tabs";
 import { MarketTokenRow } from "@/components/market/market-token-row";
@@ -13,8 +14,9 @@ interface MarketClientProps {
 }
 
 export function MarketClient({ tokens }: MarketClientProps) {
+  const t = useTranslations("market");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const filteredTokens = useMemo(() => {
@@ -26,7 +28,7 @@ export function MarketClient({ tokens }: MarketClientProps) {
         token.symbol.toLowerCase().includes(query);
 
       const matchesCategory =
-        activeCategory === "All" ||
+        activeCategory === "all" ||
         (token.tags ?? []).some(
           (tag) => tag.toLowerCase() === activeCategory.toLowerCase()
         );
@@ -55,7 +57,7 @@ export function MarketClient({ tokens }: MarketClientProps) {
         <SearchBar
           value={searchQuery}
           onChange={handleSearchChange}
-          placeholder="Search tokens..."
+          placeholder={t("searchPlaceholder")}
         />
         <CategoryTabs
           activeCategory={activeCategory}
@@ -64,18 +66,24 @@ export function MarketClient({ tokens }: MarketClientProps) {
       </div>
 
       <div className="mt-4 rounded-lg border border-border overflow-hidden">
-        {visibleTokens.map((token) => (
-          <MarketTokenRow key={token.address} token={token} />
-        ))}
+        {visibleTokens.length > 0 ? (
+          visibleTokens.map((token) => (
+            <MarketTokenRow key={token.address} token={token} />
+          ))
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t("noTokens")}
+          </p>
+        )}
       </div>
 
       {hasMore && (
         <button
           type="button"
           onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-          className="mt-3 w-full rounded-lg border border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="mt-3 w-full rounded-lg border border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
         >
-          Load more ({filteredTokens.length - visibleCount} remaining)
+          {t("loadMore")} ({t("loadMoreCount", { count: filteredTokens.length - visibleCount })})
         </button>
       )}
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface CategoryTabsProps {
@@ -7,12 +8,14 @@ interface CategoryTabsProps {
   onCategoryChange: (cat: string) => void;
 }
 
-const categories = ["All", "DeFi", "Meme", "Infra", "LST", "Stablecoin"] as const;
+const categories = ["all", "defi", "meme", "infra", "lst", "stablecoin"] as const;
 
 export function CategoryTabs({
   activeCategory,
   onCategoryChange,
 }: CategoryTabsProps) {
+  const t = useTranslations("market");
+
   return (
     <div className="flex gap-2 overflow-x-auto scrollbar-hide">
       {categories.map((cat) => {
@@ -29,7 +32,7 @@ export function CategoryTabs({
                 : "bg-muted text-muted-foreground hover:text-foreground"
             )}
           >
-            {cat}
+            {t(`categories.${cat}`)}
           </button>
         );
       })}

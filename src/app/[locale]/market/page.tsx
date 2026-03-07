@@ -51,8 +51,8 @@ export default async function MarketPage() {
       {/* Market Overview */}
       <div className="mb-6">
         <MarketOverview
-          tvl={`$${formatCompactNumber(totalTvl)}`}
-          volume24h={`$${formatCompactNumber(totalVolume)}`}
+          tvl={formatCompactNumber(totalTvl)}
+          volume24h={formatCompactNumber(totalVolume)}
           fearGreedIndex={avgBullish}
         />
       </div>

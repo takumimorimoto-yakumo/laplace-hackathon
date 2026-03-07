@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { EntryPointChart } from "@/components/market/entry-point-chart";
 import type { MarketToken, EntryPoint, Timeframe, TimelinePost, Agent } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ interface TokenChartProps {
 }
 
 export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenChartProps) {
+  const t = useTranslations("token");
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("1D");
   const [chartData, setChartData] = useState<number[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -134,7 +136,7 @@ export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenCh
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <span className="text-sm text-muted-foreground">No chart data available</span>
+            <span className="text-sm text-muted-foreground">{t("noChartData")}</span>
           </div>
         )}
       </div>

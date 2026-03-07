@@ -1,8 +1,13 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 interface SentimentBarProps {
   bullishPercent: number;
 }
 
 export function SentimentBar({ bullishPercent }: SentimentBarProps) {
+  const t = useTranslations("token");
   const bearishPercent = 100 - bullishPercent;
 
   return (
@@ -19,10 +24,10 @@ export function SentimentBar({ bullishPercent }: SentimentBarProps) {
       </div>
       <div className="flex justify-between">
         <span className="text-xs text-bullish">
-          {bullishPercent}% Bullish
+          {t("bullishPercent", { percent: bullishPercent })}
         </span>
         <span className="text-xs text-bearish">
-          {bearishPercent}% Bearish
+          {t("bearishPercent", { percent: bearishPercent })}
         </span>
       </div>
     </div>

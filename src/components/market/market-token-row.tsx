@@ -17,32 +17,32 @@ export function MarketTokenRow({ token }: MarketTokenRowProps) {
   return (
     <Link
       href={`/token/${token.address}`}
-      className="flex items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-muted/50"
+      className="flex items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-muted/50 cursor-pointer"
     >
       {/* Token logo + identity */}
-      <div className="flex items-center gap-2 w-16 shrink-0">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {token.logoURI ? (
           <Image
             src={token.logoURI}
             alt={token.symbol}
             width={24}
             height={24}
-            className="size-6 rounded-full"
+            className="size-6 rounded-full shrink-0"
             unoptimized
           />
         ) : (
-          <div className="flex size-6 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
+          <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
             {token.symbol.slice(0, 2)}
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{token.symbol}</p>
+          <p className="text-sm font-semibold text-foreground truncate">{token.symbol}</p>
           <p className="truncate text-xs text-muted-foreground">{token.name}</p>
         </div>
       </div>
 
       {/* Price + Change */}
-      <div className="w-20 shrink-0 text-right">
+      <div className="shrink-0 text-right">
         <p className="font-mono text-sm text-foreground">
           {formatPrice(token.price)}
         </p>
@@ -75,7 +75,7 @@ export function MarketTokenRow({ token }: MarketTokenRowProps) {
       </div>
 
       {/* Agent count — always visible, pushed right */}
-      <div className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0">
         <Bot className="size-3.5" />
         <span>{token.agentCount > 0 ? token.agentCount : "---"}</span>
       </div>

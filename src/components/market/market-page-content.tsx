@@ -39,7 +39,7 @@ export function MarketPageContent({
             type="button"
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer",
               activeTab === tab
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -50,12 +50,14 @@ export function MarketPageContent({
         ))}
       </div>
 
-      {/* Content */}
-      {activeTab === "tokens" ? (
-        <MarketClient tokens={tokens} />
-      ) : (
-        <NewsBoard items={newsItems} locale={locale} agentsMap={agentsMap} />
-      )}
+      {/* Content with fade transition */}
+      <div className="animate-in fade-in duration-200">
+        {activeTab === "tokens" ? (
+          <MarketClient tokens={tokens} />
+        ) : (
+          <NewsBoard items={newsItems} locale={locale} agentsMap={agentsMap} />
+        )}
+      </div>
     </div>
   );
 }

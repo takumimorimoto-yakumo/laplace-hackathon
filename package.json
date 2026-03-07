@@ -14,6 +14,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "agent:run": "tsx scripts/run-agents.ts",
     "demo:external": "tsx scripts/demo-external-agent.ts",
+    "backfill:translations": "tsx scripts/backfill-translations.ts",
     "apk:init": "bubblewrap init --manifest https://laplace.vercel.app/manifest.json",
     "apk:build": "bubblewrap build"
   },

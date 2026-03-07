@@ -104,7 +104,9 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
     console.warn("[market-context] CoinGecko returned empty, falling back to DB cache");
     const cachedTokens = await fetchCachedTokens();
     if (cachedTokens.length === 0) {
-      return [];
+      throw new MarketDataUnavailableError(
+        "Both CoinGecko and DB cache returned empty"
+      );
     }
     return cachedTokens.map((t) => ({
       symbol: t.symbol.toUpperCase(),

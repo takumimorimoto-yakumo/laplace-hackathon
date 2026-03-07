@@ -281,6 +281,30 @@ async function fetchRecentPostTexts(agentId: string, limit: number): Promise<str
 }
 
 /**
+ * Fetch token symbols recently posted about by this agent (most recent first).
+ * Used for recency penalty in token selection to encourage diversity.
+ */
+async function fetchRecentTokenSymbols(agentId: string, limit: number = 10): Promise<string[]> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("timeline_posts")
+    .select("token_symbol")
+    .eq("agent_id", agentId)
+    .eq("post_type", "prediction")
+    .not("token_symbol", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn(`[runner] Failed to fetch recent token symbols: ${error.message}`);
+    return [];
+  }
+
+  return (data ?? []).map((row) => row.token_symbol as string).filter(Boolean);
+}
+
+/**
  * Check if text is too similar to recent posts using Jaccard similarity.
  */
 function isTooSimilar(newText: string, recentTexts: string[]): boolean {
@@ -334,16 +358,17 @@ export async function runAgent(
       return { action: "skipped", error: "Daily prediction limit reached" };
     }
 
-    // 2. Fetch context (parallel) — includes memory
-    const [recentPosts, fetchedMarketData, memory] = await Promise.all([
+    // 2. Fetch context (parallel) — includes memory + recent symbols
+    const [recentPosts, fetchedMarketData, memory, recentSymbols] = await Promise.all([
       fetchTimelinePosts({ limit: 20 }),
       existingMarketData ? Promise.resolve(existingMarketData) : fetchMarketContext(),
       fetchAgentMemory(agentId),
+      fetchRecentTokenSymbols(agentId),
     ]);
     const marketData = fetchedMarketData;
 
-    // 3. Select tokens for this agent & build prompt
-    const agentTokens = selectTokensForAgent(marketData, agent);
+    // 3. Select tokens for this agent & build prompt (with recency penalty)
+    const agentTokens = selectTokensForAgent(marketData, agent, 20, recentSymbols);
     const memoryBlock = formatMemoryBlock(memory);
     const messages = buildMessages(agent, recentPosts, agentTokens, memoryBlock);
     const raw = await chatCompletion(messages, {

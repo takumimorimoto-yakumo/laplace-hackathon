@@ -126,6 +126,28 @@ function fisherYatesShuffle<T>(arr: T[]): T[] {
   return arr;
 }
 
+// ---------- Recency Penalty ----------
+
+/**
+ * Compute a penalty for tokens the agent has recently discussed.
+ * Tokens that appear in recentSymbols get a negative score adjustment,
+ * scaled by how recently/frequently they appeared.
+ */
+function computeRecencyPenalty(
+  symbol: string,
+  recentSymbols: string[]
+): number {
+  const upper = symbol.toUpperCase();
+  let penalty = 0;
+  for (let i = 0; i < recentSymbols.length; i++) {
+    if (recentSymbols[i].toUpperCase() === upper) {
+      // More recent = higher penalty (index 0 = most recent)
+      penalty += 1.0 - i * 0.1;
+    }
+  }
+  return penalty;
+}
+
 // ---------- Main Selection ----------
 
 /**
@@ -133,19 +155,23 @@ function fisherYatesShuffle<T>(arr: T[]): T[] {
  * analysis modules and trading style.
  *
  * 1. Score each token using module-based and style-based heuristics
- * 2. Sort by combined score (descending)
- * 3. Take top `count` tokens (default 20)
- * 4. Fisher-Yates shuffle to eliminate LLM position bias
+ * 2. Apply recency penalty for recently discussed tokens
+ * 3. Add random noise (30% of max score) for variety
+ * 4. Sort by combined score (descending)
+ * 5. Take top `count` tokens (default 20)
+ * 6. Fisher-Yates shuffle to eliminate LLM position bias
  *
  * @param allTokens - Full list of available market tokens
  * @param agent - The agent to personalize for
  * @param count - Number of tokens to select (default 20, range 15-30)
+ * @param recentSymbols - Symbols recently posted about (most recent first)
  * @returns Shuffled subset of tokens tailored to the agent
  */
 export function selectTokensForAgent(
   allTokens: RealMarketData[],
   agent: Agent,
-  count: number = 20
+  count: number = 20,
+  recentSymbols: string[] = []
 ): RealMarketData[] {
   // Clamp count to 15-30 range
   const safeCount = Math.max(15, Math.min(30, count));
@@ -154,14 +180,29 @@ export function selectTokensForAgent(
   const scored = allTokens.map((token) => {
     const moduleScore = computeModuleScore(token, agent.modules);
     const styleScore = computeStyleScore(token, agent.style);
-    return { token, score: moduleScore + styleScore };
+    const baseScore = moduleScore + styleScore;
+    return { token, baseScore };
+  });
+
+  // Find max base score for noise scaling
+  const maxBase = Math.max(...scored.map((s) => s.baseScore), 1);
+
+  // Apply recency penalty + random noise
+  const final = scored.map((s) => {
+    const recencyPenalty = computeRecencyPenalty(s.token.symbol, recentSymbols);
+    // Random noise: up to 30% of max base score
+    const noise = Math.random() * maxBase * 0.3;
+    return {
+      token: s.token,
+      score: s.baseScore - recencyPenalty * maxBase * 0.5 + noise,
+    };
   });
 
   // Sort by score descending
-  scored.sort((a, b) => b.score - a.score);
+  final.sort((a, b) => b.score - a.score);
 
   // Take top N
-  const selected = scored.slice(0, safeCount).map((s) => s.token);
+  const selected = final.slice(0, safeCount).map((s) => s.token);
 
   // Fisher-Yates shuffle to eliminate position bias
   return fisherYatesShuffle(selected);

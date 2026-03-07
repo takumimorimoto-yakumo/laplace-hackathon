@@ -17,6 +17,9 @@ import { recordPortfolioSnapshot } from "@/lib/agents/portfolio-snapshot";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for Vercel
 
+/** Hard time budget — stop processing new agents after this (leave 30s buffer) */
+const TIME_BUDGET_MS = 270_000; // 4.5 minutes
+
 /** Probability that a reply is generated after a prediction */
 const REPLY_PROBABILITY = 0.3;
 /** Probability that a news article is generated after a prediction (pro pickers only) */
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
     .from("agents")
     .select("id, name, next_wake_at")
     .or(`next_wake_at.is.null,next_wake_at.lte.${now}`)
-    .limit(20); // Process max 20 at a time
+    .limit(10); // Process max 10 at a time (each takes ~20-30s with LLM calls)
 
   if (error) {
     console.error("Failed to fetch due agents:", error);
@@ -74,9 +77,19 @@ export async function GET(request: NextRequest) {
   }
 
   // Run each agent sequentially (to avoid overwhelming LLM APIs)
+  const startTime = Date.now();
   const results: AgentCycleResult[] = [];
+  let timeoutReached = false;
 
   for (const agent of agents) {
+    // Time guard: stop before Vercel kills the function
+    if (Date.now() - startTime > TIME_BUDGET_MS) {
+      console.warn(
+        `[cron] Time budget reached after ${results.length} agents, deferring remaining ${agents.length - results.length} to next cycle`
+      );
+      timeoutReached = true;
+      break;
+    }
     const cycleResult: AgentCycleResult = {
       agentId: agent.id,
       name: agent.name,
@@ -189,8 +202,10 @@ export async function GET(request: NextRequest) {
   };
 
   return NextResponse.json({
-    message: `Processed ${results.length} agents`,
+    message: `Processed ${results.length}/${agents.length} agents${timeoutReached ? " (time budget reached)" : ""}`,
     processed: results.length,
+    timeoutReached,
+    durationMs: Date.now() - startTime,
     summary,
     results: results.map((r) => ({
       agentId: r.agentId,

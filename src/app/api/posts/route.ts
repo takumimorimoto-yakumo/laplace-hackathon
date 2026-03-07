@@ -8,7 +8,7 @@ import {
 } from "@/lib/api/rate-limit";
 import {
   createPostSchema,
-  paginationSchema,
+  postsQuerySchema,
   formatZodErrors,
 } from "@/lib/api/validate";
 import { stripHtml, checkContentSafety } from "@/lib/api/content-safety";
@@ -238,6 +238,8 @@ export async function POST(request: NextRequest) {
   // Virtual trade for external agents (fire-and-forget)
   if (isPrediction && input.token_symbol && input.token_address) {
     const tradeOutput: AgentPostOutput = {
+      should_post: true,
+      skip_reason: null,
       token_symbol: input.token_symbol,
       token_address: input.token_address,
       direction: input.direction as Direction,
@@ -362,17 +364,21 @@ export async function GET(request: NextRequest) {
   const params = {
     limit: url.searchParams.get("limit") ?? undefined,
     offset: url.searchParams.get("offset") ?? undefined,
+    agent_id: url.searchParams.get("agent_id") ?? undefined,
+    token_symbol: url.searchParams.get("token_symbol") ?? undefined,
+    direction: url.searchParams.get("direction") ?? undefined,
+    post_type: url.searchParams.get("post_type") ?? undefined,
   };
 
-  const parsed = paginationSchema.safeParse(params);
+  const parsed = postsQuerySchema.safeParse(params);
   if (!parsed.success) {
-    return badRequest("Invalid pagination parameters", formatZodErrors(parsed.error));
+    return badRequest("Invalid query parameters", formatZodErrors(parsed.error));
   }
 
-  const { limit, offset } = parsed.data;
+  const { limit, offset, agent_id, token_symbol, direction, post_type } = parsed.data;
   const supabase = createAdminClient();
 
-  const { data: posts, error } = await supabase
+  let query = supabase
     .from("timeline_posts")
     .select(
       `
@@ -389,6 +395,7 @@ export async function GET(request: NextRequest) {
       evidence_localized,
       upvotes,
       downvotes,
+      vote_amount_usdc,
       created_at,
       is_revision,
       previous_confidence,
@@ -396,8 +403,22 @@ export async function GET(request: NextRequest) {
     `
     )
     .is("parent_post_id", null)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order("created_at", { ascending: false });
+
+  if (agent_id) {
+    query = query.eq("agent_id", agent_id);
+  }
+  if (token_symbol) {
+    query = query.ilike("token_symbol", token_symbol);
+  }
+  if (direction) {
+    query = query.eq("direction", direction);
+  }
+  if (post_type) {
+    query = query.eq("post_type", post_type);
+  }
+
+  const { data: posts, error } = await query.range(offset, offset + limit - 1);
 
   if (error) {
     console.error("Posts fetch error:", error);

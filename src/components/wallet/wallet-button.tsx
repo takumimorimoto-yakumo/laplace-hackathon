@@ -2,9 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { Wallet } from "lucide-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Button } from "@/components/ui/button";
-import { useWallet } from "./wallet-provider";
+import { useWallet, useUnifiedWalletContext } from "./wallet-provider";
 
 interface WalletButtonProps {
   className?: string;
@@ -12,7 +11,7 @@ interface WalletButtonProps {
 
 export function WalletButton({ className }: WalletButtonProps) {
   const { connected, publicKey, disconnect } = useWallet();
-  const { setVisible } = useWalletModal();
+  const { setShowModal } = useUnifiedWalletContext();
   const t = useTranslations("common");
 
   if (connected && publicKey) {
@@ -32,7 +31,7 @@ export function WalletButton({ className }: WalletButtonProps) {
       variant="outline"
       size="sm"
       className={className}
-      onClick={() => setVisible(true)}
+      onClick={() => setShowModal(true)}
     >
       {t("connectWallet")}
     </Button>

@@ -32,17 +32,31 @@
     "tvl": "TVL",
     "volume24h": "24h出来高",
     "fearGreed": "Fear & Greed",
+    "fearGreedLabels": {
+      "extremeFear": "極度の恐怖",
+      "fear": "恐怖",
+      "neutral": "中立",
+      "greed": "貪欲",
+      "extremeGreed": "極度の貪欲"
+    },
     "categories": {
       "all": "すべて",
       "defi": "DeFi",
       "meme": "ミーム",
-      "rwa": "RWA"
+      "rwa": "RWA",
+      "infra": "インフラ",
+      "lst": "LST",
+      "stablecoin": "ステーブル"
     },
     "agentsDiscussing": "{count}体が議論中",
     "tabs": {
       "tokens": "トークン",
       "news": "ニュース"
-    }
+    },
+    "searchPlaceholder": "トークンを検索...",
+    "loadMore": "さらに読み込む",
+    "loadMoreCount": "残り{count}件",
+    "noTokens": "トークンが見つかりません"
   },
   "agents": {
     "title": "エージェント",
@@ -89,7 +103,12 @@
     "noBets": "ベットなし",
     "betAmount": "金額",
     "sourcePost": "ソース投稿",
-    "back": "予測市場"
+    "back": "予測市場",
+    "poolLabel": "プール",
+    "ended": "終了",
+    "daysHours": "{days}日{hours}時間",
+    "hoursOnly": "{hours}時間",
+    "timeAgo": "{time}前"
   },
   "agent": {
     "portfolio": "ポートフォリオ",
@@ -132,7 +151,11 @@
     "unknownToken": "不明なトークン",
     "chart": "チャート",
     "agentDiscussion": "エージェント議論",
-    "noDiscussions": "このトークンについてのエージェント議論はまだありません。"
+    "noDiscussions": "このトークンについてのエージェント議論はまだありません。",
+    "back": "マーケット",
+    "noChartData": "チャートデータがありません",
+    "bullishPercent": "強気 {percent}%",
+    "bearishPercent": "弱気 {percent}%"
   },
   "me": {
     "title": "マイページ",
@@ -167,7 +190,13 @@
     "connectFeature1": "エージェントを管理",
     "connectFeature2": "予測に投票",
     "connectFeature3": "報酬を獲得",
-    "noAgentsHint": "「開発者」タブからAIエージェントを登録"
+    "noAgentsHint": "「開発者」タブからAIエージェントを登録",
+    "walletBalance": "残高",
+    "walletAddress": "ウォレットアドレス",
+    "network": "ネットワーク",
+    "refreshBalance": "残高を更新",
+    "viewOnExplorer": "エクスプローラーで表示",
+    "disconnect": "ウォレットを切断"
   },
   "rental": {
     "title": "プレミアム分析",

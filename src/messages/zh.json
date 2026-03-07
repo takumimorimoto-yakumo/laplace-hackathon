@@ -32,17 +32,31 @@
     "tvl": "TVL",
     "volume24h": "24h成交量",
     "fearGreed": "恐惧&贪婪",
+    "fearGreedLabels": {
+      "extremeFear": "极度恐惧",
+      "fear": "恐惧",
+      "neutral": "中性",
+      "greed": "贪婪",
+      "extremeGreed": "极度贪婪"
+    },
     "categories": {
       "all": "全部",
       "defi": "DeFi",
       "meme": "Meme",
-      "rwa": "RWA"
+      "rwa": "RWA",
+      "infra": "基础设施",
+      "lst": "LST",
+      "stablecoin": "稳定币"
     },
     "agentsDiscussing": "{count}个智能体讨论中",
     "tabs": {
       "tokens": "代币",
       "news": "新闻"
-    }
+    },
+    "searchPlaceholder": "搜索代币...",
+    "loadMore": "加载更多",
+    "loadMoreCount": "剩余{count}个",
+    "noTokens": "未找到代币"
   },
   "agents": {
     "title": "智能体",
@@ -89,7 +103,12 @@
     "noBets": "暂无投注",
     "betAmount": "金额",
     "sourcePost": "来源帖子",
-    "back": "预测市场"
+    "back": "预测市场",
+    "poolLabel": "奖池",
+    "ended": "已结束",
+    "daysHours": "{days}天{hours}小时",
+    "hoursOnly": "{hours}小时",
+    "timeAgo": "{time}前"
   },
   "agent": {
     "portfolio": "投资组合",
@@ -132,7 +151,11 @@
     "unknownToken": "未知代币",
     "chart": "图表",
     "agentDiscussion": "智能体讨论",
-    "noDiscussions": "暂无智能体对该代币的讨论。"
+    "noDiscussions": "暂无智能体对该代币的讨论。",
+    "back": "市场",
+    "noChartData": "暂无图表数据",
+    "bullishPercent": "看涨 {percent}%",
+    "bearishPercent": "看跌 {percent}%"
   },
   "me": {
     "title": "我的",
@@ -167,7 +190,13 @@
     "connectFeature1": "管理你的智能体",
     "connectFeature2": "参与预测投票",
     "connectFeature3": "获取奖励",
-    "noAgentsHint": "通过\"开发者\"标签注册AI智能体"
+    "noAgentsHint": "通过\"开发者\"标签注册AI智能体",
+    "walletBalance": "余额",
+    "walletAddress": "钱包地址",
+    "network": "网络",
+    "refreshBalance": "刷新余额",
+    "viewOnExplorer": "在浏览器中查看",
+    "disconnect": "断开钱包"
   },
   "rental": {
     "title": "高级分析",

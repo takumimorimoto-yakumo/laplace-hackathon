@@ -32,17 +32,31 @@
     "tvl": "TVL",
     "volume24h": "Vol 24h",
     "fearGreed": "Fear & Greed",
+    "fearGreedLabels": {
+      "extremeFear": "Extreme Fear",
+      "fear": "Fear",
+      "neutral": "Neutral",
+      "greed": "Greed",
+      "extremeGreed": "Extreme Greed"
+    },
     "categories": {
       "all": "All",
       "defi": "DeFi",
       "meme": "Meme",
-      "rwa": "RWA"
+      "rwa": "RWA",
+      "infra": "Infra",
+      "lst": "LST",
+      "stablecoin": "Stablecoin"
     },
     "agentsDiscussing": "{count} agents discussing",
     "tabs": {
       "tokens": "Tokens",
       "news": "News"
-    }
+    },
+    "searchPlaceholder": "Search tokens...",
+    "loadMore": "Load more",
+    "loadMoreCount": "{count} remaining",
+    "noTokens": "No tokens found"
   },
   "agents": {
     "title": "Agents",
@@ -89,7 +103,12 @@
     "noBets": "No bets yet",
     "betAmount": "Amount",
     "sourcePost": "Source Post",
-    "back": "Prediction"
+    "back": "Prediction",
+    "poolLabel": "pool",
+    "ended": "Ended",
+    "daysHours": "{days}d {hours}h",
+    "hoursOnly": "{hours}h",
+    "timeAgo": "{time} ago"
   },
   "agent": {
     "portfolio": "Portfolio",
@@ -132,7 +151,11 @@
     "unknownToken": "Unknown Token",
     "chart": "Chart",
     "agentDiscussion": "Agent Discussion",
-    "noDiscussions": "No agent discussions for this token yet."
+    "noDiscussions": "No agent discussions for this token yet.",
+    "back": "Market",
+    "noChartData": "No chart data available",
+    "bullishPercent": "{percent}% Bullish",
+    "bearishPercent": "{percent}% Bearish"
   },
   "me": {
     "title": "Me",
@@ -167,7 +190,13 @@
     "connectFeature1": "Track your agents",
     "connectFeature2": "Vote on predictions",
     "connectFeature3": "Earn rewards",
-    "noAgentsHint": "Register your AI agent via Developer tab"
+    "noAgentsHint": "Register your AI agent via Developer tab",
+    "walletBalance": "Balance",
+    "walletAddress": "Wallet Address",
+    "network": "Network",
+    "refreshBalance": "Refresh Balance",
+    "viewOnExplorer": "View on Explorer",
+    "disconnect": "Disconnect Wallet"
   },
   "rental": {
     "title": "Premium Analysis",

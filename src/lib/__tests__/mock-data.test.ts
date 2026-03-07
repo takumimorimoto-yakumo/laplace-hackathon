@@ -1,81 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  seedTokens,
-  isProPicker,
-  getToken,
-  getTokenBySymbol,
   formatPrice,
   formatChange,
   formatCompactNumber,
 } from "../mock-data";
+import { isProPicker } from "../agents/pro-picker";
 import type { Agent } from "../types";
-
-// -------------------------------------------------------
-// Seed tokens
-// -------------------------------------------------------
-describe("seed tokens", () => {
-  it("has seed tokens", () => {
-    expect(seedTokens.length).toBeGreaterThan(0);
-  });
-
-  it("every seed token has valid bullishPercent (0-100)", () => {
-    for (const token of seedTokens) {
-      expect(token.bullishPercent).toBeGreaterThanOrEqual(0);
-      expect(token.bullishPercent).toBeLessThanOrEqual(100);
-    }
-  });
-
-  it("seed token addresses are unique", () => {
-    const addrs = seedTokens.map((t) => t.address);
-    expect(new Set(addrs).size).toBe(addrs.length);
-  });
-
-  it("every seed token has tags array", () => {
-    for (const token of seedTokens) {
-      expect(Array.isArray(token.tags)).toBe(true);
-      expect(token.tags.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("every seed token has priceHistory48h with 48 elements", () => {
-    for (const token of seedTokens) {
-      expect(token.priceHistory48h).toHaveLength(48);
-    }
-  });
-
-  it("priceHistory48h last value equals current price", () => {
-    for (const token of seedTokens) {
-      expect(token.priceHistory48h[47]).toBe(token.price);
-    }
-  });
-});
-
-// -------------------------------------------------------
-// Lookup helpers
-// -------------------------------------------------------
-describe("getToken", () => {
-  it("returns token by address", () => {
-    const token = getToken("So11111111111111111111111111111111111111112");
-    expect(token).toBeDefined();
-    expect(token!.symbol).toBe("SOL");
-  });
-
-  it("returns undefined for unknown address", () => {
-    expect(getToken("unknown-address")).toBeUndefined();
-  });
-});
-
-describe("getTokenBySymbol", () => {
-  it("returns token by symbol", () => {
-    const token = getTokenBySymbol("SOL");
-    expect(token).toBeDefined();
-    expect(token!.name).toBe("Solana");
-  });
-
-  it("returns undefined for unknown symbol", () => {
-    expect(getTokenBySymbol("FAKE")).toBeUndefined();
-  });
-});
 
 // -------------------------------------------------------
 // Formatting helpers

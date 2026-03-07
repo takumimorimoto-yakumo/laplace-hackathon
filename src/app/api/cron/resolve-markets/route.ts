@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchMarketData, getCoingeckoId } from "@/lib/data/coingecko";
-import { seedTokens } from "@/lib/tokens";
+import { fetchCachedTokenBySymbol } from "@/lib/supabase/token-cache";
 import type { OnChainPredictionData } from "@/lib/solana/prediction-recorder";
 
 export const dynamic = "force-dynamic";
@@ -212,12 +212,12 @@ async function buildPriceMap(
     }
   }
 
-  // Fallback to seedTokens for any symbols not found
+  // Fallback to DB cache for any symbols not found via CoinGecko
   for (const symbol of symbols) {
     if (!priceMap.has(symbol)) {
-      const seed = seedTokens.find((t) => t.symbol === symbol);
-      if (seed) {
-        priceMap.set(symbol, seed.price);
+      const cached = await fetchCachedTokenBySymbol(symbol);
+      if (cached) {
+        priceMap.set(symbol, cached.price);
       }
     }
   }

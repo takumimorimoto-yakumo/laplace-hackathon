@@ -4,7 +4,7 @@
 
 import type { SolanaEcosystemToken } from "@/lib/data/coingecko";
 import { fetchSolanaEcosystemTokens } from "@/lib/data/coingecko";
-import { seedTokens } from "@/lib/tokens";
+import { fetchCachedTokens } from "@/lib/supabase/token-cache";
 import type { RealMarketData } from "./prompt-builder";
 
 // ---------- Error Class ----------
@@ -87,7 +87,7 @@ function assignRanks(
  * Flow:
  * 1. Fetch CoinGecko Solana ecosystem tokens
  * 2. Compute ranks, volatility, and map to RealMarketData
- * 3. Throw MarketDataUnavailableError if API fails or returns empty
+ * 3. Fall back to DB cache if CoinGecko fails or returns empty
  */
 export async function fetchMarketContext(): Promise<RealMarketData[]> {
   let tokens: SolanaEcosystemToken[];
@@ -95,14 +95,18 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
     tokens = await fetchSolanaEcosystemTokens();
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[market-context] CoinGecko fetch failed: ${message}, falling back to seed tokens`);
+    console.warn(`[market-context] CoinGecko fetch failed: ${message}, falling back to DB cache`);
     tokens = [];
   }
 
   if (tokens.length === 0) {
-    // Fallback to seed tokens when CoinGecko returns empty (e.g. rate limited)
-    console.warn("[market-context] CoinGecko returned empty, falling back to seed tokens");
-    return seedTokens.map((t) => ({
+    // Fallback to DB cache when CoinGecko returns empty (e.g. rate limited)
+    console.warn("[market-context] CoinGecko returned empty, falling back to DB cache");
+    const cachedTokens = await fetchCachedTokens();
+    if (cachedTokens.length === 0) {
+      return [];
+    }
+    return cachedTokens.map((t) => ({
       symbol: t.symbol.toUpperCase(),
       price: t.price,
       change24h: t.change24h,

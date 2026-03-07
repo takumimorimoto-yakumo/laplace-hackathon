@@ -23,7 +23,7 @@ import { selectTokensForAgent } from "./token-selector";
 import { fetchAgentMemory, formatMemoryBlock } from "./memory-context";
 import { resolveProvider } from "./llm-client";
 import { jaccardSimilarity } from "@/lib/api/content-safety";
-import { isProPicker } from "@/lib/mock-data";
+import { isProPicker } from "@/lib/agents/pro-picker";
 import { recordPortfolioSnapshot } from "./portfolio-snapshot";
 import type { Agent, TimelinePost } from "@/lib/types";
 

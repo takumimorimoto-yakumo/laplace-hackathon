@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { EntryPointChart } from "@/components/market/entry-point-chart";
 import type { MarketToken, EntryPoint, Timeframe, TimelinePost, Agent } from "@/lib/types";
-import { getTimeframeData } from "@/lib/tokens";
 import { cn } from "@/lib/utils";
 
 const timeframes: Timeframe[] = ["1D", "1W", "1M", "1Y"];
@@ -54,12 +53,12 @@ export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenCh
           // Extract price values from [timestamp, price] pairs
           setChartData(json.prices.map(([, price]) => price));
         } else {
-          // Empty response → use synthetic fallback
+          // Empty response → no data available
           setChartData(null);
         }
       } catch (error: unknown) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        // Fetch failed → use synthetic fallback
+        // Fetch failed → no data available
         setChartData(null);
       } finally {
         if (!controller.signal.aborted) {
@@ -77,7 +76,12 @@ export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenCh
     };
   }, [selectedTimeframe, fetchChartData]);
 
-  const priceData = chartData ?? getTimeframeData(token, selectedTimeframe);
+  // Use fetched chart data, or fall back to token's cached priceHistory48h for 1D
+  const priceData =
+    chartData ??
+    (selectedTimeframe === "1D" && token.priceHistory48h.length > 0
+      ? token.priceHistory48h
+      : null);
 
   const entryPoints: EntryPoint[] = posts
     .filter((p) => p.priceAtPrediction !== null)
@@ -121,13 +125,17 @@ export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenCh
           <div className="flex h-full items-center justify-center">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : (
+        ) : priceData && priceData.length > 0 ? (
           <EntryPointChart
             priceData={priceData}
             entryPoints={selectedTimeframe === "1D" ? entryPoints : []}
             variant="full"
             className="h-full"
           />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <span className="text-sm text-muted-foreground">No chart data available</span>
+          </div>
         )}
       </div>
     </div>

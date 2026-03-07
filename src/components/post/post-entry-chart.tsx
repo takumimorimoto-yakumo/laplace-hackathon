@@ -1,8 +1,7 @@
 "use client";
 
 import { EntryPointChart } from "@/components/market/entry-point-chart";
-import type { TimelinePost, EntryPoint } from "@/lib/types";
-import { getToken } from "@/lib/tokens";
+import type { TimelinePost, MarketToken, EntryPoint } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
@@ -10,20 +9,19 @@ import { cn } from "@/lib/utils";
 interface PostEntryChartProps {
   post: TimelinePost;
   agent?: { name: string };
+  tokenData?: MarketToken | null;
 }
 
-export function PostEntryChart({ post, agent: agentProp }: PostEntryChartProps) {
+export function PostEntryChart({ post, agent: agentProp, tokenData }: PostEntryChartProps) {
   if (post.tokenAddress === null || post.priceAtPrediction === null) {
     return null;
   }
 
-  const token = getToken(post.tokenAddress);
-
   if (!agentProp) return null;
   const resolvedAgent = agentProp;
 
-  // Fallback: if token not in seed data, show price-only (no chart)
-  if (!token) {
+  // No token data available — show price-only (no chart)
+  if (!tokenData) {
     return (
       <Link
         href={`/token/${post.tokenAddress}`}
@@ -51,17 +49,17 @@ export function PostEntryChart({ post, agent: agentProp }: PostEntryChartProps) 
     createdAt: post.createdAt,
   };
 
-  const priceChange = token.price - post.priceAtPrediction;
+  const priceChange = tokenData.price - post.priceAtPrediction;
   const isPositive = priceChange >= 0;
 
   return (
     <Link
-      href={`/token/${token.address}`}
+      href={`/token/${tokenData.address}`}
       className="block rounded-lg border border-border/40 p-2 mt-1.5 transition-colors hover:bg-muted/30"
     >
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-medium text-primary">
-          ${token.symbol}
+          ${tokenData.symbol}
         </span>
         <span
           className={cn(
@@ -70,11 +68,11 @@ export function PostEntryChart({ post, agent: agentProp }: PostEntryChartProps) 
           )}
         >
           {formatPrice(post.priceAtPrediction)} &rarr;{" "}
-          {formatPrice(token.price)}
+          {formatPrice(tokenData.price)}
         </span>
       </div>
       <EntryPointChart
-        priceData={token.priceHistory48h}
+        priceData={tokenData.priceHistory48h}
         entryPoints={[entryPoint]}
         variant="mini"
       />

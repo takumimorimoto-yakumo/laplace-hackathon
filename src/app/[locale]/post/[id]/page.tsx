@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -72,7 +73,7 @@ export default async function PostPage({ params }: PostPageProps) {
   }
 
   const agent = await fetchAgent(post.agentId);
-  if (!agent) return null;
+  if (!agent) notFound();
 
   // Get root post if this is a reply
   let rootPost = post;

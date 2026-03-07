@@ -1,3 +1,4 @@
+import { cache } from "react";
 import Image from "next/image";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
@@ -8,7 +9,7 @@ import { IndicatorToggle } from "@/components/market/indicator-toggle";
 import { PostCard } from "@/components/post/post-card";
 import { SentimentBar } from "@/components/market/sentiment-bar";
 import { fetchTimelinePosts, fetchAgents } from "@/lib/supabase/queries";
-import { getToken, generatePriceHistory48h } from "@/lib/tokens";
+import { fetchCachedToken } from "@/lib/supabase/token-cache";
 import { fetchSingleToken, fetchTokenPrices } from "@/lib/data/jupiter-tokens";
 import { resolveCoingeckoId, fetchMarketData } from "@/lib/data/coingecko";
 import { formatPrice, formatChange } from "@/lib/format";
@@ -50,67 +51,60 @@ async function fetchLivePrice(address: string): Promise<{
 }
 
 /**
- * Resolve a token from seed data, market-data API, or Jupiter fallback.
- * For seed tokens, overlays live CoinGecko price data when available.
+ * Resolve a token from DB cache, live CoinGecko overlay, or Jupiter fallback.
+ * Wrapped with React cache() to deduplicate across generateMetadata + page render.
  */
-async function resolveToken(address: string): Promise<MarketToken | null> {
-  // 1. Try seed data (has metadata like tags, symbol, etc.)
-  const seed = getToken(address);
-  if (seed) {
-    // Overlay live price data on top of seed metadata
+const resolveToken = cache(async (address: string): Promise<MarketToken | null> => {
+  // 1. Try DB cache first (primary source)
+  const cached = await fetchCachedToken(address);
+  if (cached) {
+    // Overlay live price data on top of cached metadata
     const live = await fetchLivePrice(address);
     if (live) {
+      const sparkline7d = live.sparkline7d.length > 0 ? live.sparkline7d : cached.sparkline7d;
       return {
-        ...seed,
+        ...cached,
         price: live.price,
         change24h: live.change24h,
         volume24h: live.volume24h,
         marketCap: live.marketCap,
-        sparkline7d: live.sparkline7d.length > 0 ? live.sparkline7d : seed.sparkline7d,
-        priceHistory48h: generatePriceHistory48h(live.price, Math.abs(live.change24h / 100) || 0.03),
+        sparkline7d,
+        priceHistory48h: sparkline7d.length >= 48 ? sparkline7d.slice(-48) : sparkline7d,
       };
     }
-    return seed;
+    return cached;
   }
 
-  // 2. Try /api/market-data cache
+  // 2. Fallback: fetch directly from Jupiter (best-effort)
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/market-data`, { next: { revalidate: 60 } });
-    if (res.ok) {
-      const json = (await res.json()) as { tokens: MarketToken[] };
-      const found = json.tokens.find((t) => t.address === address);
-      if (found) return found;
-    }
+    const jupToken = await fetchSingleToken(address);
+    if (!jupToken) return null;
+
+    const priceMap = await fetchTokenPrices([address]);
+    const price = priceMap.get(address) ?? 0;
+
+    return {
+      address: jupToken.address,
+      symbol: jupToken.symbol,
+      name: jupToken.name,
+      logoURI: jupToken.logoURI || null,
+      decimals: jupToken.decimals,
+      price,
+      change24h: 0,
+      tags: jupToken.tags.length > 0 ? jupToken.tags : ["unknown"],
+      tvl: null,
+      volume24h: jupToken.daily_volume ?? 0,
+      marketCap: null,
+      agentCount: 0,
+      bullishPercent: 50,
+      sparkline7d: price > 0 ? [price, price, price, price, price, price, price] : [],
+      priceHistory48h: price > 0 ? [price] : [],
+    };
   } catch {
-    // ignore, fall through to Jupiter
+    // Jupiter unreachable — return null rather than error
+    return null;
   }
-
-  // 3. Fallback: fetch directly from Jupiter
-  const jupToken = await fetchSingleToken(address);
-  if (!jupToken) return null;
-
-  const priceMap = await fetchTokenPrices([address]);
-  const price = priceMap.get(address) ?? 0;
-
-  return {
-    address: jupToken.address,
-    symbol: jupToken.symbol,
-    name: jupToken.name,
-    logoURI: jupToken.logoURI || null,
-    decimals: jupToken.decimals,
-    price,
-    change24h: 0,
-    tags: jupToken.tags.length > 0 ? jupToken.tags : ["unknown"],
-    tvl: null,
-    volume24h: jupToken.daily_volume ?? 0,
-    marketCap: null,
-    agentCount: 0,
-    bullishPercent: 50,
-    sparkline7d: price > 0 ? [price, price, price, price, price, price, price] : [],
-    priceHistory48h: price > 0 ? generatePriceHistory48h(price, 0.03) : [],
-  };
-}
+});
 
 export async function generateMetadata({
   params,

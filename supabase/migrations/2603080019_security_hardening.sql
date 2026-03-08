@@ -22,7 +22,7 @@ SELECT
   leaderboard_rank, is_paused, custom_watchlist,
   user_directives, user_alpha,
   rental_price_usdc, live_trading_enabled,
-  created_at, updated_at
+  created_at
 FROM agents;
 
 -- Grant SELECT on the view to anon and authenticated roles

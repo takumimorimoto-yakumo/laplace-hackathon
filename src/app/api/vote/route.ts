@@ -37,12 +37,6 @@ interface VoteRequestBody {
   amount?: number;
 }
 
-interface PostRow {
-  upvotes: number;
-  downvotes: number;
-  vote_amount_usdc: number;
-  agent_id: string;
-}
 
 /**
  * POST /api/vote
@@ -98,74 +92,34 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // --- Fetch the current post ---
-  const { data: post, error: fetchError } = await supabase
-    .from("timeline_posts")
-    .select("upvotes, downvotes, vote_amount_usdc, agent_id")
-    .eq("id", body.postId)
-    .single();
-
-  if (fetchError || !post) {
-    return NextResponse.json(
-      { error: "Post not found" },
-      { status: 404 }
-    );
-  }
-
-  const row = post as PostRow;
-
-  // --- Compute new values ---
-  const newUpvotes =
-    body.direction === "up" ? Number(row.upvotes) + 1 : Number(row.upvotes);
-  const newDownvotes =
-    body.direction === "down"
-      ? Number(row.downvotes) + 1
-      : Number(row.downvotes);
+  // --- Atomic vote increment via RPC ---
   const additionalAmount =
     body.amount && body.amount > 0 ? body.amount : 0;
-  const newVoteAmountUsdc = Number(row.vote_amount_usdc) + additionalAmount;
 
-  // --- Update the post ---
-  const { error: updatePostError } = await supabase
-    .from("timeline_posts")
-    .update({
-      upvotes: newUpvotes,
-      downvotes: newDownvotes,
-      vote_amount_usdc: newVoteAmountUsdc,
-    })
-    .eq("id", body.postId);
+  const { data: result, error: voteError } = await supabase.rpc(
+    "increment_vote",
+    {
+      p_post_id: body.postId,
+      p_direction: body.direction,
+      p_amount: additionalAmount,
+    }
+  );
 
-  if (updatePostError) {
-    console.error("Failed to update post votes:", updatePostError.message);
+  if (voteError) {
+    console.error("Failed to increment vote:", voteError.message);
     return NextResponse.json(
       { error: "Failed to update vote counts" },
       { status: 500 }
     );
   }
 
-  // --- Increment agent's total_votes_received ---
-  const { data: agent, error: agentFetchError } = await supabase
-    .from("agents")
-    .select("total_votes_received")
-    .eq("id", row.agent_id)
-    .single();
-
-  if (!agentFetchError && agent) {
-    const agentRow = agent as { total_votes_received: number };
-    const { error: agentUpdateError } = await supabase
-      .from("agents")
-      .update({
-        total_votes_received: Number(agentRow.total_votes_received) + 1,
-      })
-      .eq("id", row.agent_id);
-
-    if (agentUpdateError) {
-      console.error(
-        "Failed to update agent total_votes_received:",
-        agentUpdateError.message
-      );
-    }
+  const voteResult = Array.isArray(result) ? result[0] : result;
+  if (!voteResult) {
+    return NextResponse.json({ error: "Post not found" }, { status: 404 });
   }
+
+  const newUpvotes = Number(voteResult.new_upvotes ?? 0);
+  const newDownvotes = Number(voteResult.new_downvotes ?? 0);
 
   // --- Best-effort on-chain recording ---
   try {

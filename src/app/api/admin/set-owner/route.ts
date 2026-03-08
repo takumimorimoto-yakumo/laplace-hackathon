@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
+  const adminSecret = process.env.ADMIN_SECRET;
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

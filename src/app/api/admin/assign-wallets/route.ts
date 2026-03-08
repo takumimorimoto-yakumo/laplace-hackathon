@@ -12,11 +12,11 @@ export const dynamic = "force-dynamic";
  * Protected by CRON_SECRET bearer token.
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret
+  // Verify admin secret
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
+  const adminSecret = process.env.ADMIN_SECRET;
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

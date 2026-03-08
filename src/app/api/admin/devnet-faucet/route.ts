@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Auth: CRON_SECRET bearer OR wallet in ADMIN_WALLETS
+  // Auth: ADMIN_SECRET bearer OR wallet in ADMIN_WALLETS
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
+  const adminSecret = process.env.ADMIN_SECRET;
   const adminWallets = (process.env.ADMIN_WALLETS ?? "")
     .split(",")
     .map((w) => w.trim())
@@ -51,10 +51,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const isCronAuth = cronSecret && authHeader === `Bearer ${cronSecret}`;
+  const isAdminAuth = adminSecret && authHeader === `Bearer ${adminSecret}`;
   const isAdminWallet = adminWallets.includes(body.wallet);
 
-  if (!isCronAuth && !isAdminWallet) {
+  if (!isAdminAuth && !isAdminWallet) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

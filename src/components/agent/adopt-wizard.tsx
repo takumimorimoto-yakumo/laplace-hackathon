@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { PublicKey } from "@solana/web3.js";
 import {
   Loader2,
   X,
@@ -25,7 +26,9 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
 import { useAdoptAgent, useSubscriptionStatus } from "@/hooks/use-user-agents";
+import { buildSubscriptionPaymentTx } from "@/lib/solana/subscription-payment";
 import {
   TEMPLATE_KEYS,
   AGENT_TEMPLATES,
@@ -103,6 +106,8 @@ const LLM_COLORS: Record<LLMModel, string> = {
   external: "bg-zinc-500/20 text-zinc-400",
 };
 
+type PaymentPhase = "idle" | "building" | "signing" | "confirming" | "creating";
+
 function StepIndicator({
   current,
   labels,
@@ -168,9 +173,12 @@ export function AdoptWizard({
   onSuccess,
 }: AdoptWizardProps) {
   const t = useTranslations("adopt");
+  const tCommon = useTranslations("common");
   const tTemplates = useTranslations("templates");
   const { mutate, loading, error } = useAdoptAgent();
   const { agentCount } = useSubscriptionStatus(walletAddress);
+  const { signTransaction, signMessage: walletSignMessage } = useWallet();
+  const { connection } = useConnection();
 
   const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
   const needsPayment = isLocal || agentCount >= 1;
@@ -186,7 +194,14 @@ export function AdoptWizard({
   const [watchlistTags, setWatchlistTags] = useState<string[]>([]);
   const [alpha, setAlpha] = useState("");
   const [nameError, setNameError] = useState("");
-  const [paymentToken, setPaymentToken] = useState<SubscriptionPaymentToken>("USDC");
+  const defaultPaymentToken: SubscriptionPaymentToken =
+    typeof window !== "undefined" && window.location.hostname === "localhost" ? "SOL" : "USDC";
+  const [paymentToken, setPaymentToken] = useState<SubscriptionPaymentToken>(defaultPaymentToken);
+  const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [checkingName, setCheckingName] = useState(false);
+
+  const isBusy = loading || paymentPhase !== "idle" || checkingName;
 
   const stepLabels = needsPayment
     ? [t("step1Label"), t("step2Label"), t("step3Label"), t("step4Label")]
@@ -203,6 +218,8 @@ export function AdoptWizard({
     setAlpha("");
     setNameError("");
     setPaymentToken("USDC");
+    setPaymentPhase("idle");
+    setPaymentError(null);
   }, []);
 
   const handleOpenChange = useCallback(
@@ -213,16 +230,28 @@ export function AdoptWizard({
     [onOpenChange, resetForm]
   );
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     if (step === 1 && !template) return;
     if (step === 2) {
-      if (!name.trim()) {
+      const trimmed = name.trim();
+      if (!trimmed || trimmed.length < 2 || trimmed.length > 30) {
         setNameError(t("nameRequired"));
         return;
       }
-      if (name.trim().length < 2 || name.trim().length > 30) {
-        setNameError(t("nameRequired"));
-        return;
+      // Check name uniqueness before proceeding
+      setCheckingName(true);
+      try {
+        const res = await fetch(
+          `/api/user-agents/check-name?name=${encodeURIComponent(trimmed)}`
+        );
+        if (res.status === 409) {
+          setNameError(t("nameTaken"));
+          return;
+        }
+      } catch {
+        // Network error — allow proceed, server will re-check
+      } finally {
+        setCheckingName(false);
       }
       setNameError("");
     }
@@ -257,6 +286,63 @@ export function AdoptWizard({
 
   const handleDeploy = useCallback(async () => {
     if (!template) return;
+    if (!walletSignMessage) {
+      setPaymentError("Wallet does not support message signing");
+      return;
+    }
+    setPaymentError(null);
+
+    let txSignature: string | undefined;
+
+    // --- Payment flow (wallet signing) ---
+    if (needsPayment) {
+      if (!signTransaction) {
+        setPaymentError(t("walletNotConnected"));
+        return;
+      }
+
+      const amountUsd = paymentToken === "SKR" ? 9.0 : 10.0;
+
+      try {
+        // 1. Build transaction
+        setPaymentPhase("building");
+        const { transaction } = await buildSubscriptionPaymentTx({
+          connection,
+          payer: new PublicKey(walletAddress),
+          amountUsd,
+          paymentToken,
+        });
+
+        // 2. Sign with wallet
+        setPaymentPhase("signing");
+        const signed = await signTransaction(transaction);
+
+        // 3. Send directly via RPC (bypass Jupiter broadcast API)
+        setPaymentPhase("confirming");
+        const signature = await connection.sendRawTransaction(
+          signed.serialize(),
+          { skipPreflight: false, maxRetries: 3 }
+        );
+
+        // 4. Confirm
+        const { blockhash, lastValidBlockHeight } =
+          await connection.getLatestBlockhash("confirmed");
+        await connection.confirmTransaction(
+          { signature, blockhash, lastValidBlockHeight },
+          "confirmed"
+        );
+
+        txSignature = signature;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setPaymentError(message);
+        setPaymentPhase("idle");
+        return;
+      }
+    }
+
+    // --- Create agent ---
+    setPaymentPhase("creating");
     const outlook = AGENT_TEMPLATES[template].defaultOutlook;
     const agentId = await mutate({
       walletAddress,
@@ -267,31 +353,51 @@ export function AdoptWizard({
       directives: directives.trim() || undefined,
       watchlist: watchlistTags.length > 0 ? watchlistTags : undefined,
       alpha: alpha.trim() || undefined,
+      signMessage: walletSignMessage,
       ...(needsPayment
         ? {
             paymentToken,
-            txSignature: "pending_" + Date.now(),
+            txSignature,
           }
         : {}),
     });
+
+    setPaymentPhase("idle");
+
     if (agentId) {
       onSuccess?.(agentId);
       handleOpenChange(false);
     }
   }, [
     template,
-    mutate,
+    needsPayment,
+    signTransaction,
+    walletSignMessage,
+    connection,
     walletAddress,
+    paymentToken,
+    mutate,
     name,
     llm,
     directives,
     watchlistTags,
     alpha,
-    needsPayment,
-    paymentToken,
+    t,
     onSuccess,
     handleOpenChange,
   ]);
+
+  const phaseLabel = (() => {
+    switch (paymentPhase) {
+      case "building": return tCommon("txPending");
+      case "signing": return t("signing");
+      case "confirming": return t("confirming");
+      case "creating": return t("deploying");
+      default: return null;
+    }
+  })();
+
+  const displayError = paymentError ?? error;
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -570,6 +676,7 @@ export function AdoptWizard({
                 <button
                   type="button"
                   onClick={() => setPaymentToken("USDC")}
+                  disabled={isBusy}
                   className={`w-full flex items-center gap-3 rounded-xl border p-4 transition-all ${
                     paymentToken === "USDC"
                       ? "border-primary bg-primary/10 ring-1 ring-primary"
@@ -583,13 +690,14 @@ export function AdoptWizard({
                     <p className="text-sm font-semibold text-foreground">
                       {t("payUsdc")}
                     </p>
-                    <p className="text-xs text-muted-foreground">$10.00 / mo</p>
+                    <p className="text-xs text-muted-foreground">$10.00 {tCommon("perMonth")}</p>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setPaymentToken("SKR")}
+                  disabled={isBusy}
                   className={`w-full flex items-center gap-3 rounded-xl border p-4 transition-all ${
                     paymentToken === "SKR"
                       ? "border-primary bg-primary/10 ring-1 ring-primary"
@@ -603,11 +711,32 @@ export function AdoptWizard({
                     <p className="text-sm font-semibold text-foreground">
                       {t("paySkr")}
                     </p>
-                    <p className="text-xs text-muted-foreground">$9.00 / mo</p>
+                    <p className="text-xs text-muted-foreground">$9.00 {tCommon("perMonth")}</p>
                   </div>
                   <span className="rounded-full bg-bullish/10 px-2 py-0.5 text-[10px] font-bold text-bullish">
                     {t("skrDiscount")}
                   </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentToken("SOL")}
+                  disabled={isBusy}
+                  className={`w-full flex items-center gap-3 rounded-xl border p-4 transition-all ${
+                    paymentToken === "SOL"
+                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                      : "border-border hover:border-muted-foreground/50"
+                  }`}
+                >
+                  <div className="size-10 rounded-lg bg-gradient-to-br from-[#9945FF]/20 to-[#14F195]/20 flex items-center justify-center font-bold text-sm" aria-hidden="true">
+                    <span className="bg-gradient-to-r from-[#9945FF] to-[#14F195] bg-clip-text text-transparent">◎</span>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold text-foreground">
+                      {t("paySol")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">$10.00 {tCommon("perMonth")}</p>
+                  </div>
                 </button>
               </div>
             </div>
@@ -615,10 +744,10 @@ export function AdoptWizard({
         </div>
 
         {/* Error display */}
-        {error && (
+        {displayError && (
           <div className="flex-shrink-0 px-4">
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
-              <p className="text-xs text-destructive">{error}</p>
+              <p className="text-xs text-destructive">{displayError}</p>
             </div>
           </div>
         )}
@@ -630,7 +759,7 @@ export function AdoptWizard({
               <Button
                 variant="outline"
                 onClick={handleBack}
-                disabled={loading}
+                disabled={isBusy}
                 className="flex-1"
               >
                 {t("back")}
@@ -647,13 +776,13 @@ export function AdoptWizard({
             ) : (
               <Button
                 onClick={handleDeploy}
-                disabled={loading}
+                disabled={isBusy}
                 className="flex-1"
               >
-                {loading ? (
+                {isBusy ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    {t("deploying")}
+                    {phaseLabel ?? t("deploying")}
                   </>
                 ) : (
                   needsPayment ? t("payAndCreate") : t("deploy")

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { badRequest, notFound, internalError } from "@/lib/api/errors";
+import { badRequest, internalError } from "@/lib/api/errors";
+import { verifyAgentOwnership } from "@/lib/api/verify-ownership";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ interface SubscribeBody {
   walletAddress: string;
   paymentToken: "USDC" | "SKR";
   txSignature?: string;
+  message?: string;
+  signature?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -23,26 +26,20 @@ export async function POST(request: NextRequest) {
     return badRequest("agentId, walletAddress, and paymentToken are required");
   }
 
-  if (body.paymentToken !== "USDC" && body.paymentToken !== "SKR") {
-    return badRequest("paymentToken must be USDC or SKR");
+  if (body.paymentToken !== "USDC" && body.paymentToken !== "SKR" && body.paymentToken !== "SOL") {
+    return badRequest("paymentToken must be USDC, SKR, or SOL");
   }
+
+  // Verify wallet ownership via signature
+  const { error: authError } = await verifyAgentOwnership(
+    body.agentId,
+    "subscribe",
+    body.message,
+    body.signature
+  );
+  if (authError) return authError;
 
   const supabase = createAdminClient();
-
-  // Verify agent exists and wallet matches
-  const { data: agent, error: agentError } = await supabase
-    .from("agents")
-    .select("id, owner_wallet, is_paused")
-    .eq("id", body.agentId)
-    .single();
-
-  if (agentError || !agent) {
-    return notFound("Agent not found");
-  }
-
-  if (agent.owner_wallet !== body.walletAddress) {
-    return badRequest("Wallet mismatch");
-  }
 
   // Check for existing active subscription
   const { data: existingSub } = await supabase
@@ -80,7 +77,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Unpause agent if paused
-  if (agent.is_paused) {
+  const { data: agent } = await supabase
+    .from("agents")
+    .select("is_paused")
+    .eq("id", body.agentId)
+    .single();
+
+  if (agent?.is_paused) {
     await supabase
       .from("agents")
       .update({ is_paused: false })

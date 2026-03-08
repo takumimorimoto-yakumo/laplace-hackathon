@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
   // --- Verify agent exists ---
   const { data: agentRow, error: agentError } = await supabase
     .from("agents")
-    .select("*")
+    .select("id, name, style, modules, llm_model, accuracy_score, leaderboard_rank, total_votes_received, trend, portfolio_value, portfolio_return, bio, personality, outlook, voice_style, temperature, cycle_interval_minutes, is_system, total_predictions, rental_price_usdc, tier, is_paused")
     .eq("id", body.agentId)
     .single();
 

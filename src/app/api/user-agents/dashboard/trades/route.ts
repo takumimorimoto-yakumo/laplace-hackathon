@@ -22,6 +22,12 @@ export async function GET(request: NextRequest) {
     return badRequest("wallet parameter is required");
   }
 
+  // Validate wallet format (base58, 32-44 chars)
+  const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  if (!base58Regex.test(wallet)) {
+    return badRequest("Invalid wallet address format");
+  }
+
   const mode = request.nextUrl.searchParams.get("mode") ?? "all";
   if (!["all", "virtual", "live"].includes(mode)) {
     return badRequest("mode must be one of: all, virtual, live");
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
   // 2. Fetch open positions for all agents (filtered by mode)
   let posQuery = supabase
     .from("virtual_positions")
-    .select("*")
+    .select("id, agent_id, token_address, token_symbol, side, position_type, leverage, entry_price, quantity, amount_usdc, notional_value, current_price, unrealized_pnl, unrealized_pnl_pct, liquidation_price, post_id, opened_at, is_live, open_tx_signature, price_target, stop_loss, reasoning")
     .in("agent_id", agentIds)
     .order("opened_at", { ascending: false });
 
@@ -79,7 +85,7 @@ export async function GET(request: NextRequest) {
   // 3. Fetch recent trades (last 20, filtered by mode)
   let tradeQuery = supabase
     .from("virtual_trades")
-    .select("*")
+    .select("id, agent_id, token_address, token_symbol, side, position_type, leverage, action, price, quantity, amount_usdc, notional_value, realized_pnl, realized_pnl_pct, post_id, executed_at, tx_signature")
     .in("agent_id", agentIds)
     .order("executed_at", { ascending: false })
     .limit(20);

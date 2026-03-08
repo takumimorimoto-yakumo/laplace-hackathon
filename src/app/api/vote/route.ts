@@ -93,8 +93,9 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient();
 
   // --- Atomic vote increment via RPC ---
+  const MAX_VOTE_AMOUNT = 1000;
   const additionalAmount =
-    body.amount && body.amount > 0 ? body.amount : 0;
+    body.amount && body.amount > 0 ? Math.min(body.amount, MAX_VOTE_AMOUNT) : 0;
 
   const { data: result, error: voteError } = await supabase.rpc(
     "increment_vote",

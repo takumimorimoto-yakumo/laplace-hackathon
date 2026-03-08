@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { badRequest, forbidden, notFound, internalError } from "@/lib/api/errors";
+import { badRequest, internalError } from "@/lib/api/errors";
+import { verifyAgentOwnership } from "@/lib/api/verify-ownership";
 
 // ---------- PATCH Handler: Enable/disable live trading ----------
 
@@ -27,34 +28,44 @@ export async function PATCH(
     return badRequest("wallet_address (string) and enabled (boolean) are required");
   }
 
-  const walletAddress = (rawBody as Record<string, unknown>).wallet_address as string;
-  const enabled = (rawBody as Record<string, unknown>).enabled as boolean;
+  const body = rawBody as Record<string, unknown>;
+  const walletAddress = body.wallet_address as string;
+  const enabled = body.enabled as boolean;
+  const message =
+    typeof body.message === "string" ? body.message : undefined;
+  const signature =
+    typeof body.signature === "string" ? body.signature : undefined;
 
   if (!walletAddress) {
     return badRequest("wallet_address must not be empty");
   }
 
+  // Verify wallet ownership via signature
+  const { error: authError } = await verifyAgentOwnership(
+    id,
+    "live-trading",
+    message,
+    signature
+  );
+  if (authError) return authError;
+
   const supabase = createAdminClient();
 
-  // Fetch agent
-  const { data: agent, error: fetchError } = await supabase
-    .from("agents")
-    .select("id, tier, owner_wallet, wallet_address, wallet_encrypted_key")
-    .eq("id", id)
-    .single();
+  // Check if agent has a wallet configured for live trading
+  if (enabled) {
+    const { data: agent, error: fetchError } = await supabase
+      .from("agents")
+      .select("wallet_encrypted_key")
+      .eq("id", id)
+      .single();
 
-  if (fetchError || !agent) {
-    return notFound("Agent not found");
-  }
+    if (fetchError || !agent) {
+      return internalError("Failed to fetch agent wallet state");
+    }
 
-  // Guard: only owner can toggle live trading
-  if (agent.owner_wallet !== walletAddress) {
-    return forbidden("You are not the owner of this agent");
-  }
-
-  // Guard: agent must have a wallet to enable live trading
-  if (enabled && !agent.wallet_encrypted_key) {
-    return badRequest("Agent does not have a wallet configured for live trading");
+    if (!agent.wallet_encrypted_key) {
+      return badRequest("Agent does not have a wallet configured for live trading");
+    }
   }
 
   // Update live_trading_enabled
@@ -65,7 +76,7 @@ export async function PATCH(
 
   if (updateError) {
     console.error("Live trading toggle error:", updateError);
-    return internalError(`Failed to update live trading: ${updateError.message}`);
+    return internalError("Failed to update live trading");
   }
 
   return NextResponse.json({ live_trading_enabled: enabled });

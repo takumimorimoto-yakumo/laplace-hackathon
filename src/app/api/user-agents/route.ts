@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { badRequest, conflict, internalError } from "@/lib/api/errors";
+import { verifyWalletForCreation } from "@/lib/api/verify-ownership";
 import { getTemplateConfig, AVAILABLE_LLMS } from "@/lib/agents/templates";
 import { generateAgentWallet } from "@/lib/solana/agent-wallet";
 import type {
@@ -29,7 +30,7 @@ const VALID_OUTLOOKS: InvestmentOutlook[] = [
   "ultra_bearish",
 ];
 
-const VALID_PAYMENT_TOKENS = ["USDC", "SKR"] as const;
+const VALID_PAYMENT_TOKENS = ["USDC", "SKR", "SOL"] as const;
 
 interface CreateUserAgentBody {
   name: string;
@@ -41,7 +42,9 @@ interface CreateUserAgentBody {
   watchlist?: string[];
   alpha?: string;
   tx_signature?: string;
-  payment_token?: "USDC" | "SKR";
+  payment_token?: "USDC" | "SKR" | "SOL";
+  message?: string;
+  signature?: string;
 }
 
 function validateBody(
@@ -126,7 +129,7 @@ function validateBody(
   if (
     b.payment_token !== undefined &&
     (typeof b.payment_token !== "string" ||
-      !VALID_PAYMENT_TOKENS.includes(b.payment_token as "USDC" | "SKR"))
+      !VALID_PAYMENT_TOKENS.includes(b.payment_token as "USDC" | "SKR" | "SOL"))
   ) {
     errors.push(`payment_token must be one of: ${VALID_PAYMENT_TOKENS.join(", ")}`);
   }
@@ -134,6 +137,16 @@ function validateBody(
   // tx_signature: optional string
   if (b.tx_signature !== undefined && typeof b.tx_signature !== "string") {
     errors.push("tx_signature must be a string");
+  }
+
+  // message: optional string (for wallet signature auth)
+  if (b.message !== undefined && typeof b.message !== "string") {
+    errors.push("message must be a string");
+  }
+
+  // signature: optional string (for wallet signature auth)
+  if (b.signature !== undefined && typeof b.signature !== "string") {
+    errors.push("signature must be a string");
   }
 
   if (errors.length > 0) {
@@ -151,7 +164,9 @@ function validateBody(
       watchlist: b.watchlist as string[] | undefined,
       alpha: b.alpha as string | undefined,
       tx_signature: b.tx_signature as string | undefined,
-      payment_token: b.payment_token as "USDC" | "SKR" | undefined,
+      payment_token: b.payment_token as "USDC" | "SKR" | "SOL" | undefined,
+      message: b.message as string | undefined,
+      signature: b.signature as string | undefined,
     },
     errors: null,
   };
@@ -173,6 +188,14 @@ export async function POST(request: NextRequest) {
   if (validation.errors) {
     return badRequest("Validation failed", validation.errors);
   }
+
+  // Verify wallet ownership via signature
+  const creationError = verifyWalletForCreation(
+    validation.data.wallet_address,
+    validation.data.message,
+    validation.data.signature
+  );
+  if (creationError) return creationError;
 
   const {
     name,
@@ -216,7 +239,7 @@ export async function POST(request: NextRequest) {
     return internalError("Failed to check agent count");
   }
 
-  const isLocal = request.headers.get("host")?.startsWith("localhost") ?? false;
+  const isLocal = process.env.NODE_ENV === "development";
   const isFree = !isLocal && (activeAgentCount ?? 0) === 0;
 
   if (!isFree) {
@@ -272,8 +295,7 @@ export async function POST(request: NextRequest) {
 
   if (agentError || !agent) {
     console.error("User agent creation error:", agentError);
-    const detail = agentError?.message ?? "Unknown database error";
-    return internalError(`Failed to create agent: ${detail}`);
+    return internalError("Failed to create agent");
   }
 
   // Create virtual portfolio (zero-start)
@@ -292,8 +314,7 @@ export async function POST(request: NextRequest) {
     console.error("Virtual portfolio creation error:", portfolioError);
     // Rollback: delete the agent
     await supabase.from("agents").delete().eq("id", agent.id);
-    const detail = portfolioError.message ?? "Unknown database error";
-    return internalError(`Failed to create virtual portfolio: ${detail}`);
+    return internalError("Failed to create virtual portfolio");
   }
 
   // Create subscription record for non-free agents

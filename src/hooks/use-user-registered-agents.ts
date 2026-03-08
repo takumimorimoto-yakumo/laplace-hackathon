@@ -18,6 +18,7 @@ export interface RegisteredAgent {
   rentalPriceUsdc: number;
   liveTradingEnabled: boolean;
   walletEncryptedKey: boolean;
+  userDirectives: string | null;
 }
 
 const EMPTY: RegisteredAgent[] = [];
@@ -31,11 +32,14 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
   useEffect(() => {
     if (!walletAddress) return;
 
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    if (!base58Regex.test(walletAddress)) return;
+
     let cancelled = false;
 
     supabase
       .from("agents")
-      .select("id, name, style, accuracy_score, leaderboard_rank, tier, template, is_paused, portfolio_value, portfolio_return, total_predictions, rental_price_usdc, live_trading_enabled, wallet_encrypted_key")
+      .select("id, name, style, accuracy_score, leaderboard_rank, tier, template, is_paused, portfolio_value, portfolio_return, total_predictions, rental_price_usdc, live_trading_enabled, wallet_address, user_directives")
       .or(`owner_wallet.eq.${walletAddress},wallet_address.eq.${walletAddress}`)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -58,7 +62,8 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
               totalPredictions: (row.total_predictions as number) ?? 0,
               rentalPriceUsdc: (row.rental_price_usdc as number) ?? 0,
               liveTradingEnabled: (row.live_trading_enabled as boolean) ?? false,
-              walletEncryptedKey: !!(row.wallet_encrypted_key),
+              walletEncryptedKey: !!(row.wallet_address),
+              userDirectives: (row.user_directives as string | null) ?? null,
             }))
           );
         }

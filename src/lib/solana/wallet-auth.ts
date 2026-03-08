@@ -67,3 +67,34 @@ export function isValidNonce(nonce: string): boolean {
   const age = Date.now() - ts;
   return age >= 0 && age <= NONCE_VALIDITY_MS;
 }
+
+/** Build a general action authorization message. */
+export function buildActionMessage(params: {
+  agentId: string;
+  action: string;
+  nonce: string;
+}): string {
+  return [
+    "Laplace Action Authorization",
+    `Agent: ${params.agentId}`,
+    `Action: ${params.action}`,
+    `Nonce: ${params.nonce}`,
+  ].join("\n");
+}
+
+/** Parse fields from an action authorization message. Returns null if invalid. */
+export function parseActionMessage(
+  message: string
+): { agentId: string; action: string; nonce: string } | null {
+  const lines = message.split("\n");
+  if (lines.length < 4 || lines[0] !== "Laplace Action Authorization") {
+    return null;
+  }
+
+  const agentId = lines[1]?.replace("Agent: ", "");
+  const action = lines[2]?.replace("Action: ", "");
+  const nonce = lines[3]?.replace("Nonce: ", "");
+
+  if (!agentId || !action || !nonce) return null;
+  return { agentId, action, nonce };
+}

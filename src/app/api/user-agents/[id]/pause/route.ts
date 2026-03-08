@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { badRequest, forbidden, notFound, internalError } from "@/lib/api/errors";
+import { badRequest, internalError } from "@/lib/api/errors";
+import { verifyAgentOwnership } from "@/lib/api/verify-ownership";
 
 // ---------- POST Handler ----------
 
@@ -27,28 +28,31 @@ export async function POST(
     return badRequest("wallet_address is required");
   }
 
-  const walletAddress = (rawBody as Record<string, unknown>)
-    .wallet_address as string;
+  const body = rawBody as Record<string, unknown>;
+  const message =
+    typeof body.message === "string" ? body.message : undefined;
+  const signature =
+    typeof body.signature === "string" ? body.signature : undefined;
 
+  // Verify wallet ownership via signature
+  const { error: authError } = await verifyAgentOwnership(
+    id,
+    "pause",
+    message,
+    signature
+  );
+  if (authError) return authError;
+
+  // Fetch current pause state
   const supabase = createAdminClient();
-
-  // Fetch agent and verify ownership
   const { data: agent, error: fetchError } = await supabase
     .from("agents")
-    .select("id, tier, owner_wallet, is_paused")
+    .select("is_paused")
     .eq("id", id)
     .single();
 
   if (fetchError || !agent) {
-    return notFound("Agent not found");
-  }
-
-  if (agent.tier !== "user") {
-    return forbidden("Only user-tier agents can be paused");
-  }
-
-  if (agent.owner_wallet !== walletAddress) {
-    return forbidden("You are not the owner of this agent");
+    return internalError("Failed to fetch agent state");
   }
 
   // Toggle is_paused
@@ -61,8 +65,7 @@ export async function POST(
 
   if (updateError) {
     console.error("User agent pause toggle error:", updateError);
-    const detail = updateError.message ?? "Unknown database error";
-    return internalError(`Failed to toggle pause: ${detail}`);
+    return internalError("Failed to toggle pause");
   }
 
   return NextResponse.json({ is_paused: newPausedState });

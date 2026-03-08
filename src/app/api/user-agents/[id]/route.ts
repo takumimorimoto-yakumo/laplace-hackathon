@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { badRequest, forbidden, notFound, internalError } from "@/lib/api/errors";
+import { badRequest, internalError } from "@/lib/api/errors";
+import { verifyAgentOwnership } from "@/lib/api/verify-ownership";
 import type { InvestmentOutlook } from "@/lib/types";
 
 // ---------- Validation ----------
@@ -18,6 +19,8 @@ interface UpdateUserAgentBody {
   watchlist?: string[];
   alpha?: string;
   outlook?: InvestmentOutlook;
+  message?: string;
+  signature?: string;
 }
 
 function validateUpdateBody(
@@ -31,7 +34,7 @@ function validateUpdateBody(
 
   const b = body as Record<string, unknown>;
 
-  // wallet_address: required for ownership check
+  // wallet_address: required for backwards compatibility
   if (typeof b.wallet_address !== "string" || b.wallet_address.length === 0) {
     errors.push("wallet_address is required");
   }
@@ -72,6 +75,16 @@ function validateUpdateBody(
     );
   }
 
+  // message: optional string (for wallet signature auth)
+  if (b.message !== undefined && typeof b.message !== "string") {
+    errors.push("message must be a string");
+  }
+
+  // signature: optional string (for wallet signature auth)
+  if (b.signature !== undefined && typeof b.signature !== "string") {
+    errors.push("signature must be a string");
+  }
+
   if (errors.length > 0) {
     return { data: null, errors };
   }
@@ -83,6 +96,8 @@ function validateUpdateBody(
       watchlist: b.watchlist as string[] | undefined,
       alpha: b.alpha as string | undefined,
       outlook: b.outlook as InvestmentOutlook | undefined,
+      message: b.message as string | undefined,
+      signature: b.signature as string | undefined,
     },
     errors: null,
   };
@@ -110,29 +125,16 @@ export async function PATCH(
     return badRequest("Validation failed", validation.errors);
   }
 
-  const { wallet_address, directives, watchlist, alpha, outlook } =
-    validation.data;
+  // Verify wallet ownership via signature
+  const { error: authError } = await verifyAgentOwnership(
+    id,
+    "update",
+    validation.data.message,
+    validation.data.signature
+  );
+  if (authError) return authError;
 
-  const supabase = createAdminClient();
-
-  // Fetch agent and verify ownership
-  const { data: agent, error: fetchError } = await supabase
-    .from("agents")
-    .select("id, tier, owner_wallet")
-    .eq("id", id)
-    .single();
-
-  if (fetchError || !agent) {
-    return notFound("Agent not found");
-  }
-
-  if (agent.tier !== "user") {
-    return forbidden("Only user-tier agents can be updated");
-  }
-
-  if (agent.owner_wallet !== wallet_address) {
-    return forbidden("You are not the owner of this agent");
-  }
+  const { directives, watchlist, alpha, outlook } = validation.data;
 
   // Build update object with only provided fields
   const updateRow: Record<string, unknown> = {};
@@ -153,6 +155,8 @@ export async function PATCH(
     return badRequest("No fields to update");
   }
 
+  const supabase = createAdminClient();
+
   const { data: updated, error: updateError } = await supabase
     .from("agents")
     .update(updateRow)
@@ -162,8 +166,7 @@ export async function PATCH(
 
   if (updateError || !updated) {
     console.error("User agent update error:", updateError);
-    const detail = updateError?.message ?? "Unknown database error";
-    return internalError(`Failed to update agent: ${detail}`);
+    return internalError("Failed to update agent");
   }
 
   return NextResponse.json(updated);
@@ -177,8 +180,10 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
-  // Get wallet_address from query params or body
+  // Get wallet_address, message, and signature from query params or body
   let walletAddress: string | null = null;
+  let message: string | undefined;
+  let signature: string | undefined;
 
   // Try query params first
   const url = new URL(request.url);
@@ -191,6 +196,12 @@ export async function DELETE(
       if (typeof body.wallet_address === "string") {
         walletAddress = body.wallet_address;
       }
+      if (typeof body.message === "string") {
+        message = body.message;
+      }
+      if (typeof body.signature === "string") {
+        signature = body.signature;
+      }
     } catch {
       // No body — that's fine if wallet_address was in query params
     }
@@ -200,38 +211,27 @@ export async function DELETE(
     return badRequest("wallet_address is required");
   }
 
+  // Verify wallet ownership via signature
+  const { error: authError } = await verifyAgentOwnership(
+    id,
+    "delete",
+    message,
+    signature
+  );
+  if (authError) return authError;
+
   const supabase = createAdminClient();
 
-  // Fetch agent and verify ownership
-  const { data: agent, error: fetchError } = await supabase
+  // Hard delete: remove agent and all related data (FK CASCADE)
+  const { error: deleteError } = await supabase
     .from("agents")
-    .select("id, tier, owner_wallet")
-    .eq("id", id)
-    .single();
-
-  if (fetchError || !agent) {
-    return notFound("Agent not found");
-  }
-
-  if (agent.tier !== "user") {
-    return forbidden("Only user-tier agents can be retired");
-  }
-
-  if (agent.owner_wallet !== walletAddress) {
-    return forbidden("You are not the owner of this agent");
-  }
-
-  // Soft delete: set is_active = false
-  const { error: updateError } = await supabase
-    .from("agents")
-    .update({ is_active: false })
+    .delete()
     .eq("id", id);
 
-  if (updateError) {
-    console.error("User agent retire error:", updateError);
-    const detail = updateError.message ?? "Unknown database error";
-    return internalError(`Failed to retire agent: ${detail}`);
+  if (deleteError) {
+    console.error("User agent delete error:", deleteError);
+    return internalError("Failed to delete agent");
   }
 
-  return NextResponse.json({ message: "Agent retired successfully" });
+  return NextResponse.json({ message: "Agent deleted successfully" });
 }

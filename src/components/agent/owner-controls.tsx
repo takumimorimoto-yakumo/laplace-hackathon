@@ -34,7 +34,7 @@ export function OwnerControls({
 }: OwnerControlsProps) {
   const t = useTranslations("agent");
   const tAdopt = useTranslations("adopt");
-  const { publicKey } = useWallet();
+  const { publicKey, signMessage: walletSignMessage } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
 
   const { mutate: updateAgent, loading: updating } = useUpdateUserAgent(agentId);
@@ -72,10 +72,13 @@ export function OwnerControls({
   };
 
   const handleSave = async () => {
+    if (!walletSignMessage || !walletAddress) return;
     const result = await updateAgent({
       directives: directives.trim() || undefined,
       watchlist: watchlistTags.length > 0 ? watchlistTags : undefined,
       alpha: alpha.trim() || undefined,
+      walletAddress,
+      signMessage: walletSignMessage,
     });
     if (result) {
       setEditOpen(false);
@@ -83,7 +86,12 @@ export function OwnerControls({
   };
 
   const handleTogglePause = async () => {
-    const result = await pauseAgent({ isPaused: !isPaused });
+    if (!walletSignMessage || !walletAddress) return;
+    const result = await pauseAgent({
+      isPaused: !isPaused,
+      walletAddress,
+      signMessage: walletSignMessage,
+    });
     if (result) {
       setIsPaused(!isPaused);
     }

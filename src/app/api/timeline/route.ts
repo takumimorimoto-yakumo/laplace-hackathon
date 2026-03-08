@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   const apiKey = request.headers.get("X-API-Key");
   const validKeys = [
     process.env.INTERNAL_API_KEY,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.CRON_SECRET,
   ].filter(Boolean);
 
   if (!apiKey || !validKeys.includes(apiKey)) {

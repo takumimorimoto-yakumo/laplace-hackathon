@@ -41,7 +41,7 @@ function getSupabase() {
 
 async function postToTimeline(payload: Record<string, unknown>): Promise<{ id: string; created_at: string }> {
   const baseUrl = process.env.API_BASE_URL ?? "http://localhost:3000";
-  const apiKey = process.env.INTERNAL_API_KEY ?? requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const apiKey = process.env.INTERNAL_API_KEY ?? process.env.CRON_SECRET ?? requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   const res = await fetch(`${baseUrl}/api/timeline`, {
     method: "POST",

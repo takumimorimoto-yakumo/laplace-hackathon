@@ -7,6 +7,7 @@ import type {
   InvestmentOutlook,
   LLMModel,
 } from "@/lib/types";
+import { signAction } from "@/lib/solana/sign-action";
 
 interface MutationState<T> {
   mutate: (data: T) => Promise<string | null>;
@@ -24,17 +25,22 @@ interface AdoptAgentData {
   watchlist?: string[];
   alpha?: string;
   txSignature?: string;
-  paymentToken?: "USDC" | "SKR";
+  paymentToken?: "USDC" | "SKR" | "SOL";
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>;
 }
 
 interface UpdateAgentData {
   directives?: string;
   watchlist?: string[];
   alpha?: string;
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>;
+  walletAddress: string;
 }
 
 interface PauseAgentData {
   isPaused: boolean;
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>;
+  walletAddress: string;
 }
 
 export function useAdoptAgent(): MutationState<AdoptAgentData> {
@@ -45,6 +51,7 @@ export function useAdoptAgent(): MutationState<AdoptAgentData> {
     setLoading(true);
     setError(null);
     try {
+      const { message, signature } = await signAction("new", "create", data.signMessage);
       const res = await fetch("/api/user-agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,6 +66,8 @@ export function useAdoptAgent(): MutationState<AdoptAgentData> {
           alpha: data.alpha,
           tx_signature: data.txSignature,
           payment_token: data.paymentToken,
+          message,
+          signature,
         }),
       });
       if (!res.ok) {
@@ -89,10 +98,18 @@ export function useUpdateUserAgent(id: string): MutationState<UpdateAgentData> {
     setLoading(true);
     setError(null);
     try {
+      const { message, signature } = await signAction(id, "update", data.signMessage);
       const res = await fetch(`/api/user-agents/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          directives: data.directives,
+          watchlist: data.watchlist,
+          alpha: data.alpha,
+          wallet_address: data.walletAddress,
+          message,
+          signature,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "Unknown error" }));
@@ -121,10 +138,16 @@ export function usePauseUserAgent(id: string): MutationState<PauseAgentData> {
     setLoading(true);
     setError(null);
     try {
+      const { message, signature } = await signAction(id, "pause", data.signMessage);
       const res = await fetch(`/api/user-agents/${id}/pause`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          isPaused: data.isPaused,
+          wallet_address: data.walletAddress,
+          message,
+          signature,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "Unknown error" }));
@@ -201,6 +224,7 @@ interface SubscribeAgentData {
   walletAddress: string;
   paymentToken: "USDC" | "SKR";
   txSignature?: string;
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>;
 }
 
 export function useSubscribeAgent(): MutationState<SubscribeAgentData> {
@@ -212,10 +236,18 @@ export function useSubscribeAgent(): MutationState<SubscribeAgentData> {
       setLoading(true);
       setError(null);
       try {
+        const { message, signature } = await signAction(data.agentId, "subscribe", data.signMessage);
         const res = await fetch("/api/user-agents/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify({
+            agentId: data.agentId,
+            walletAddress: data.walletAddress,
+            paymentToken: data.paymentToken,
+            txSignature: data.txSignature,
+            message,
+            signature,
+          }),
         });
         if (!res.ok) {
           const body = await res

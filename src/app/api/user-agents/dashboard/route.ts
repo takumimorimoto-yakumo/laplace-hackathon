@@ -17,6 +17,12 @@ export async function GET(request: NextRequest) {
     return badRequest("wallet parameter is required");
   }
 
+  // Validate wallet format (base58, 32-44 chars)
+  const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  if (!base58Regex.test(wallet)) {
+    return badRequest("Invalid wallet address format");
+  }
+
   const supabase = createAdminClient();
 
   // 1. Get all agents owned by this wallet

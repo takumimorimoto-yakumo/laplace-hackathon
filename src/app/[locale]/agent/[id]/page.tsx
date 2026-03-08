@@ -22,6 +22,8 @@ import {
   fetchAccuracySnapshots,
   fetchResolvedPredictions,
 } from "@/lib/supabase/queries";
+import { fetchCachedToken, fetchCachedTokenBySymbol } from "@/lib/supabase/token-cache";
+import type { MarketToken } from "@/lib/types";
 
 interface AgentPageProps {
   params: Promise<{ locale: string; id: string }>;
@@ -110,6 +112,22 @@ export default async function AgentProfilePage({
       fetchAccuracySnapshots(agent.id),
       fetchResolvedPredictions(agent.id),
     ]);
+
+  // Fetch token data for positions (for entry-point charts)
+  // Try by address first, fall back to symbol lookup if not found
+  const positionTokens = [...new Map(positions.map((p) => [p.tokenAddress, p.tokenSymbol])).entries()];
+  const tokenResults = await Promise.all(
+    positionTokens.map(async ([addr, symbol]) => {
+      const byAddr = await fetchCachedToken(addr);
+      if (byAddr) return { addr, token: byAddr };
+      const bySym = await fetchCachedTokenBySymbol(symbol);
+      return { addr, token: bySym };
+    })
+  );
+  const tokenDataMap: Record<string, MarketToken> = {};
+  for (const { addr, token } of tokenResults) {
+    if (token) tokenDataMap[addr] = token;
+  }
 
   // Fallback: if no snapshots exist but agent has portfolio data,
   // generate a minimal 2-point chart (initial → current)
@@ -266,6 +284,7 @@ export default async function AgentProfilePage({
         locale={locale}
         plan={plan}
         ownerWallet={agent.ownerWallet}
+        tokenDataMap={tokenDataMap}
       />
     </AppShell>
   );

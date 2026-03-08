@@ -14,8 +14,6 @@ import { DashboardSummary } from "@/components/me/dashboard-summary";
 import { AgentCard } from "@/components/me/agent-card";
 import { AgentSortFilter } from "@/components/me/agent-sort-filter";
 import type { SortField, FilterStatus } from "@/components/me/agent-sort-filter";
-import { EarningsOverview } from "@/components/me/earnings-overview";
-import { LendingSection } from "@/components/me/lending-section";
 import { WalletButton } from "@/components/wallet/wallet-button";
 import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
 import { useSolBalance } from "@/hooks/use-sol-balance";
@@ -360,14 +358,18 @@ export default function MePage() {
 
             {/* Tab 1: Dashboard */}
             <TabsContent value="dashboard" className="pt-4 pb-20">
-              {/* Dashboard Summary */}
-              <DashboardSummary data={dashboardData} loading={dashboardLoading} positions={positions} trades={trades} tradesLoading={tradesLoading} />
-
-              {/* Earnings Overview */}
-              <EarningsOverview data={dashboardData} loading={dashboardLoading} />
-
-              {/* Lending Out */}
-              <LendingSection lentAgents={lentAgents} loading={lentLoading} />
+              <DashboardSummary
+                dashboardData={dashboardData}
+                registeredAgents={registeredAgents}
+                positions={positions}
+                trades={trades}
+                lentAgents={lentAgents}
+                loading={dashboardLoading}
+                tradesLoading={tradesLoading}
+                lentLoading={lentLoading}
+                walletAddress={walletAddress!}
+                onAgentUpdated={() => window.location.reload()}
+              />
             </TabsContent>
 
             {/* Tab 2: Activity */}

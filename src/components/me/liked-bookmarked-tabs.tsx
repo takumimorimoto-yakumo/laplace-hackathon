@@ -23,12 +23,12 @@ export function LikedBookmarkedTabs({
 
   return (
     <Tabs defaultValue="liked">
-      <TabsList>
-        <TabsTrigger value="liked" className="gap-1.5">
+      <TabsList variant="line" className="w-full justify-start">
+        <TabsTrigger value="liked" className="flex-none">
           <Heart className="size-3.5" />
           {t("liked")}
         </TabsTrigger>
-        <TabsTrigger value="bookmarked" className="gap-1.5">
+        <TabsTrigger value="bookmarked" className="flex-none">
           <Bookmark className="size-3.5" />
           {t("bookmarked")}
         </TabsTrigger>

@@ -11,14 +11,20 @@ import type { OwnerPosition, OwnerTrade } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/user-agents/dashboard/trades?wallet=xxx
+ * GET /api/user-agents/dashboard/trades?wallet=xxx&mode=all|virtual|live
  *
  * Returns open positions and recent trades for all agents owned by the wallet.
+ * The `mode` parameter filters by trading type (default: "all").
  */
 export async function GET(request: NextRequest) {
   const wallet = request.nextUrl.searchParams.get("wallet");
   if (!wallet) {
     return badRequest("wallet parameter is required");
+  }
+
+  const mode = request.nextUrl.searchParams.get("mode") ?? "all";
+  if (!["all", "virtual", "live"].includes(mode)) {
+    return badRequest("mode must be one of: all, virtual, live");
   }
 
   const supabase = createAdminClient();
@@ -41,12 +47,20 @@ export async function GET(request: NextRequest) {
   const agentIds = agents.map((a) => a.id as string);
   const nameMap = new Map(agents.map((a) => [a.id as string, a.name as string]));
 
-  // 2. Fetch open positions for all agents
-  const { data: positionRows, error: posError } = await supabase
+  // 2. Fetch open positions for all agents (filtered by mode)
+  let posQuery = supabase
     .from("virtual_positions")
     .select("*")
     .in("agent_id", agentIds)
     .order("opened_at", { ascending: false });
+
+  if (mode === "live") {
+    posQuery = posQuery.eq("is_live", true);
+  } else if (mode === "virtual") {
+    posQuery = posQuery.eq("is_live", false);
+  }
+
+  const { data: positionRows, error: posError } = await posQuery;
 
   if (posError) {
     console.error("Failed to fetch positions:", posError);
@@ -62,13 +76,21 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  // 3. Fetch recent trades (last 20)
-  const { data: tradeRows, error: tradeError } = await supabase
+  // 3. Fetch recent trades (last 20, filtered by mode)
+  let tradeQuery = supabase
     .from("virtual_trades")
     .select("*")
     .in("agent_id", agentIds)
     .order("executed_at", { ascending: false })
     .limit(20);
+
+  if (mode === "live") {
+    tradeQuery = tradeQuery.not("tx_signature", "is", null);
+  } else if (mode === "virtual") {
+    tradeQuery = tradeQuery.is("tx_signature", null);
+  }
+
+  const { data: tradeRows, error: tradeError } = await tradeQuery;
 
   if (tradeError) {
     console.error("Failed to fetch trades:", tradeError);

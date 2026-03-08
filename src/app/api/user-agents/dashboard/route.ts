@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/user-agents/dashboard?wallet=xxx
  *
- * Returns aggregated dashboard summary for an owner's agents.
+ * Returns aggregated dashboard summary for an owner's agents,
+ * with separate virtual (simulation) and live trading stats.
  */
 export async function GET(request: NextRequest) {
   const wallet = request.nextUrl.searchParams.get("wallet");
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   // 1. Get all agents owned by this wallet
   const { data: agents, error: agentsError } = await supabase
     .from("agents")
-    .select("id, name, portfolio_value, portfolio_return")
+    .select("id, name, portfolio_value, portfolio_return, live_trading_enabled")
     .or(`owner_wallet.eq.${wallet},wallet_address.eq.${wallet}`);
 
   if (agentsError) {
@@ -40,13 +41,16 @@ export async function GET(request: NextRequest) {
       pendingWithdrawals: 0,
       activeRentersCount: 0,
       agentBreakdown: [],
+      livePortfolioValue: 0,
+      liveReturn: 0,
+      livePnl: 0,
     };
     return NextResponse.json(empty);
   }
 
   const agentIds = agents.map((a) => a.id as string);
 
-  // 2. Aggregate portfolio data
+  // 2. Aggregate portfolio data (virtual — from agents table)
   const initialBalance = 10000; // Zero-start policy: each agent starts with $10,000
   let totalPortfolioValue = 0;
   let totalReturn = 0;
@@ -59,7 +63,29 @@ export async function GET(request: NextRequest) {
   }
   const averageReturn = agents.length > 0 ? totalReturn / agents.length : 0;
 
-  // 3. Aggregate earnings per agent
+  // 3. Compute live-only portfolio stats from virtual_positions
+  const { data: livePositions, error: livePosError } = await supabase
+    .from("virtual_positions")
+    .select("amount_usdc, unrealized_pnl")
+    .in("agent_id", agentIds)
+    .eq("is_live", true);
+
+  if (livePosError) {
+    console.error("Failed to fetch live positions:", livePosError);
+    return internalError("Failed to fetch live positions");
+  }
+
+  let livePortfolioValue = 0;
+  let livePnl = 0;
+  for (const pos of livePositions ?? []) {
+    const size = Number(pos.amount_usdc) || 0;
+    const pnl = Number(pos.unrealized_pnl) || 0;
+    livePortfolioValue += size + pnl;
+    livePnl += pnl;
+  }
+  const liveReturn = livePortfolioValue > 0 ? livePnl / (livePortfolioValue - livePnl) : 0;
+
+  // 4. Aggregate earnings per agent
   const { data: earningsRows, error: earningsError } = await supabase
     .from("agent_earnings")
     .select("agent_id, net_amount")
@@ -76,7 +102,7 @@ export async function GET(request: NextRequest) {
     earningsMap.set(agentId, (earningsMap.get(agentId) ?? 0) + Number(row.net_amount));
   }
 
-  // 4. Aggregate withdrawals
+  // 5. Aggregate withdrawals
   const { data: withdrawalRows, error: withdrawalError } = await supabase
     .from("agent_withdrawals")
     .select("agent_id, amount, status")
@@ -100,7 +126,7 @@ export async function GET(request: NextRequest) {
 
   const totalEarnings = Array.from(earningsMap.values()).reduce((sum, v) => sum + v, 0);
 
-  // 5. Count active renters per agent
+  // 6. Count active renters per agent
   const { data: rentalRows, error: rentalError } = await supabase
     .from("agent_rentals")
     .select("agent_id")
@@ -121,7 +147,7 @@ export async function GET(request: NextRequest) {
 
   const activeRentersCount = (rentalRows ?? []).length;
 
-  // 6. Build agent breakdown
+  // 7. Build agent breakdown
   const agentBreakdown: AgentBreakdown[] = agents.map((a) => ({
     agentId: a.id as string,
     agentName: a.name as string,
@@ -129,6 +155,7 @@ export async function GET(request: NextRequest) {
     portfolioReturn: Number(a.portfolio_return) || 0,
     earnings: earningsMap.get(a.id as string) ?? 0,
     rentersCount: rentersMap.get(a.id as string) ?? 0,
+    isLive: (a.live_trading_enabled as boolean) ?? false,
   }));
 
   const summary: OwnerDashboardSummary = {
@@ -141,6 +168,9 @@ export async function GET(request: NextRequest) {
     pendingWithdrawals,
     activeRentersCount,
     agentBreakdown,
+    livePortfolioValue,
+    liveReturn,
+    livePnl,
   };
 
   return NextResponse.json(summary);

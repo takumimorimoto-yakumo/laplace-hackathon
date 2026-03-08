@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useWallet, useUnifiedWalletContext } from "./wallet-provider";
+import { useWallet } from "./wallet-provider";
+import { WalletModal } from "./wallet-modal";
 
 interface WalletButtonProps {
   className?: string;
@@ -11,7 +13,7 @@ interface WalletButtonProps {
 
 export function WalletButton({ className }: WalletButtonProps) {
   const { connected, publicKey, disconnect } = useWallet();
-  const { setShowModal } = useUnifiedWalletContext();
+  const [showModal, setShowModal] = useState(false);
   const t = useTranslations("common");
 
   if (connected && publicKey) {
@@ -27,13 +29,16 @@ export function WalletButton({ className }: WalletButtonProps) {
   }
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className={className}
-      onClick={() => setShowModal(true)}
-    >
-      {t("connectWallet")}
-    </Button>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className={className}
+        onClick={() => setShowModal(true)}
+      >
+        {t("connectWallet")}
+      </Button>
+      <WalletModal open={showModal} onClose={() => setShowModal(false)} />
+    </>
   );
 }

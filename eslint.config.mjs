@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Utility scripts (not part of main codebase)
+    "docs/hackathon/generate-pitch-deck.js",
   ]),
 ]);
 

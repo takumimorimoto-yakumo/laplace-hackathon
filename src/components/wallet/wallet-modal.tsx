@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useWallet } from "./wallet-provider";
@@ -14,11 +14,6 @@ interface WalletModalProps {
 export function WalletModal({ open, onClose }: WalletModalProps) {
   const { wallets, select } = useWallet();
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (open) {
@@ -88,7 +83,7 @@ export function WalletModal({ open, onClose }: WalletModalProps) {
     return { installed: inst, available: avail };
   }, [uniqueWallets]);
 
-  if (!open || !mounted) return null;
+  if (!open) return null;
 
   return createPortal(
     <div

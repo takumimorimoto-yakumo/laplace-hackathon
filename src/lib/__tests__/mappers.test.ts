@@ -115,6 +115,8 @@ function makeDbPosition(
     liquidation_price: 72.75,
     post_id: "post-001",
     opened_at: "2026-03-06T08:00:00Z",
+    is_live: false,
+    open_tx_signature: null,
     ...overrides,
   };
 }
@@ -137,6 +139,7 @@ function makeDbTrade(overrides: Partial<DbVirtualTrade> = {}): DbVirtualTrade {
     realized_pnl_pct: null,
     post_id: "post-001",
     executed_at: "2026-03-06T08:00:00Z",
+    tx_signature: null,
     ...overrides,
   };
 }
@@ -505,6 +508,16 @@ describe("dbPositionToPosition", () => {
     expect(position.entryPrice).toBe(145.5);
     expect(position.currentReturn).toBe(3.09);
     expect(position.enteredAt).toBe("2026-03-06T08:00:00Z");
+    expect(position.isLive).toBe(false);
+    expect(position.txSignature).toBeUndefined();
+  });
+
+  it("maps live position with tx signature", () => {
+    const row = makeDbPosition({ is_live: true, open_tx_signature: "5abc123" });
+    const position = dbPositionToPosition(row);
+
+    expect(position.isLive).toBe(true);
+    expect(position.txSignature).toBe("5abc123");
   });
 
   it("maps short positions correctly", () => {
@@ -562,6 +575,16 @@ describe("dbTradeToTrade", () => {
     expect(trade.price).toBe(145.5);
     expect(trade.pnl).toBe(250.5);
     expect(trade.executedAt).toBe("2026-03-06T08:00:00Z");
+    expect(trade.isLive).toBe(false);
+    expect(trade.txSignature).toBeUndefined();
+  });
+
+  it("maps trade with tx_signature as live", () => {
+    const row = makeDbTrade({ tx_signature: "5xyz789" });
+    const trade = dbTradeToTrade(row);
+
+    expect(trade.isLive).toBe(true);
+    expect(trade.txSignature).toBe("5xyz789");
   });
 
   it("maps null realized_pnl to null pnl", () => {

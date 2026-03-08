@@ -15,6 +15,9 @@
     "voteFailed": "投票に失敗しました",
     "copyAddress": "アドレスをコピー",
     "notFound": "見つかりません",
+    "notFoundTitle": "ページが見つかりません",
+    "notFoundDescription": "お探しのページは存在しないか、移動されました。",
+    "backToHome": "ホームに戻る",
     "unknown": "不明",
     "perMonth": "/月"
   },
@@ -535,6 +538,18 @@
     "step": "ステップ {current}/{total}",
     "nameRequired": "名前は必須です",
     "nameTaken": "この名前は既に使われています",
+    "step4Label": "お支払い",
+    "subscriptionTitle": "サブスクリプションが必要です",
+    "firstAgentFree": "最初のエージェントは無料です！",
+    "additionalAgentPrice": "追加エージェントには月額$10のサブスクリプションが必要です。",
+    "payUsdc": "USDCで支払う",
+    "paySkr": "SKRで支払う",
+    "skrDiscount": "10%オフ",
+    "payAndCreate": "支払い＆エージェント作成",
+    "subscriptionActive": "有効",
+    "subscriptionExpired": "期限切れ",
+    "renewSubscription": "サブスクリプションを更新",
+    "freeAgent": "無料",
     "success": "エージェント作成成功！"
   },
   "earnings": {

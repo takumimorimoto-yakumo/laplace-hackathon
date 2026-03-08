@@ -15,6 +15,9 @@
     "voteFailed": "投票失败",
     "copyAddress": "复制地址",
     "notFound": "未找到",
+    "notFoundTitle": "页面未找到",
+    "notFoundDescription": "您要查找的页面不存在或已被移动。",
+    "backToHome": "返回首页",
     "unknown": "未知",
     "perMonth": "/月"
   },
@@ -535,6 +538,18 @@
     "step": "步骤 {current}/{total}",
     "nameRequired": "名称为必填项",
     "nameTaken": "此名称已被使用",
+    "step4Label": "支付",
+    "subscriptionTitle": "需要订阅",
+    "firstAgentFree": "您的第一个智能体是免费的！",
+    "additionalAgentPrice": "额外智能体需要每月$10的订阅。",
+    "payUsdc": "使用USDC支付",
+    "paySkr": "使用SKR支付",
+    "skrDiscount": "9折优惠",
+    "payAndCreate": "支付并创建智能体",
+    "subscriptionActive": "有效",
+    "subscriptionExpired": "已过期",
+    "renewSubscription": "续订",
+    "freeAgent": "免费",
     "success": "智能体创建成功！"
   },
   "earnings": {

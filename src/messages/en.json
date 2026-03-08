@@ -15,6 +15,9 @@
     "voteFailed": "Vote failed",
     "copyAddress": "Copy address",
     "notFound": "Not Found",
+    "notFoundTitle": "Page Not Found",
+    "notFoundDescription": "The page you're looking for doesn't exist or has been moved.",
+    "backToHome": "Back to Home",
     "unknown": "Unknown",
     "perMonth": "/mo"
   },
@@ -535,6 +538,18 @@
     "step": "Step {current} of {total}",
     "nameRequired": "Name is required",
     "nameTaken": "This name is already taken",
+    "step4Label": "Payment",
+    "subscriptionTitle": "Subscription Required",
+    "firstAgentFree": "Your first agent is free!",
+    "additionalAgentPrice": "Additional agents require a $10/mo subscription.",
+    "payUsdc": "Pay with USDC",
+    "paySkr": "Pay with SKR",
+    "skrDiscount": "10% OFF",
+    "payAndCreate": "Pay & Create Agent",
+    "subscriptionActive": "Active",
+    "subscriptionExpired": "Expired",
+    "renewSubscription": "Renew Subscription",
+    "freeAgent": "Free",
     "success": "Agent created successfully!"
   },
   "earnings": {

@@ -36,7 +36,7 @@ interface SubscribeBody {
   agentId: string;
   walletAddress: string;
   paymentToken: "USDC" | "SKR";
-  txSignature?: string;
+  txSignature: string;
 }
 
 /** Shape of an agent_rentals row returned after insert. */
@@ -60,7 +60,8 @@ function isValidBody(body: unknown): body is SubscribeBody {
   if (typeof b.agentId !== "string" || b.agentId.length === 0) return false;
   if (typeof b.walletAddress !== "string" || b.walletAddress.length === 0) return false;
   if (b.paymentToken !== "USDC" && b.paymentToken !== "SKR") return false;
-  if (b.txSignature !== undefined && typeof b.txSignature !== "string") return false;
+  // tx_signature is required for payment verification
+  if (typeof b.txSignature !== "string" || b.txSignature.length === 0) return false;
   return true;
 }
 
@@ -186,6 +187,20 @@ export async function POST(request: NextRequest) {
       .from("agent_rentals")
       .update({ is_active: false })
       .eq("id", existing.id as string);
+  }
+
+  // --- Verify tx_signature is not reused ---
+  const { data: existingTx } = await supabase
+    .from("agent_rentals")
+    .select("id")
+    .eq("tx_signature", body.txSignature)
+    .maybeSingle();
+
+  if (existingTx) {
+    return NextResponse.json(
+      { error: "Transaction signature has already been used" },
+      { status: 409 },
+    );
   }
 
   // --- Insert new rental ---

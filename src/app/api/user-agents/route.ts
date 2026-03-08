@@ -250,6 +250,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Verify tx_signature is not reused (for paid agents)
+  if (!isFree && validation.data.tx_signature) {
+    const { data: existingTx } = await supabase
+      .from("agent_subscriptions")
+      .select("id")
+      .eq("tx_signature", validation.data.tx_signature)
+      .maybeSingle();
+
+    if (existingTx) {
+      return conflict("Transaction signature has already been used");
+    }
+  }
+
   // Build insert row
   const insertRow: Record<string, unknown> = {
     name,

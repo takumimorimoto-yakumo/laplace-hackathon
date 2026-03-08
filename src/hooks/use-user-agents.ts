@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import type { AgentTemplate, InvestmentOutlook, LLMModel } from "@/lib/types";
+import { useState, useCallback, useEffect } from "react";
+import type {
+  AgentTemplate,
+  AgentSubscriptionInfo,
+  InvestmentOutlook,
+  LLMModel,
+} from "@/lib/types";
 
 interface MutationState<T> {
   mutate: (data: T) => Promise<string | null>;
@@ -18,6 +23,8 @@ interface AdoptAgentData {
   directives?: string;
   watchlist?: string[];
   alpha?: string;
+  txSignature?: string;
+  paymentToken?: "USDC" | "SKR";
 }
 
 interface UpdateAgentData {
@@ -41,7 +48,18 @@ export function useAdoptAgent(): MutationState<AdoptAgentData> {
       const res = await fetch("/api/user-agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          name: data.name,
+          template: data.template,
+          wallet_address: data.walletAddress,
+          llm_model: data.llm,
+          outlook: data.outlook,
+          directives: data.directives,
+          watchlist: data.watchlist,
+          alpha: data.alpha,
+          tx_signature: data.txSignature,
+          payment_token: data.paymentToken,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "Unknown error" }));
@@ -49,8 +67,8 @@ export function useAdoptAgent(): MutationState<AdoptAgentData> {
         setError(msg);
         return null;
       }
-      const result = await res.json() as { agentId: string };
-      return result.agentId;
+      const result = await res.json() as { id: string };
+      return result.id;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       setError(msg);
@@ -123,6 +141,102 @@ export function usePauseUserAgent(id: string): MutationState<PauseAgentData> {
       setLoading(false);
     }
   }, [id]);
+
+  return { mutate, loading, error };
+}
+
+// ---------- Subscription Hooks ----------
+
+interface SubscriptionStatusResult {
+  agents: AgentSubscriptionInfo[];
+  loading: boolean;
+  error: string | null;
+  agentCount: number;
+  refetch: () => void;
+}
+
+export function useSubscriptionStatus(
+  wallet: string | null
+): SubscriptionStatusResult {
+  const [agents, setAgents] = useState<AgentSubscriptionInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStatus = useCallback(async () => {
+    if (!wallet) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/user-agents/subscription-status?wallet=${encodeURIComponent(wallet)}`
+      );
+      if (!res.ok) {
+        setError("Failed to fetch subscription status");
+        return;
+      }
+      const data = (await res.json()) as { agents: AgentSubscriptionInfo[] };
+      setAgents(data.agents);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setLoading(false);
+    }
+  }, [wallet]);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
+
+  return {
+    agents,
+    loading,
+    error,
+    agentCount: agents.length,
+    refetch: fetchStatus,
+  };
+}
+
+interface SubscribeAgentData {
+  agentId: string;
+  walletAddress: string;
+  paymentToken: "USDC" | "SKR";
+  txSignature?: string;
+}
+
+export function useSubscribeAgent(): MutationState<SubscribeAgentData> {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutate = useCallback(
+    async (data: SubscribeAgentData): Promise<string | null> => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/user-agents/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+          const body = await res
+            .json()
+            .catch(() => ({ error: "Unknown error" }));
+          const msg =
+            (body as { error?: string }).error ?? "Failed to subscribe";
+          setError(msg);
+          return null;
+        }
+        return data.agentId;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Network error";
+        setError(msg);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   return { mutate, loading, error };
 }

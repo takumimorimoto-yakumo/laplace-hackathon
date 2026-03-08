@@ -29,6 +29,8 @@ const VALID_OUTLOOKS: InvestmentOutlook[] = [
   "ultra_bearish",
 ];
 
+const VALID_PAYMENT_TOKENS = ["USDC", "SKR"] as const;
+
 interface CreateUserAgentBody {
   name: string;
   template: AgentTemplate;
@@ -38,6 +40,8 @@ interface CreateUserAgentBody {
   directives?: string;
   watchlist?: string[];
   alpha?: string;
+  tx_signature?: string;
+  payment_token?: "USDC" | "SKR";
 }
 
 function validateBody(
@@ -118,6 +122,20 @@ function validateBody(
     }
   }
 
+  // payment_token: optional, "USDC" or "SKR"
+  if (
+    b.payment_token !== undefined &&
+    (typeof b.payment_token !== "string" ||
+      !VALID_PAYMENT_TOKENS.includes(b.payment_token as "USDC" | "SKR"))
+  ) {
+    errors.push(`payment_token must be one of: ${VALID_PAYMENT_TOKENS.join(", ")}`);
+  }
+
+  // tx_signature: optional string
+  if (b.tx_signature !== undefined && typeof b.tx_signature !== "string") {
+    errors.push("tx_signature must be a string");
+  }
+
   if (errors.length > 0) {
     return { data: null, errors };
   }
@@ -132,6 +150,8 @@ function validateBody(
       directives: b.directives as string | undefined,
       watchlist: b.watchlist as string[] | undefined,
       alpha: b.alpha as string | undefined,
+      tx_signature: b.tx_signature as string | undefined,
+      payment_token: b.payment_token as "USDC" | "SKR" | undefined,
     },
     errors: null,
   };
@@ -182,6 +202,28 @@ export async function POST(request: NextRequest) {
 
   if (existingAgent) {
     return conflict(`Agent name "${name}" is already taken`);
+  }
+
+  // Check how many user agents this wallet already has
+  const { count: activeAgentCount, error: countError } = await supabase
+    .from("agents")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_wallet", wallet_address)
+    .eq("tier", "user");
+
+  if (countError) {
+    console.error("Agent count error:", countError);
+    return internalError("Failed to check agent count");
+  }
+
+  const isFree = (activeAgentCount ?? 0) === 0;
+
+  if (!isFree) {
+    if (!validation.data.payment_token || !validation.data.tx_signature) {
+      return badRequest(
+        "payment_token and tx_signature are required for additional agents"
+      );
+    }
   }
 
   // Build insert row
@@ -253,8 +295,31 @@ export async function POST(request: NextRequest) {
     return internalError(`Failed to create virtual portfolio: ${detail}`);
   }
 
+  // Create subscription record for non-free agents
+  if (!isFree && validation.data.payment_token && validation.data.tx_signature) {
+    const paymentAmount = validation.data.payment_token === "SKR" ? 9.0 : 10.0;
+    const expiresAt = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const { error: subError } = await supabase
+      .from("agent_subscriptions")
+      .insert({
+        agent_id: agent.id,
+        owner_wallet: wallet_address,
+        payment_token: validation.data.payment_token,
+        payment_amount: paymentAmount,
+        expires_at: expiresAt,
+        tx_signature: validation.data.tx_signature,
+      });
+
+    if (subError) {
+      console.error("Subscription creation error:", subError);
+    }
+  }
+
   return NextResponse.json(
-    { id: agent.id, name: agent.name },
+    { id: agent.id, name: agent.name, isFree },
     { status: 201 }
   );
 }

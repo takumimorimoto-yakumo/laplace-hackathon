@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       trend,
       portfolio_value,
       portfolio_return,
+      outlook,
       cycle_interval_minutes,
       is_system,
       last_active_at,

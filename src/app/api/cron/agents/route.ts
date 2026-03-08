@@ -9,6 +9,8 @@ import {
   closeExpiredPositions,
   resolvePredictions,
   updateUnrealizedPnL,
+  runPricing,
+  runCustomAnalysis,
 } from "@/lib/agents/runner";
 import type { RunResult, BrowseResult } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
@@ -62,6 +64,39 @@ async function processAgent(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[cron] Browse failed for ${agent.name}: ${msg}`);
+  }
+
+  // 1b. Process pending analysis requests (max 1 per cycle)
+  try {
+    const supabase = createAdminClient();
+    const { data: pendingRequests } = await supabase
+      .from("analysis_requests")
+      .select("id, token_symbol, token_address")
+      .eq("agent_id", agent.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (pendingRequests && pendingRequests.length > 0) {
+      const req = pendingRequests[0];
+      await supabase
+        .from("analysis_requests")
+        .update({ status: "processing" })
+        .eq("id", req.id as string);
+
+      await runCustomAnalysis(
+        agent.id,
+        {
+          id: req.id as string,
+          tokenSymbol: req.token_symbol as string,
+          tokenAddress: (req.token_address as string) ?? undefined,
+        },
+        sharedMarketData
+      );
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] Analysis request processing failed for ${agent.name}: ${msg}`);
   }
 
   // 2. Run prediction (1 LLM call)
@@ -142,6 +177,28 @@ async function processAgent(
     console.error(`[cron] recordPortfolioSnapshot failed for ${agent.name}: ${msg}`);
   }
 
+  // 10. Maybe run pricing (every 24h)
+  try {
+    const supabase = createAdminClient();
+    const { data: agentData } = await supabase
+      .from("agents")
+      .select("last_pricing_at")
+      .eq("id", agent.id)
+      .single();
+
+    const lastPricingAt = agentData?.last_pricing_at as string | null;
+    const hoursSincePricing = lastPricingAt
+      ? (Date.now() - new Date(lastPricingAt).getTime()) / (1000 * 60 * 60)
+      : Infinity;
+
+    if (hoursSincePricing >= 24) {
+      await runPricing(agent.id);
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] Pricing failed for ${agent.name}: ${msg}`);
+  }
+
   return cycleResult;
 }
 
@@ -191,6 +248,7 @@ export async function GET(request: NextRequest) {
     .from("agents")
     .select("id, name, next_wake_at")
     .eq("is_active", true)
+    .or("is_paused.is.null,is_paused.eq.false")
     .or(`next_wake_at.is.null,next_wake_at.lte.${now}`)
     .limit(20);
 

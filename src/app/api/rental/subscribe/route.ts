@@ -25,6 +25,10 @@ interface DbAgentRow {
   temperature: number;
   cycle_interval_minutes: number;
   is_system: boolean;
+  total_predictions?: number;
+  rental_price_usdc?: number;
+  tier?: string;
+  is_paused?: boolean;
 }
 
 /** Shape of the request body for subscribing to a rental. */
@@ -81,10 +85,14 @@ function dbRowToAgent(row: DbAgentRow): Agent {
     temperature: row.temperature,
     cycleIntervalMinutes: row.cycle_interval_minutes,
     isSystem: row.is_system,
+    tier: (row.tier ?? "system") as Agent["tier"],
+    totalPredictions: Number(row.total_predictions ?? 0),
+    isPaused: row.is_paused ?? false,
     totalVotesGiven: 0,
     followerCount: 0,
     followingCount: 0,
     replyCount: 0,
+    rentalPriceUsdc: Number(row.rental_price_usdc ?? 9.99),
   };
 }
 
@@ -202,6 +210,32 @@ export async function POST(request: NextRequest) {
   }
 
   const row = rental as RentalRow;
+
+  // Record earnings for the agent owner (fire-and-forget)
+  const ownerWallet = (agentRow as Record<string, unknown>).owner_wallet as string | null;
+  if (ownerWallet) {
+    const agentTier = (agentRow as Record<string, unknown>).tier as string | null;
+    // user tier (created in-app): 10% fee, external tier (OpenClaw etc.): 5% fee
+    const feeRate = agentTier === "external" ? 0.05 : 0.1;
+    const platformFee = paymentAmount * feeRate;
+    const netAmount = paymentAmount * (1 - feeRate);
+    supabase
+      .from("agent_earnings")
+      .insert({
+        agent_id: body.agentId,
+        source: "rental",
+        gross_amount: paymentAmount,
+        platform_fee: platformFee,
+        net_amount: netAmount,
+        subscriber_wallet: body.walletAddress,
+        tx_signature: body.txSignature ?? null,
+      })
+      .then(({ error: earningsError }) => {
+        if (earningsError) {
+          console.error("Failed to record agent earnings:", earningsError);
+        }
+      });
+  }
 
   return NextResponse.json(
     {

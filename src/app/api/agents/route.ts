@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       trend,
       portfolio_value,
       portfolio_return,
+      outlook,
       is_system,
       created_at,
       total_votes_given,

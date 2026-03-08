@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { updateUnrealizedPnL } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
+import { evolveOutlook } from "@/lib/agents/outlook-evolution";
+import type { InvestmentOutlook } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +50,9 @@ async function computeTimeDecayedAccuracy(
     const resolvedAt = new Date(row.resolved_at as string);
     const daysAgo = (Date.now() - resolvedAt.getTime()) / (1000 * 60 * 60 * 24);
 
-    let weight: number;
-    if (daysAgo <= 7) weight = 1.0;
-    else if (daysAgo <= 14) weight = 0.75;
-    else if (daysAgo <= 30) weight = 0.40;
-    else weight = 0.10;
+    // EMA half-life: weight halves every 14 days
+    const ACCURACY_HALF_LIFE_DAYS = 14;
+    const weight = Math.pow(2, -daysAgo / ACCURACY_HALF_LIFE_DAYS);
 
     const entry = agentData.get(agentId) ?? { weightedCorrect: 0, totalWeight: 0 };
     entry.totalWeight += weight;
@@ -127,6 +127,54 @@ export async function GET(request: NextRequest) {
         })
         .eq("id", p.agent_id);
       if (!syncError) portfoliosSynced++;
+    }
+  }
+
+  // --- Evolve agent outlooks based on performance ---
+  let outlookEvolved = 0;
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: allAgents } = await supabase
+    .from("agents")
+    .select("id, outlook, portfolio_return");
+
+  if (allAgents) {
+    const { data: recentPreds } = await supabase
+      .from("predictions")
+      .select("agent_id, direction, direction_score, resolved_at")
+      .eq("resolved", true)
+      .gte("resolved_at", thirtyDaysAgo);
+
+    if (recentPreds) {
+      // Group predictions by agent
+      const predsByAgent = new Map<string, typeof recentPreds>();
+      for (const p of recentPreds) {
+        const agentId = p.agent_id as string;
+        const list = predsByAgent.get(agentId) ?? [];
+        list.push(p);
+        predsByAgent.set(agentId, list);
+      }
+
+      for (const agent of allAgents) {
+        const agentPreds = predsByAgent.get(agent.id as string) ?? [];
+        const result = evolveOutlook({
+          currentOutlook: (agent.outlook as InvestmentOutlook) ?? "bullish",
+          predictions: agentPreds.map((p) => ({
+            direction: p.direction as string,
+            directionScore: Number(p.direction_score),
+            resolvedAt: p.resolved_at as string,
+          })),
+          portfolioReturn: Number(agent.portfolio_return) ?? 0,
+        });
+
+        if (result.changed) {
+          const { error: outlookErr } = await supabase
+            .from("agents")
+            .update({ outlook: result.newOutlook })
+            .eq("id", agent.id);
+          if (!outlookErr) outlookEvolved++;
+        }
+      }
     }
   }
 
@@ -277,6 +325,7 @@ export async function GET(request: NextRequest) {
     updated,
     errors,
     portfoliosSynced,
+    outlookEvolved,
     viewRefreshed,
     rankings: scored.map((a) => ({
       id: a.id,

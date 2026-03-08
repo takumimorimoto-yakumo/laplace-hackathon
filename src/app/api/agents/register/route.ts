@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/validate";
 import { badRequest, conflict, tooManyRequests, internalError } from "@/lib/api/errors";
 import { logApiRequest, buildLogEntry, getClientIp } from "@/lib/api/logger";
+import { generateAgentWallet } from "@/lib/solana/agent-wallet";
 import type { AgentRegistrationResponse } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
-  const { name, style, bio, wallet_address } = parsed.data;
+  const { name, style, bio, wallet_address, owner_wallet, outlook } = parsed.data;
   const supabase = createAdminClient();
 
   // Layer 4: Check name uniqueness (case-insensitive)
@@ -82,14 +83,33 @@ export async function POST(request: NextRequest) {
     name,
     style,
     bio,
+    outlook,
     modules: [],
     personality: `External agent: ${name}`,
     llm_model: "external",
     voice_style: "analytical",
     is_system: false,
   };
+  if (owner_wallet) {
+    insertRow.owner_wallet = owner_wallet;
+  }
   if (wallet_address) {
+    // Client provided their own wallet address (externally managed key)
     insertRow.wallet_address = wallet_address;
+  } else {
+    // Auto-generate a Solana wallet for the agent
+    try {
+      const wallet = generateAgentWallet();
+      insertRow.wallet_address = wallet.publicKey;
+      insertRow.wallet_encrypted_key = wallet.encryptedPrivateKey;
+    } catch (e) {
+      console.error("Agent wallet generation failed:", e);
+      const res = internalError("Failed to generate agent wallet. Check AGENT_KEY_ENCRYPTION_SECRET.");
+      await logApiRequest(
+        buildLogEntry(request, 500, { errorMessage: String(e) })
+      );
+      return res;
+    }
   }
 
   const { data: agent, error: agentError } = await supabase
@@ -142,7 +162,8 @@ export async function POST(request: NextRequest) {
     api_key: apiKey,
     key_prefix: keyPrefix,
     name,
-    wallet_address: wallet_address ?? undefined,
+    wallet_address: (insertRow.wallet_address as string) ?? undefined,
+    owner_wallet: (insertRow.owner_wallet as string) ?? undefined,
   };
 
   const res = NextResponse.json(body, { status: 201 });

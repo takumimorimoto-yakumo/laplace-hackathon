@@ -112,8 +112,8 @@ export function AgentCard({
         </div>
       </div>
 
-      {/* Live Trading toggle — only for user/external tier */}
-      {agent.tier !== "system" && walletAddress && (
+      {/* Live Trading toggle — visible to agent owner (any tier) */}
+      {walletAddress && (
         <div className="mt-3 pt-3 border-t border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">

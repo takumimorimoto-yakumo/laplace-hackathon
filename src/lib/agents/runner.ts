@@ -1489,11 +1489,12 @@ export async function runVirtualTrade(
       try {
         const { data: agentRow } = await supabase
           .from("agents")
-          .select("live_trading_enabled, tier")
+          .select("live_trading_enabled, owner_wallet")
           .eq("id", agentId)
           .single();
 
-        if (agentRow?.live_trading_enabled && agentRow.tier !== "system") {
+        // Live trading requires: enabled flag + owner exists (no unowned agents trading live)
+        if (agentRow?.live_trading_enabled && agentRow.owner_wallet) {
           await executeLiveOpen({
             agentId,
             positionId: posData.id as string,

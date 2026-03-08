@@ -47,11 +47,6 @@ export async function PATCH(
     return notFound("Agent not found");
   }
 
-  // Guard: system tier agents cannot trade live
-  if (agent.tier === "system") {
-    return forbidden("System agents cannot enable live trading");
-  }
-
   // Guard: only owner can toggle live trading
   if (agent.owner_wallet !== walletAddress) {
     return forbidden("You are not the owner of this agent");

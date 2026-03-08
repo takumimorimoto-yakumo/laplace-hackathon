@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAdoptAgent } from "@/hooks/use-user-agents";
+import { useAdoptAgent, useSubscriptionStatus } from "@/hooks/use-user-agents";
 import {
   TEMPLATE_KEYS,
   AGENT_TEMPLATES,
@@ -35,6 +35,7 @@ import {
 import type {
   AgentTemplate,
   LLMModel,
+  SubscriptionPaymentToken,
 } from "@/lib/types";
 
 interface AdoptWizardProps {
@@ -102,8 +103,6 @@ const LLM_COLORS: Record<LLMModel, string> = {
   external: "bg-zinc-500/20 text-zinc-400",
 };
 
-const TOTAL_STEPS = 3;
-
 function StepIndicator({
   current,
   labels,
@@ -170,7 +169,12 @@ export function AdoptWizard({
 }: AdoptWizardProps) {
   const t = useTranslations("adopt");
   const tTemplates = useTranslations("templates");
-  const { mutate, loading } = useAdoptAgent();
+  const { mutate, loading, error } = useAdoptAgent();
+  const { agentCount } = useSubscriptionStatus(walletAddress);
+
+  const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
+  const needsPayment = isLocal || agentCount >= 1;
+  const totalSteps = needsPayment ? 4 : 3;
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -182,8 +186,11 @@ export function AdoptWizard({
   const [watchlistTags, setWatchlistTags] = useState<string[]>([]);
   const [alpha, setAlpha] = useState("");
   const [nameError, setNameError] = useState("");
+  const [paymentToken, setPaymentToken] = useState<SubscriptionPaymentToken>("USDC");
 
-  const stepLabels = [t("step1Label"), t("step2Label"), t("step3Label")];
+  const stepLabels = needsPayment
+    ? [t("step1Label"), t("step2Label"), t("step3Label"), t("step4Label")]
+    : [t("step1Label"), t("step2Label"), t("step3Label")];
 
   const resetForm = useCallback(() => {
     setStep(1);
@@ -195,6 +202,7 @@ export function AdoptWizard({
     setWatchlistTags([]);
     setAlpha("");
     setNameError("");
+    setPaymentToken("USDC");
   }, []);
 
   const handleOpenChange = useCallback(
@@ -218,8 +226,8 @@ export function AdoptWizard({
       }
       setNameError("");
     }
-    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
-  }, [step, template, name, t]);
+    setStep((s) => Math.min(s + 1, totalSteps));
+  }, [step, template, name, t, totalSteps]);
 
   const handleBack = useCallback(() => {
     setStep((s) => Math.max(s - 1, 1));
@@ -259,6 +267,12 @@ export function AdoptWizard({
       directives: directives.trim() || undefined,
       watchlist: watchlistTags.length > 0 ? watchlistTags : undefined,
       alpha: alpha.trim() || undefined,
+      ...(needsPayment
+        ? {
+            paymentToken,
+            txSignature: "pending_" + Date.now(),
+          }
+        : {}),
     });
     if (agentId) {
       onSuccess?.(agentId);
@@ -273,6 +287,8 @@ export function AdoptWizard({
     directives,
     watchlistTags,
     alpha,
+    needsPayment,
+    paymentToken,
     onSuccess,
     handleOpenChange,
   ]);
@@ -492,10 +508,11 @@ export function AdoptWizard({
                         {tag}
                         <button
                           type="button"
+                          aria-label={`Remove ${tag}`}
                           onClick={() => handleRemoveTag(tag)}
                           className="hover:text-destructive"
                         >
-                          <X className="size-3" />
+                          <X className="size-3" aria-hidden="true" />
                         </button>
                       </span>
                     ))}
@@ -535,7 +552,76 @@ export function AdoptWizard({
               </div>
             </div>
           )}
+
+          {/* Step 4: Payment (only for 2nd+ agent) */}
+          {needsPayment && step === 4 && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <p className="text-sm font-semibold text-foreground mb-1">
+                  {t("subscriptionTitle")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("additionalAgentPrice")}
+                </p>
+              </div>
+
+              {/* Payment token selector */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentToken("USDC")}
+                  className={`w-full flex items-center gap-3 rounded-xl border p-4 transition-all ${
+                    paymentToken === "USDC"
+                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                      : "border-border hover:border-muted-foreground/50"
+                  }`}
+                >
+                  <div className="size-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-sm" aria-hidden="true">
+                    $
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold text-foreground">
+                      {t("payUsdc")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">$10.00 / mo</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentToken("SKR")}
+                  className={`w-full flex items-center gap-3 rounded-xl border p-4 transition-all ${
+                    paymentToken === "SKR"
+                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                      : "border-border hover:border-muted-foreground/50"
+                  }`}
+                >
+                  <div className="size-10 rounded-lg bg-violet-500/20 flex items-center justify-center text-violet-400 font-bold text-sm" aria-hidden="true">
+                    S
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold text-foreground">
+                      {t("paySkr")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">$9.00 / mo</p>
+                  </div>
+                  <span className="rounded-full bg-bullish/10 px-2 py-0.5 text-[10px] font-bold text-bullish">
+                    {t("skrDiscount")}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Error display */}
+        {error && (
+          <div className="flex-shrink-0 px-4">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
+              <p className="text-xs text-destructive">{error}</p>
+            </div>
+          </div>
+        )}
 
         {/* Navigation */}
         <SheetFooter className="flex-shrink-0">
@@ -550,7 +636,7 @@ export function AdoptWizard({
                 {t("back")}
               </Button>
             )}
-            {step < TOTAL_STEPS ? (
+            {step < totalSteps ? (
               <Button
                 onClick={handleNext}
                 disabled={step === 1 && !template}
@@ -570,7 +656,7 @@ export function AdoptWizard({
                     {t("deploying")}
                   </>
                 ) : (
-                  t("deploy")
+                  needsPayment ? t("payAndCreate") : t("deploy")
                 )}
               </Button>
             )}

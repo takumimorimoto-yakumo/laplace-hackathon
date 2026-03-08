@@ -16,23 +16,6 @@ interface MutationState<T> {
   error: string | null;
 }
 
-// ---------- Internal Helper: Signed Mutation ----------
-
-/**
- * Helper function to build a signed mutation.
- * Eliminates duplication of signAction + fetch pattern across multiple hooks.
- */
-function buildSignedMutation<TInput extends { signMessage: (message: Uint8Array) => Promise<Uint8Array> }>(
-  agentId: string,
-  action: string,
-  buildRequest: (input: TInput, signedData: { message: string; signature: string }) => Promise<Response>
-): (input: TInput) => Promise<Response> {
-  return async (input: TInput) => {
-    const { message, signature } = await signAction(agentId, action, input.signMessage);
-    return buildRequest(input, { message, signature });
-  };
-}
-
 interface AdoptAgentData {
   walletAddress: string;
   name: string;
@@ -62,29 +45,27 @@ interface PauseAgentData {
 }
 
 export function useAdoptAgent(): MutationState<AdoptAgentData> {
-  const mutationFn = useCallback(
-    buildSignedMutation<AdoptAgentData>("new", "create", async (data, { message, signature }) =>
-      fetch("/api/user-agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          template: data.template,
-          wallet_address: data.walletAddress,
-          llm_model: data.llm,
-          outlook: data.outlook,
-          directives: data.directives,
-          watchlist: data.watchlist,
-          alpha: data.alpha,
-          tx_signature: data.txSignature,
-          payment_token: data.paymentToken,
-          message,
-          signature,
-        }),
-      })
-    ),
-    []
-  );
+  const mutationFn = useCallback(async (data: AdoptAgentData) => {
+    const { message, signature } = await signAction("new", "create", data.signMessage);
+    return fetch("/api/user-agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: data.name,
+        template: data.template,
+        wallet_address: data.walletAddress,
+        llm_model: data.llm,
+        outlook: data.outlook,
+        directives: data.directives,
+        watchlist: data.watchlist,
+        alpha: data.alpha,
+        tx_signature: data.txSignature,
+        payment_token: data.paymentToken,
+        message,
+        signature,
+      }),
+    });
+  }, []);
 
   const extractResult = useCallback(async (res: Response) => {
     const result = (await res.json()) as { id: string };
@@ -100,23 +81,21 @@ export function useAdoptAgent(): MutationState<AdoptAgentData> {
 }
 
 export function useUpdateUserAgent(id: string): MutationState<UpdateAgentData> {
-  const mutationFn = useCallback(
-    buildSignedMutation<UpdateAgentData>(id, "update", async (data, { message, signature }) =>
-      fetch(`/api/user-agents/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          directives: data.directives,
-          watchlist: data.watchlist,
-          alpha: data.alpha,
-          wallet_address: data.walletAddress,
-          message,
-          signature,
-        }),
-      })
-    ),
-    [id]
-  );
+  const mutationFn = useCallback(async (data: UpdateAgentData) => {
+    const { message, signature } = await signAction(id, "update", data.signMessage);
+    return fetch(`/api/user-agents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        directives: data.directives,
+        watchlist: data.watchlist,
+        alpha: data.alpha,
+        wallet_address: data.walletAddress,
+        message,
+        signature,
+      }),
+    });
+  }, [id]);
 
   const { mutate, loading, error } = useMutation<UpdateAgentData, string>(mutationFn, {
     extractResult: useCallback(async () => id, [id]),
@@ -127,21 +106,19 @@ export function useUpdateUserAgent(id: string): MutationState<UpdateAgentData> {
 }
 
 export function usePauseUserAgent(id: string): MutationState<PauseAgentData> {
-  const mutationFn = useCallback(
-    buildSignedMutation<PauseAgentData>(id, "pause", async (data, { message, signature }) =>
-      fetch(`/api/user-agents/${id}/pause`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          isPaused: data.isPaused,
-          wallet_address: data.walletAddress,
-          message,
-          signature,
-        }),
-      })
-    ),
-    [id]
-  );
+  const mutationFn = useCallback(async (data: PauseAgentData) => {
+    const { message, signature } = await signAction(id, "pause", data.signMessage);
+    return fetch(`/api/user-agents/${id}/pause`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        isPaused: data.isPaused,
+        wallet_address: data.walletAddress,
+        message,
+        signature,
+      }),
+    });
+  }, [id]);
 
   const { mutate, loading, error } = useMutation<PauseAgentData, string>(mutationFn, {
     extractResult: useCallback(async () => id, [id]),
@@ -211,27 +188,21 @@ interface SubscribeAgentData {
 }
 
 export function useSubscribeAgent(): MutationState<SubscribeAgentData> {
-  const mutationFn = useCallback(
-    (data: SubscribeAgentData) =>
-      buildSignedMutation<SubscribeAgentData>(
-        data.agentId,
-        "subscribe",
-        async (input, { message, signature }) =>
-          fetch("/api/user-agents/subscribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              agentId: input.agentId,
-              walletAddress: input.walletAddress,
-              paymentToken: input.paymentToken,
-              txSignature: input.txSignature,
-              message,
-              signature,
-            }),
-          })
-      )(data),
-    []
-  );
+  const mutationFn = useCallback(async (data: SubscribeAgentData) => {
+    const { message, signature } = await signAction(data.agentId, "subscribe", data.signMessage);
+    return fetch("/api/user-agents/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agentId: data.agentId,
+        walletAddress: data.walletAddress,
+        paymentToken: data.paymentToken,
+        txSignature: data.txSignature,
+        message,
+        signature,
+      }),
+    });
+  }, []);
 
   const { mutate, loading, error } = useMutation<SubscribeAgentData, string>(mutationFn, {
     extractResult: useCallback(

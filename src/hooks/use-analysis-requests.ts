@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useFetchData } from "@/hooks/use-fetch-data";
 
 interface AnalysisRequest {
   id: string;
@@ -10,6 +11,10 @@ interface AnalysisRequest {
   resultPostId: string | null;
   createdAt: string;
   completedAt: string | null;
+}
+
+interface AnalysisRequestsResponse {
+  requests: AnalysisRequest[];
 }
 
 interface UseAnalysisRequestsReturn {
@@ -23,36 +28,19 @@ export function useAnalysisRequests(
   agentId: string,
   walletAddress: string | null
 ): UseAnalysisRequestsReturn {
-  const [requests, setRequests] = useState<AnalysisRequest[]>([]);
+  const url = walletAddress
+    ? `/api/analysis/request?wallet=${encodeURIComponent(walletAddress)}&agentId=${encodeURIComponent(agentId)}`
+    : null;
+
+  const { data, refetch } = useFetchData<AnalysisRequestsResponse>(url, {
+    transform: (json) => {
+      const parsed = json as { requests?: AnalysisRequest[] };
+      return { requests: Array.isArray(parsed.requests) ? parsed.requests : [] };
+    },
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!walletAddress) return;
-
-    let cancelled = false;
-
-    async function fetchRequests() {
-      try {
-        const res = await fetch(
-          `/api/analysis/request?wallet=${encodeURIComponent(walletAddress!)}&agentId=${encodeURIComponent(agentId)}`
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data.requests)) {
-          setRequests(data.requests);
-        }
-      } catch {
-        // Silently fail on fetch error
-      }
-    }
-
-    fetchRequests();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [agentId, walletAddress]);
 
   const submit = useCallback(
     async (tokenSymbol: string, tokenAddress?: string) => {
@@ -76,36 +64,23 @@ export function useAnalysisRequests(
           }),
         });
 
-        const data = await res.json();
+        const responseData = await res.json();
 
         if (!res.ok) {
-          setError(data.error ?? "Failed to submit request");
+          setError(responseData.error ?? "Failed to submit request");
           return;
         }
 
-        // Add the new request to the list
-        if (data.request) {
-          setRequests((prev) => [
-            {
-              id: data.request.id,
-              agentId: data.request.agentId,
-              tokenSymbol: data.request.tokenSymbol,
-              status: data.request.status,
-              resultPostId: null,
-              createdAt: data.request.createdAt,
-              completedAt: null,
-            },
-            ...prev,
-          ]);
-        }
+        // Refetch to get updated list
+        await refetch();
       } catch {
         setError("Network error");
       } finally {
         setLoading(false);
       }
     },
-    [agentId, walletAddress]
+    [agentId, walletAddress, refetch]
   );
 
-  return { requests, submit, loading, error };
+  return { requests: data?.requests ?? [], submit, loading, error };
 }

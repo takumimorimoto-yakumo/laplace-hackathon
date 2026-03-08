@@ -8,6 +8,7 @@ import type {
   LLMModel,
 } from "@/lib/types";
 import { signAction } from "@/lib/solana/sign-action";
+import { useMutation } from "@/hooks/use-mutation";
 
 interface MutationState<T> {
   mutate: (data: T) => Promise<string | null>;
@@ -44,126 +45,85 @@ interface PauseAgentData {
 }
 
 export function useAdoptAgent(): MutationState<AdoptAgentData> {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const mutate = useCallback(async (data: AdoptAgentData): Promise<string | null> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { message, signature } = await signAction("new", "create", data.signMessage);
-      const res = await fetch("/api/user-agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          template: data.template,
-          wallet_address: data.walletAddress,
-          llm_model: data.llm,
-          outlook: data.outlook,
-          directives: data.directives,
-          watchlist: data.watchlist,
-          alpha: data.alpha,
-          tx_signature: data.txSignature,
-          payment_token: data.paymentToken,
-          message,
-          signature,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "Unknown error" }));
-        const msg = (body as { error?: string }).error ?? "Failed to create agent";
-        setError(msg);
-        return null;
-      }
-      const result = await res.json() as { id: string };
-      return result.id;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Network error";
-      setError(msg);
-      return null;
-    } finally {
-      setLoading(false);
-    }
+  const mutationFn = useCallback(async (data: AdoptAgentData) => {
+    const { message, signature } = await signAction("new", "create", data.signMessage);
+    return fetch("/api/user-agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: data.name,
+        template: data.template,
+        wallet_address: data.walletAddress,
+        llm_model: data.llm,
+        outlook: data.outlook,
+        directives: data.directives,
+        watchlist: data.watchlist,
+        alpha: data.alpha,
+        tx_signature: data.txSignature,
+        payment_token: data.paymentToken,
+        message,
+        signature,
+      }),
+    });
   }, []);
+
+  const extractResult = useCallback(async (res: Response) => {
+    const result = (await res.json()) as { id: string };
+    return result.id;
+  }, []);
+
+  const { mutate, loading, error } = useMutation<AdoptAgentData, string>(mutationFn, {
+    extractResult,
+    defaultErrorMessage: "Failed to create agent",
+  });
 
   return { mutate, loading, error };
 }
 
 export function useUpdateUserAgent(id: string): MutationState<UpdateAgentData> {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const mutate = useCallback(async (data: UpdateAgentData): Promise<string | null> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { message, signature } = await signAction(id, "update", data.signMessage);
-      const res = await fetch(`/api/user-agents/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          directives: data.directives,
-          watchlist: data.watchlist,
-          alpha: data.alpha,
-          wallet_address: data.walletAddress,
-          message,
-          signature,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "Unknown error" }));
-        const msg = (body as { error?: string }).error ?? "Failed to update agent";
-        setError(msg);
-        return null;
-      }
-      return id;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Network error";
-      setError(msg);
-      return null;
-    } finally {
-      setLoading(false);
-    }
+  const mutationFn = useCallback(async (data: UpdateAgentData) => {
+    const { message, signature } = await signAction(id, "update", data.signMessage);
+    return fetch(`/api/user-agents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        directives: data.directives,
+        watchlist: data.watchlist,
+        alpha: data.alpha,
+        wallet_address: data.walletAddress,
+        message,
+        signature,
+      }),
+    });
   }, [id]);
+
+  const { mutate, loading, error } = useMutation<UpdateAgentData, string>(mutationFn, {
+    extractResult: useCallback(async () => id, [id]),
+    defaultErrorMessage: "Failed to update agent",
+  });
 
   return { mutate, loading, error };
 }
 
 export function usePauseUserAgent(id: string): MutationState<PauseAgentData> {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const mutate = useCallback(async (data: PauseAgentData): Promise<string | null> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { message, signature } = await signAction(id, "pause", data.signMessage);
-      const res = await fetch(`/api/user-agents/${id}/pause`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          isPaused: data.isPaused,
-          wallet_address: data.walletAddress,
-          message,
-          signature,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "Unknown error" }));
-        const msg = (body as { error?: string }).error ?? "Failed to toggle pause";
-        setError(msg);
-        return null;
-      }
-      return id;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Network error";
-      setError(msg);
-      return null;
-    } finally {
-      setLoading(false);
-    }
+  const mutationFn = useCallback(async (data: PauseAgentData) => {
+    const { message, signature } = await signAction(id, "pause", data.signMessage);
+    return fetch(`/api/user-agents/${id}/pause`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        isPaused: data.isPaused,
+        wallet_address: data.walletAddress,
+        message,
+        signature,
+      }),
+    });
   }, [id]);
+
+  const { mutate, loading, error } = useMutation<PauseAgentData, string>(mutationFn, {
+    extractResult: useCallback(async () => id, [id]),
+    defaultErrorMessage: "Failed to toggle pause",
+  });
 
   return { mutate, loading, error };
 }
@@ -228,47 +188,32 @@ interface SubscribeAgentData {
 }
 
 export function useSubscribeAgent(): MutationState<SubscribeAgentData> {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const mutate = useCallback(
-    async (data: SubscribeAgentData): Promise<string | null> => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { message, signature } = await signAction(data.agentId, "subscribe", data.signMessage);
-        const res = await fetch("/api/user-agents/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            agentId: data.agentId,
-            walletAddress: data.walletAddress,
-            paymentToken: data.paymentToken,
-            txSignature: data.txSignature,
-            message,
-            signature,
-          }),
-        });
-        if (!res.ok) {
-          const body = await res
-            .json()
-            .catch(() => ({ error: "Unknown error" }));
-          const msg =
-            (body as { error?: string }).error ?? "Failed to subscribe";
-          setError(msg);
-          return null;
-        }
-        return data.agentId;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Network error";
-        setError(msg);
-        return null;
-      } finally {
-        setLoading(false);
-      }
+  const mutationFn = useCallback(
+    async (data: SubscribeAgentData) => {
+      const { message, signature } = await signAction(data.agentId, "subscribe", data.signMessage);
+      return fetch("/api/user-agents/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId: data.agentId,
+          walletAddress: data.walletAddress,
+          paymentToken: data.paymentToken,
+          txSignature: data.txSignature,
+          message,
+          signature,
+        }),
+      });
     },
     []
   );
+
+  const { mutate, loading, error } = useMutation<SubscribeAgentData, string>(mutationFn, {
+    extractResult: useCallback(
+      async (_: Response, input: SubscribeAgentData) => input.agentId,
+      []
+    ),
+    defaultErrorMessage: "Failed to subscribe",
+  });
 
   return { mutate, loading, error };
 }

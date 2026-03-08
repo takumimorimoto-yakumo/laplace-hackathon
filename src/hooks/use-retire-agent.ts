@@ -1,39 +1,39 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useMutation } from "@/hooks/use-mutation";
+
+interface RetireAgentInput {
+  agentId: string;
+  walletAddress: string;
+}
 
 export function useRetireAgent() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const mutationFn = useCallback(
+    async (input: RetireAgentInput) => {
+      return fetch(
+        `/api/user-agents/${input.agentId}?wallet_address=${encodeURIComponent(input.walletAddress)}`,
+        { method: "DELETE" }
+      );
+    },
+    []
+  );
+
+  const extractResult = useCallback(async () => {
+    return true as const;
+  }, []);
+
+  const { mutate, loading, error } = useMutation<RetireAgentInput, true>(mutationFn, {
+    extractResult,
+    defaultErrorMessage: "Failed to retire agent",
+  });
 
   const retire = useCallback(
     async (agentId: string, walletAddress: string): Promise<boolean> => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(
-          `/api/user-agents/${agentId}?wallet_address=${encodeURIComponent(walletAddress)}`,
-          { method: "DELETE" }
-        );
-        if (!res.ok) {
-          const body = await res
-            .json()
-            .catch(() => ({ error: "Unknown error" }));
-          setError(
-            (body as { error?: string }).error ?? "Failed to retire agent"
-          );
-          return false;
-        }
-        return true;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Network error";
-        setError(msg);
-        return false;
-      } finally {
-        setLoading(false);
-      }
+      const result = await mutate({ agentId, walletAddress });
+      return result !== null;
     },
-    []
+    [mutate]
   );
 
   return { retire, loading, error };

@@ -2,18 +2,7 @@
  * Client-side utility for signing action authorization messages.
  */
 
-export function buildActionMessage(params: {
-  agentId: string;
-  action: string;
-  nonce: string;
-}): string {
-  return [
-    "Laplace Action Authorization",
-    `Agent: ${params.agentId}`,
-    `Action: ${params.action}`,
-    `Nonce: ${params.nonce}`,
-  ].join("\n");
-}
+import { buildActionMessage } from "./wallet-auth";
 
 /** Sign an action message with the connected wallet. */
 export async function signAction(

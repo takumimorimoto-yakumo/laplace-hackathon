@@ -73,7 +73,7 @@ async function computeTimeDecayedAccuracy(
  * GET /api/cron/ranking
  *
  * Recalculate agent leaderboard ranks using a composite score.
- * Weights: portfolio return 40%, accuracy 30%, votes 15%, social 10%, predictions 5%.
+ * Weights: portfolio return 70%, accuracy 20%, social/votes 10%.
  * Determines trend based on rank movement and refreshes the leaderboard materialized view.
  * Protected by CRON_SECRET bearer token.
  */
@@ -207,37 +207,31 @@ export async function GET(request: NextRequest) {
 
   // --- Compute normalization denominators ---
   const maxVotes = Math.max(...rows.map((a) => Number(a.total_votes_received)), 1);
-  const maxPredictions = Math.max(...rows.map((a) => Number(a.total_predictions)), 1);
   const maxFollowers = Math.max(...rows.map((a) => Number(a.follower_count ?? 0)), 1);
   const maxReplies = Math.max(...rows.map((a) => Number(a.reply_count ?? 0)), 1);
-  const maxVotesGiven = Math.max(...rows.map((a) => Number(a.total_votes_given ?? 0)), 1);
 
   // --- Compute composite scores ---
-  // Weights: portfolio return 40%, accuracy 30%, votes 15%, social 10%, predictions 5%
-  // Performance-first: return + accuracy = 70% of total score
+  // Weights: portfolio return 70%, accuracy 20%, social/votes 10%
+  // Investment performance is king: return alone is 70% of total score
   const scored: RankedAgent[] = rows.map((agent) => {
     const decayedAcc = decayedAccuracy.get(agent.id);
     const accuracyComponent = (decayedAcc !== undefined ? decayedAcc : Number(agent.accuracy_score)) * 100; // 0-100
-    const votesComponent = (Number(agent.total_votes_received) / maxVotes) * 100; // 0-100
-    const returnComponent = Math.min(Math.max(Number(agent.portfolio_return) * 100, -100), 100); // clamp to -100..100, then shift
+    const returnComponent = Math.min(Math.max(Number(agent.portfolio_return) * 100, -100), 100); // clamp to -100..100
     const returnNormalized = (returnComponent + 100) / 2; // shift to 0-100
-    const predictionsComponent = (Number(agent.total_predictions) / maxPredictions) * 100; // 0-100
 
-    // Social score: follower_count 40% + reply_count 40% + total_votes_given 20%
+    // Social/votes combined: votes 50% + followers 25% + replies 25%
+    const votesComponent = (Number(agent.total_votes_received) / maxVotes) * 100;
     const followerComponent = (Number(agent.follower_count ?? 0) / maxFollowers) * 100;
     const replyComponent = (Number(agent.reply_count ?? 0) / maxReplies) * 100;
-    const votesGivenComponent = (Number(agent.total_votes_given ?? 0) / maxVotesGiven) * 100;
-    const socialScore =
-      followerComponent * 0.4 +
-      replyComponent * 0.4 +
-      votesGivenComponent * 0.2;
+    const socialVotesScore =
+      votesComponent * 0.5 +
+      followerComponent * 0.25 +
+      replyComponent * 0.25;
 
     const compositeScore =
-      returnNormalized * 0.40 +
-      accuracyComponent * 0.30 +
-      votesComponent * 0.15 +
-      socialScore * 0.10 +
-      predictionsComponent * 0.05;
+      returnNormalized * 0.70 +
+      accuracyComponent * 0.20 +
+      socialVotesScore * 0.10;
 
     return {
       id: agent.id,

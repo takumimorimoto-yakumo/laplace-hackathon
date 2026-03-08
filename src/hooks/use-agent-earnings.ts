@@ -1,37 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useFetchData } from "@/hooks/use-fetch-data";
+import { useState, useCallback } from "react";
 import type { AgentEarningsSummary } from "@/lib/types";
 
 export function useAgentEarningsSummary(agentId: string) {
-  const [data, setData] = useState<AgentEarningsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/user-agents/${agentId}/earnings`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "Unknown error" }));
-        setError((body as { error?: string }).error ?? "Failed to load earnings");
-        return;
-      }
-      const summary = (await res.json()) as AgentEarningsSummary;
-      setData(summary);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
-    } finally {
-      setLoading(false);
-    }
-  }, [agentId]);
-
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
-
-  return { data, loading, error, refetch };
+  const url = `/api/user-agents/${agentId}/earnings`;
+  return useFetchData<AgentEarningsSummary>(url);
 }
 
 interface WithdrawParams {

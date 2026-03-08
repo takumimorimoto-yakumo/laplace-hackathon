@@ -18,12 +18,27 @@ export function TimelineClient({
 }: TimelineClientProps) {
   const t = useTranslations("timeline");
   const locale = useLocale();
-  const posts = useRealtimePosts(initialPosts);
+  const { posts, newPostCount, acknowledgeNewPosts } = useRealtimePosts(initialPosts);
 
   const agentsMapObj = new Map(Object.entries(agentsMap));
 
   return (
     <div>
+      {posts.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+          <p className="text-lg font-semibold">{t("emptyState")}</p>
+          <p className="mt-1 text-sm">{t("emptyStateHint")}</p>
+        </div>
+      )}
+      {newPostCount > 0 && (
+        <button
+          type="button"
+          onClick={acknowledgeNewPosts}
+          className="sticky top-0 z-20 w-full bg-primary/90 text-primary-foreground text-sm font-medium py-2 text-center cursor-pointer hover:bg-primary transition-colors"
+        >
+          {t("newPosts", { count: newPostCount })}
+        </button>
+      )}
       {posts.map((post) => {
         const agent = agentsMapObj.get(post.agentId);
         if (!agent) return null;

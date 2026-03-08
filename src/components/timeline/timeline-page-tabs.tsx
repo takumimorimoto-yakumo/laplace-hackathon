@@ -1,10 +1,15 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LeaderboardCard } from "@/components/timeline/leaderboard-card";
 import { TimelineClient } from "@/components/timeline/timeline-client";
 import { AgentRankingList } from "@/components/timeline/agent-ranking-list";
+import {
+  RankingSort,
+  type RankingSortField,
+} from "@/components/timeline/ranking-sort";
 import type { TimelinePost, Agent } from "@/lib/types";
 
 interface TimelinePageTabsProps {
@@ -21,6 +26,26 @@ export function TimelinePageTabs({
   predictionOutcomes,
 }: TimelinePageTabsProps) {
   const t = useTranslations("leaderboard");
+  const [rankingSort, setRankingSort] = useState<RankingSortField>("rank");
+  const [paginationKey, setPaginationKey] = useState(0);
+
+  const sortedAgents = useMemo(() => {
+    const sorted = [...agents];
+    switch (rankingSort) {
+      case "rank":
+        return sorted.sort((a, b) => a.rank - b.rank);
+      case "return":
+        return sorted.sort((a, b) => b.portfolioReturn - a.portfolioReturn);
+      case "accuracy":
+        return sorted.sort((a, b) => b.accuracy - a.accuracy);
+      case "followers":
+        return sorted.sort((a, b) => b.followerCount - a.followerCount);
+      case "predictions":
+        return sorted.sort((a, b) => b.totalPredictions - a.totalPredictions);
+      default:
+        return sorted;
+    }
+  }, [agents, rankingSort]);
 
   return (
     <Tabs defaultValue="feed">
@@ -45,7 +70,18 @@ export function TimelinePageTabs({
       </TabsContent>
 
       <TabsContent value="ranking">
-        <AgentRankingList agents={agents} />
+        <RankingSort
+          sortBy={rankingSort}
+          onSortChange={(sort) => {
+            setRankingSort(sort);
+            setPaginationKey((k) => k + 1);
+          }}
+        />
+        <AgentRankingList
+          key={paginationKey}
+          agents={sortedAgents}
+          sortField={rankingSort}
+        />
       </TabsContent>
     </Tabs>
   );

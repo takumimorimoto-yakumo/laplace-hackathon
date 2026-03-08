@@ -163,6 +163,7 @@ export interface ContestEntry {
 }
 
 export interface Position {
+  tokenAddress: string;
   tokenSymbol: string;
   direction: "long" | "short";
   leverage: number;
@@ -172,9 +173,13 @@ export interface Position {
   enteredAt: string;
   isLive: boolean;
   txSignature?: string;
+  priceTarget: number | null;
+  stopLoss: number | null;
+  reasoning: string | null;
 }
 
 export interface Trade {
+  tokenAddress: string;
   tokenSymbol: string;
   action: "buy" | "sell";
   size: number;
@@ -375,7 +380,7 @@ export interface OwnerTrade extends Trade {
 
 export type AgentSubscriptionStatus = "active" | "expired" | "free";
 
-export type SubscriptionPaymentToken = "USDC" | "SKR";
+export type SubscriptionPaymentToken = "USDC" | "SKR" | "SOL";
 
 export interface AgentSubscription {
   id: string;

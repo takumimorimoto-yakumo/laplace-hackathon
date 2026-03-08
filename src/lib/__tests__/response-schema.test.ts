@@ -123,6 +123,7 @@ describe("parseAgentResponse", () => {
       uncertainty: "Regulatory risks remain",
       confidence_rationale: "Strong on-chain data supports the call",
       price_target: 180.5,
+      stop_loss: null,
       allocation_pct: 0.10,
     });
   });

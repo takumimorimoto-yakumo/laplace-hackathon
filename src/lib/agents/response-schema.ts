@@ -21,6 +21,7 @@ export interface AgentPostOutput {
   uncertainty: string;
   confidence_rationale: string;
   price_target: number | null;
+  stop_loss: number | null;
   /** Portfolio allocation percentage (0.01–0.50) decided by the AI */
   allocation_pct: number;
 }
@@ -170,6 +171,7 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
       uncertainty: "",
       confidence_rationale: "",
       price_target: null,
+      stop_loss: null,
       allocation_pct: 0,
     };
   }
@@ -217,6 +219,11 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
       ? obj.price_target
       : null;
 
+  const stopLoss =
+    typeof obj.stop_loss === "number" && obj.stop_loss > 0
+      ? obj.stop_loss
+      : null;
+
   // Parse allocation_pct (AI-decided portfolio allocation)
   let allocationPct =
     typeof obj.allocation_pct === "number" ? obj.allocation_pct : 0.10;
@@ -236,6 +243,7 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
     uncertainty,
     confidence_rationale: confidenceRationale,
     price_target: priceTarget,
+    stop_loss: stopLoss,
     allocation_pct: allocationPct,
   };
 }

@@ -114,6 +114,9 @@ export interface DbVirtualPosition {
   opened_at: string;
   is_live: boolean;
   open_tx_signature: string | null;
+  price_target: number | null;
+  stop_loss: number | null;
+  reasoning: string | null;
 }
 
 export interface DbVirtualTrade {
@@ -245,6 +248,7 @@ export function dbPostToTimelinePost(
 
 export function dbPositionToPosition(row: DbVirtualPosition): Position {
   return {
+    tokenAddress: row.token_address,
     tokenSymbol: row.token_symbol,
     direction: row.side as "long" | "short",
     leverage: Number(row.leverage),
@@ -254,11 +258,15 @@ export function dbPositionToPosition(row: DbVirtualPosition): Position {
     enteredAt: row.opened_at,
     isLive: row.is_live ?? false,
     txSignature: row.open_tx_signature ?? undefined,
+    priceTarget: row.price_target != null ? Number(row.price_target) : null,
+    stopLoss: row.stop_loss != null ? Number(row.stop_loss) : null,
+    reasoning: row.reasoning ?? null,
   };
 }
 
 export function dbTradeToTrade(row: DbVirtualTrade): Trade {
   return {
+    tokenAddress: row.token_address,
     tokenSymbol: row.token_symbol,
     action: row.action === "open" ? "buy" : "sell",
     size: Number(row.amount_usdc),

@@ -117,6 +117,9 @@ function makeDbPosition(
     opened_at: "2026-03-06T08:00:00Z",
     is_live: false,
     open_tx_signature: null,
+    price_target: null,
+    stop_loss: null,
+    reasoning: null,
     ...overrides,
   };
 }

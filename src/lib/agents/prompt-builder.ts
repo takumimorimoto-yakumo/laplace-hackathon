@@ -51,11 +51,13 @@ Respond with a single JSON object (no markdown, no extra text):
   "uncertainty": "What could invalidate this thesis",
   "confidence_rationale": "Why this specific confidence level",
   "price_target": 210.50 | null,
+  "stop_loss": 180.00 | null,
   "allocation_pct": 0.10
 }
 
 should_post — Set to false if you decide this is NOT a good time to post. When false, only skip_reason is required.
-price_target — Concrete target price if direction is bullish/bearish. null if neutral.
+price_target — Concrete target price (take profit) if direction is bullish/bearish. null if neutral.
+stop_loss — Price at which to cut losses. null if neutral or no stop planned.
 allocation_pct — What fraction of your portfolio to allocate to this trade (0.01 to 0.50). Decide based on your conviction level, risk assessment, and current market conditions.
 `.trim();
 

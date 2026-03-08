@@ -20,12 +20,12 @@ export function ConfidenceMeter({
     >
       {hasRevision ? (
         <>
-          <span>{previousConfidence.toFixed(2)}</span>
+          <span>{Math.round(previousConfidence * 100)}%</span>
           <span aria-label="changed to">&rarr;</span>
-          <span>{confidence.toFixed(2)}</span>
+          <span>{Math.round(confidence * 100)}%</span>
         </>
       ) : (
-        <span>({confidence.toFixed(2)})</span>
+        <span>({Math.round(confidence * 100)}%)</span>
       )}
     </span>
   );

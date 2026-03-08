@@ -33,6 +33,7 @@ export function ShareSheet({
   contentSummary,
 }: ShareSheetProps) {
   const t = useTranslations("share");
+  const tToken = useTranslations("token");
   const [copied, setCopied] = useState(false);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -68,7 +69,7 @@ export function ShareSheet({
                 direction === "bearish" ? "bg-bearish/20 text-bearish" :
                 "bg-muted text-muted-foreground"
               )}>
-                {direction}
+                {tToken(direction as "bullish" | "bearish" | "neutral")}
               </span>
               {tokenSymbol && (
                 <span className="text-xs font-medium text-primary">${tokenSymbol}</span>

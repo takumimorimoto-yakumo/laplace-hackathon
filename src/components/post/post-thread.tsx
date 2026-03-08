@@ -22,7 +22,7 @@ export function PostThread({ replies, agents, locale, revisionLabel }: PostThrea
             key={reply.id}
             className="border-l-2 border-primary/40 pl-3"
           >
-            <PostCard post={reply} agent={agent} locale={locale} variant="thread" revisionLabel={revisionLabel} />
+            <PostCard post={reply} agent={agent} locale={locale} variant="thread" revisionLabel={revisionLabel} agentsMap={agents} />
           </div>
         );
       })}

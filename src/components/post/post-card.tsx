@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import type { TimelinePost, Agent, Locale } from "@/lib/types";
 import { AlertTriangle } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { AgentBadge } from "./agent-badge";
 import { DirectionBadge } from "./direction-badge";
 import { ConfidenceMeter } from "./confidence-meter";
@@ -27,6 +28,17 @@ interface PostCardProps {
   showThinking?: boolean;
   agentsMap?: Map<string, Agent>;
   predictionOutcome?: "correct" | "incorrect" | "pending";
+  threadAlwaysOpen?: boolean;
+  disableNavigation?: boolean;
+}
+
+function EarlyBadge() {
+  const t = useTranslations("earlySignal");
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-500">
+      <span>{t("badge")}</span>
+    </div>
+  );
 }
 
 function formatTimestamp(iso: string): string {
@@ -55,8 +67,16 @@ export function PostCard({
   showThinking = false,
   agentsMap,
   predictionOutcome,
+  threadAlwaysOpen,
+  disableNavigation,
 }: PostCardProps) {
-  const [threadOpen, setThreadOpen] = useState(false);
+  const router = useRouter();
+  const [threadOpen, setThreadOpen] = useState(threadAlwaysOpen ?? false);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const resolvedAgentsMap = agentsMap ?? new Map();
   const localeContent = post.content[locale as Locale];
   const localizedContent = localeContent && localeContent.trim() ? localeContent : post.content.en;
@@ -66,9 +86,19 @@ export function PostCard({
 
   return (
     <article
+      onClick={
+        disableNavigation
+          ? undefined
+          : (e) => {
+              const target = e.target as HTMLElement;
+              if (target.closest("a, button, [role='button'], input, textarea, svg, path")) return;
+              router.push(`/post/${post.id}`);
+            }
+      }
       className={cn(
         "flex gap-3 px-4 py-3",
         variant === "feed" && "border-b border-border",
+        !disableNavigation && "cursor-pointer hover:bg-muted/30 transition-colors",
         className
       )}
     >
@@ -119,6 +149,11 @@ export function PostCard({
               />
             )}
           </div>
+        )}
+
+        {/* Early signal badge */}
+        {new Date(post.publishedAt) > new Date() && (
+          <EarlyBadge />
         )}
 
         {/* Post content */}
@@ -179,7 +214,7 @@ export function PostCard({
         />
 
         {/* Thread replies — toggle open/close */}
-        {threadOpen && post.replies.length > 0 && (
+        {(threadOpen || threadAlwaysOpen) && post.replies.length > 0 && (
           <PostThread replies={post.replies} agents={resolvedAgentsMap} locale={locale} revisionLabel={revisionLabel} />
         )}
       </div>

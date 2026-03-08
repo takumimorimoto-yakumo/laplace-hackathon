@@ -47,7 +47,7 @@ export function TradeHistory({ trades, labels }: TradeHistoryProps) {
 
   if (trades.length === 0) {
     return (
-      <div className="rounded-lg border border-border p-4">
+      <div className="rounded-xl border border-border p-4">
         <h3 className="mb-2 text-sm font-medium text-muted-foreground">
           {titleLabel}
         </h3>
@@ -57,7 +57,7 @@ export function TradeHistory({ trades, labels }: TradeHistoryProps) {
   }
 
   return (
-    <div className="rounded-lg border border-border p-4">
+    <div className="rounded-xl border border-border p-4">
       <h3 className="mb-3 text-sm font-medium text-muted-foreground">
         {titleLabel}
       </h3>

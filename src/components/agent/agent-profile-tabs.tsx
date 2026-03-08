@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { MessageSquare, Briefcase, BarChart3, Info } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { VirtualPortfolio } from "@/components/agent/virtual-portfolio";
 import { PositionList } from "@/components/agent/position-list";
@@ -17,7 +18,8 @@ import { EarningsSection } from "@/components/agent/earnings-section";
 import { ModuleTags } from "@/components/agent/module-tags";
 import { computePredictionStats } from "@/lib/agent-stats";
 import { useIsRented } from "@/hooks/use-is-rented";
-import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot, AgentRentalPlan } from "@/lib/types";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot, AgentRentalPlan, MarketToken } from "@/lib/types";
 import type { ResolvedPrediction } from "@/lib/supabase/queries";
 
 interface AgentProfileTabsProps {
@@ -32,6 +34,7 @@ interface AgentProfileTabsProps {
   locale: string;
   plan: AgentRentalPlan;
   ownerWallet?: string;
+  tokenDataMap?: Record<string, MarketToken>;
 }
 
 export function AgentProfileTabs({
@@ -46,18 +49,22 @@ export function AgentProfileTabs({
   locale,
   plan,
   ownerWallet,
+  tokenDataMap,
 }: AgentProfileTabsProps) {
   const t = useTranslations("agent");
   const tTimeline = useTranslations("timeline");
   const isRented = useIsRented(agent.id);
+  const { publicKey } = useWallet();
+  const connectedWallet = publicKey?.toBase58();
+  const isOwner = !!connectedWallet && !!ownerWallet && connectedWallet === ownerWallet;
 
   return (
     <Tabs defaultValue="posts">
-      <TabsList>
-        <TabsTrigger value="posts">{t("posts")}</TabsTrigger>
-        <TabsTrigger value="portfolio">{t("portfolio")}</TabsTrigger>
-        <TabsTrigger value="performance">{t("performance")}</TabsTrigger>
-        <TabsTrigger value="about">{t("about")}</TabsTrigger>
+      <TabsList variant="line" className="w-full justify-start overflow-x-auto scrollbar-hide">
+        <TabsTrigger value="posts" className="flex-none"><MessageSquare className="size-4" /> {t("posts")}</TabsTrigger>
+        <TabsTrigger value="portfolio" className="flex-none"><Briefcase className="size-4" /> {t("portfolio")}</TabsTrigger>
+        <TabsTrigger value="performance" className="flex-none"><BarChart3 className="size-4" /> {t("performance")}</TabsTrigger>
+        <TabsTrigger value="about" className="flex-none"><Info className="size-4" /> {t("about")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="posts">
@@ -88,12 +95,11 @@ export function AgentProfileTabs({
 
         <PositionList
           positions={positions}
-          labels={{
-            title: t("openPositions"),
-            noPositions: t("noOpenPositions"),
-            long: t("long"),
-            short: t("short"),
-          }}
+          trades={trades}
+          agentId={agent.id}
+          agentName={agent.name}
+          tokenDataMap={tokenDataMap}
+          showStrategy={isRented || isOwner}
         />
       </TabsContent>
 
@@ -116,27 +122,28 @@ export function AgentProfileTabs({
         />
       </TabsContent>
 
-      <TabsContent value="about" className="space-y-4">
+      <TabsContent value="about" className="space-y-3">
         {/* Full bio */}
-        <div>
-          <h3 className="text-sm font-semibold text-foreground mb-1.5">{t("aboutAgent")}</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+        <div className="rounded-xl border border-border p-4">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t("aboutAgent")}</h3>
+          <p className="text-sm text-foreground/80 leading-relaxed">
             {agent.bio}
           </p>
         </div>
 
         {/* Personality */}
         {agent.personality && (
-          <div>
-            <h3 className="text-sm font-semibold text-foreground mb-1.5">{t("personalityTitle")}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+          <div className="rounded-xl border border-border p-4">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t("personalityTitle")}</h3>
+            <p className="text-sm text-foreground/80 leading-relaxed">
               {agent.personality}
             </p>
           </div>
         )}
 
         {/* Modules */}
-        <div>
+        <div className="rounded-xl border border-border p-4">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2.5">Modules</h3>
           <ModuleTags modules={agent.modules} />
         </div>
 

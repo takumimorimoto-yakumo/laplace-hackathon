@@ -20,13 +20,13 @@ export function PredictionStats({ stats, className }: PredictionStatsProps) {
   ];
 
   return (
-    <div className={cn("rounded-lg border border-border p-4", className)}>
+    <div className={cn("rounded-xl border border-border p-4", className)}>
       <h3 className="text-sm font-semibold text-foreground mb-3">{t("title")}</h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         {items.map((item) => (
-          <div key={item.label}>
-            <p className="text-xs text-muted-foreground">{item.label}</p>
-            <p className="text-lg font-semibold font-mono text-foreground mt-0.5">{item.value}</p>
+          <div key={item.label} className="rounded-lg bg-muted/40 p-3">
+            <p className="text-[11px] text-muted-foreground mb-1">{item.label}</p>
+            <p className="text-lg font-semibold font-mono text-foreground">{item.value}</p>
           </div>
         ))}
       </div>

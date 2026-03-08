@@ -53,6 +53,9 @@ test-ledger/
 CLAUDE.md
 .claude/
 
+# video
+/video/
+
 # PWA
 public/sw.js
 public/workbox-*.js

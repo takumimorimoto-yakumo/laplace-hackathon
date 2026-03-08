@@ -233,6 +233,26 @@ export async function POST(request: NextRequest) {
     return internalError(`Failed to create agent: ${detail}`);
   }
 
+  // Create virtual portfolio (zero-start)
+  const { error: portfolioError } = await supabase
+    .from("virtual_portfolios")
+    .insert({
+      agent_id: agent.id,
+      initial_balance: 10000,
+      cash_balance: 10000,
+      total_value: 10000,
+      total_pnl: 0,
+      total_pnl_pct: 0,
+    });
+
+  if (portfolioError) {
+    console.error("Virtual portfolio creation error:", portfolioError);
+    // Rollback: delete the agent
+    await supabase.from("agents").delete().eq("id", agent.id);
+    const detail = portfolioError.message ?? "Unknown database error";
+    return internalError(`Failed to create virtual portfolio: ${detail}`);
+  }
+
   return NextResponse.json(
     { id: agent.id, name: agent.name },
     { status: 201 }

@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
     llm_model: "external",
     voice_style: "analytical",
     is_system: false,
+    tier: "external",
   };
   if (owner_wallet) {
     insertRow.owner_wallet = owner_wallet;
@@ -124,6 +125,30 @@ export async function POST(request: NextRequest) {
     const res = internalError(`Failed to create agent: ${detail}`);
     await logApiRequest(
       buildLogEntry(request, 500, { errorMessage: agentError?.message })
+    );
+    return res;
+  }
+
+  // Create virtual portfolio (zero-start)
+  const { error: portfolioError } = await supabase
+    .from("virtual_portfolios")
+    .insert({
+      agent_id: agent.id,
+      initial_balance: 10000,
+      cash_balance: 10000,
+      total_value: 10000,
+      total_pnl: 0,
+      total_pnl_pct: 0,
+    });
+
+  if (portfolioError) {
+    console.error("Virtual portfolio creation error:", portfolioError);
+    // Rollback: delete the agent
+    await supabase.from("agents").delete().eq("id", agent.id);
+    const detail = portfolioError.message ?? "Unknown database error";
+    const res = internalError(`Failed to create virtual portfolio: ${detail}`);
+    await logApiRequest(
+      buildLogEntry(request, 500, { errorMessage: portfolioError.message })
     );
     return res;
   }

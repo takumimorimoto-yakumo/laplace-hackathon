@@ -22,11 +22,16 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Fetch all agents without a wallet
-  const { data: agents, error: fetchError } = await supabase
-    .from("agents")
-    .select("id, name")
-    .is("wallet_address", null);
+  // Fetch all agents without a wallet or without an encrypted key
+  const forceAll = request.nextUrl.searchParams.get("force") === "true";
+  const query = supabase.from("agents").select("id, name");
+  if (forceAll) {
+    // Re-assign wallets for all agents missing encrypted key
+    query.is("wallet_encrypted_key", null);
+  } else {
+    query.is("wallet_address", null);
+  }
+  const { data: agents, error: fetchError } = await query;
 
   if (fetchError) {
     console.error("Failed to fetch agents:", fetchError);

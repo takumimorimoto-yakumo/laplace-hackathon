@@ -14,6 +14,10 @@ export interface RegisteredAgent {
   isPaused: boolean;
   portfolioValue: number;
   portfolioReturn: number;
+  totalPredictions: number;
+  rentalPriceUsdc: number;
+  liveTradingEnabled: boolean;
+  walletEncryptedKey: boolean;
 }
 
 const EMPTY: RegisteredAgent[] = [];
@@ -31,7 +35,7 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
 
     supabase
       .from("agents")
-      .select("id, name, style, accuracy_score, leaderboard_rank, tier, template, is_paused, portfolio_value, portfolio_return")
+      .select("id, name, style, accuracy_score, leaderboard_rank, tier, template, is_paused, portfolio_value, portfolio_return, total_predictions, rental_price_usdc, live_trading_enabled, wallet_encrypted_key")
       .or(`owner_wallet.eq.${walletAddress},wallet_address.eq.${walletAddress}`)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -51,6 +55,10 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
               isPaused: (row.is_paused as boolean) ?? false,
               portfolioValue: (row.portfolio_value as number) ?? 0,
               portfolioReturn: (row.portfolio_return as number) ?? 0,
+              totalPredictions: (row.total_predictions as number) ?? 0,
+              rentalPriceUsdc: (row.rental_price_usdc as number) ?? 0,
+              liveTradingEnabled: (row.live_trading_enabled as boolean) ?? false,
+              walletEncryptedKey: !!(row.wallet_encrypted_key),
             }))
           );
         }
@@ -64,5 +72,11 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
 
   const loading = !!walletAddress && !fetched;
 
-  return { agents, loading };
+  const updateAgent = (agentId: string, patch: Partial<RegisteredAgent>) => {
+    setAgents((prev) =>
+      prev.map((a) => (a.id === agentId ? { ...a, ...patch } : a))
+    );
+  };
+
+  return { agents, loading, updateAgent };
 }

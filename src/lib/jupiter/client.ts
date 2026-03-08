@@ -1,4 +1,4 @@
-const JUPITER_API = "https://quote-api.jup.ag/v6";
+const JUPITER_API = process.env.JUPITER_API_BASE_URL ?? "https://quote-api.jup.ag/v6";
 
 export interface JupiterQuote {
   inputMint: string;

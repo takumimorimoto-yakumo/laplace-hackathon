@@ -1,4 +1,4 @@
-const BASE_URL = "https://api.llama.fi";
+const BASE_URL = process.env.DEFILLAMA_API_BASE_URL ?? "https://api.llama.fi";
 
 const PROTOCOL_SLUGS: Record<string, string> = {
   JUP: "jupiter",

@@ -1,4 +1,4 @@
-const BASE_URL = "https://public-api.birdeye.so/defi";
+const BASE_URL = process.env.BIRDEYE_API_BASE_URL ?? "https://public-api.birdeye.so/defi";
 
 function getHeaders(): HeadersInit {
   const apiKey = process.env.BIRDEYE_API_KEY ?? "";

@@ -5,7 +5,7 @@
 // Drift SDK integration for leveraged trading on Solana.
 // Uses REST API for quotes and SDK for transaction building.
 
-const DRIFT_API = "https://dlob.drift.trade";
+const DRIFT_API = process.env.DRIFT_API_BASE_URL ?? "https://dlob.drift.trade";
 
 export interface DriftMarket {
   marketIndex: number;

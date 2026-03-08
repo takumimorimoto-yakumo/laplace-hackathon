@@ -2,6 +2,9 @@
 // Jupiter API Client — Token List & Prices
 // ============================================================
 
+const JUPITER_TOKENS_API = process.env.JUPITER_TOKENS_API_BASE_URL ?? "https://tokens.jup.ag";
+const JUPITER_PRICE_API = process.env.JUPITER_PRICE_API_BASE_URL ?? "https://api.jup.ag";
+
 /** Jupiter Token List item */
 export interface JupiterToken {
   address: string;
@@ -41,7 +44,7 @@ export async function fetchVerifiedTokens(): Promise<JupiterToken[]> {
     return verifiedTokensCache.data;
   }
 
-  const res = await fetch("https://tokens.jup.ag/tokens?tags=verified");
+  const res = await fetch(`${JUPITER_TOKENS_API}/tokens?tags=verified`);
   if (!res.ok) {
     console.error(`Jupiter token list error: ${res.status} ${res.statusText}`);
     return [];
@@ -98,7 +101,7 @@ export async function fetchTokenPrices(
     chunks.map(async (chunk) => {
       try {
         const ids = chunk.join(",");
-        const res = await fetch(`https://api.jup.ag/price/v2?ids=${ids}`);
+        const res = await fetch(`${JUPITER_PRICE_API}/price/v2?ids=${ids}`);
         if (!res.ok) {
           console.error(`Jupiter price API error: ${res.status}`);
           return new Map<string, number>();
@@ -142,7 +145,7 @@ export async function fetchSingleToken(
   address: string
 ): Promise<JupiterToken | null> {
   try {
-    const res = await fetch(`https://tokens.jup.ag/token/${address}`);
+    const res = await fetch(`${JUPITER_TOKENS_API}/token/${address}`);
     if (!res.ok) {
       if (res.status === 404) return null;
       console.error(`Jupiter single token error: ${res.status}`);

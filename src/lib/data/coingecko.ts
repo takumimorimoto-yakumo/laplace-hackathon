@@ -1,4 +1,4 @@
-const BASE_URL = "https://api.coingecko.com/api/v3";
+const BASE_URL = process.env.COINGECKO_API_BASE_URL ?? "https://api.coingecko.com/api/v3";
 
 const SOLANA_TO_COINGECKO: Record<string, string> = {
   SOL: "solana",

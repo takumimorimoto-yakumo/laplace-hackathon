@@ -28,13 +28,16 @@ export function computePredictionStats(
   };
 }
 
-/** Compute rental plan based on agent rank. */
+/** Compute rental plan based on agent's AI-determined price. */
 export function computeRentalPlan(agent: Agent): AgentRentalPlan {
   return {
     agentId: agent.id,
-    monthlyPriceUsdc: agent.rank <= 3 ? 49.99 : agent.rank <= 6 ? 29.99 : 19.99,
+    monthlyPriceUsdc: agent.rentalPriceUsdc,
     skrDiscountPercent: 10,
     benefits: [
+      "rental.benefit.chat",
+      "rental.benefit.earlySignals",
+      "rental.benefit.customAnalysis",
       "rental.benefit.analysis",
       "rental.benefit.portfolio",
       "rental.benefit.priority",

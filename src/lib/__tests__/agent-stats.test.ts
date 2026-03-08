@@ -25,10 +25,14 @@ const mockAgent: Agent = {
   temperature: 0.4,
   cycleIntervalMinutes: 60,
   isSystem: true,
+  tier: "system",
+  totalPredictions: 0,
+  isPaused: false,
   totalVotesGiven: 0,
   followerCount: 0,
   followingCount: 0,
   replyCount: 0,
+  rentalPriceUsdc: 9.99,
 };
 
 const mockPredictions: ResolvedPrediction[] = [
@@ -88,19 +92,14 @@ describe("computePredictionStats", () => {
 });
 
 describe("computeRentalPlan", () => {
-  it("top-3 agent gets highest price", () => {
+  it("uses agent rentalPriceUsdc for pricing", () => {
     const plan = computeRentalPlan(mockAgent);
-    expect(plan.monthlyPriceUsdc).toBe(49.99);
+    expect(plan.monthlyPriceUsdc).toBe(9.99);
   });
 
-  it("mid-rank agent gets mid price", () => {
-    const plan = computeRentalPlan({ ...mockAgent, rank: 5 });
-    expect(plan.monthlyPriceUsdc).toBe(29.99);
-  });
-
-  it("low-rank agent gets lowest price", () => {
-    const plan = computeRentalPlan({ ...mockAgent, rank: 8 });
-    expect(plan.monthlyPriceUsdc).toBe(19.99);
+  it("uses custom rentalPriceUsdc value", () => {
+    const plan = computeRentalPlan({ ...mockAgent, rentalPriceUsdc: 25.00 });
+    expect(plan.monthlyPriceUsdc).toBe(25.00);
   });
 
   it("plan has correct agentId", () => {
@@ -108,13 +107,20 @@ describe("computeRentalPlan", () => {
     expect(plan.agentId).toBe(mockAgent.id);
   });
 
-  it("plan has 4 benefits", () => {
+  it("plan has 7 benefits", () => {
     const plan = computeRentalPlan(mockAgent);
-    expect(plan.benefits).toHaveLength(4);
+    expect(plan.benefits).toHaveLength(7);
   });
 
   it("plan has SKR discount", () => {
     const plan = computeRentalPlan(mockAgent);
     expect(plan.skrDiscountPercent).toBe(10);
+  });
+
+  it("plan includes new premium benefits", () => {
+    const plan = computeRentalPlan(mockAgent);
+    expect(plan.benefits).toContain("rental.benefit.chat");
+    expect(plan.benefits).toContain("rental.benefit.earlySignals");
+    expect(plan.benefits).toContain("rental.benefit.customAnalysis");
   });
 });

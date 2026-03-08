@@ -30,6 +30,7 @@ import { resolveProvider } from "./llm-client";
 import { jaccardSimilarity } from "@/lib/api/content-safety";
 import { isProPicker } from "@/lib/agents/pro-picker";
 import { recordPortfolioSnapshot } from "./portfolio-snapshot";
+import { executeLiveOpen, executeLiveClose } from "./live-trade";
 import type { Agent, TimelinePost } from "@/lib/types";
 
 // ============================================================
@@ -1414,7 +1415,7 @@ export async function runVirtualTrade(
     const now = new Date().toISOString();
 
     // 5. Insert into virtual_positions
-    const { error: posError } = await supabase
+    const { data: posData, error: posError } = await supabase
       .from("virtual_positions")
       .insert({
         agent_id: agentId,
@@ -1431,7 +1432,9 @@ export async function runVirtualTrade(
         unrealized_pnl_pct: 0,
         post_id: postId,
         opened_at: now,
-      });
+      })
+      .select("id")
+      .single();
 
     if (posError) {
       throw new Error(`Failed to insert position: ${posError.message}`);
@@ -1480,6 +1483,29 @@ export async function runVirtualTrade(
     console.log(
       `[runner] Virtual trade: ${side} ${output.token_symbol} $${amountUsdc.toFixed(2)} @ $${price.toFixed(4)} for agent ${agentId}`
     );
+
+    // 9. Live trade (best-effort): only long positions for live-enabled agents
+    if (side === "long" && output.token_address && posData?.id) {
+      try {
+        const { data: agentRow } = await supabase
+          .from("agents")
+          .select("live_trading_enabled, tier")
+          .eq("id", agentId)
+          .single();
+
+        if (agentRow?.live_trading_enabled && agentRow.tier !== "system") {
+          await executeLiveOpen({
+            agentId,
+            positionId: posData.id as string,
+            tokenAddress: output.token_address,
+            amountUsdc,
+          });
+        }
+      } catch (liveErr: unknown) {
+        const liveMsg = liveErr instanceof Error ? liveErr.message : String(liveErr);
+        console.warn(`[runner] Live open failed (best-effort): ${liveMsg}`);
+      }
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[runner] Virtual trade failed: ${message}`);
@@ -1561,7 +1587,7 @@ export async function closeExpiredPositions(
       const now = new Date().toISOString();
 
       // Insert close trade
-      const { error: tradeError } = await supabase
+      const { data: tradeData, error: tradeError } = await supabase
         .from("virtual_trades")
         .insert({
           agent_id: agentId,
@@ -1578,13 +1604,29 @@ export async function closeExpiredPositions(
           realized_pnl_pct: realizedPnlPct,
           post_id: pos.post_id,
           executed_at: now,
-        });
+        })
+        .select("id")
+        .single();
 
       if (tradeError) {
         console.error(
           `[runner] Failed to insert close trade: ${tradeError.message}`
         );
         continue;
+      }
+
+      // Live close (best-effort): sell on-chain if position was live
+      if (pos.is_live && tradeData?.id && pos.token_address) {
+        try {
+          await executeLiveClose({
+            agentId,
+            tradeId: tradeData.id as string,
+            tokenAddress: pos.token_address as string,
+          });
+        } catch (liveErr: unknown) {
+          const liveMsg = liveErr instanceof Error ? liveErr.message : String(liveErr);
+          console.warn(`[runner] Live close failed (best-effort): ${liveMsg}`);
+        }
       }
 
       // Delete the position

@@ -36,3 +36,26 @@ export function generateAgentWallet(): { publicKey: string; encryptedPrivateKey:
   const encryptedPrivateKey = encryptPrivateKey(keypair.secretKey);
   return { publicKey, encryptedPrivateKey };
 }
+
+/**
+ * Retrieve an agent's Keypair from the database by decrypting the stored private key.
+ * Returns null if the agent has no wallet or the encrypted key is missing.
+ */
+export async function getAgentKeypair(agentId: string): Promise<Keypair | null> {
+  // Dynamic import to avoid circular dependency issues at module load
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("agents")
+    .select("wallet_encrypted_key")
+    .eq("id", agentId)
+    .single();
+
+  if (error || !data?.wallet_encrypted_key) {
+    return null;
+  }
+
+  const secretKey = decryptPrivateKey(data.wallet_encrypted_key as string);
+  return Keypair.fromSecretKey(secretKey);
+}

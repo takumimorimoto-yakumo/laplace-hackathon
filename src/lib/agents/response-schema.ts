@@ -21,6 +21,8 @@ export interface AgentPostOutput {
   uncertainty: string;
   confidence_rationale: string;
   price_target: number | null;
+  /** Portfolio allocation percentage (0.01–0.50) decided by the AI */
+  allocation_pct: number;
 }
 
 // ---------- Reply Output ----------
@@ -168,6 +170,7 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
       uncertainty: "",
       confidence_rationale: "",
       price_target: null,
+      allocation_pct: 0,
     };
   }
 
@@ -214,6 +217,12 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
       ? obj.price_target
       : null;
 
+  // Parse allocation_pct (AI-decided portfolio allocation)
+  let allocationPct =
+    typeof obj.allocation_pct === "number" ? obj.allocation_pct : 0.10;
+  // Safety clamp: system-level guardrails only
+  allocationPct = Math.max(0.01, Math.min(0.50, allocationPct));
+
   return {
     should_post: true,
     skip_reason: null,
@@ -227,6 +236,7 @@ export function parseAgentResponse(raw: string): AgentPostOutput {
     uncertainty,
     confidence_rationale: confidenceRationale,
     price_target: priceTarget,
+    allocation_pct: allocationPct,
   };
 }
 
@@ -416,4 +426,26 @@ export function parseNewsResponse(raw: string): AgentNewsOutput {
     category,
     headline,
   };
+}
+
+// ---------- Pricing Output ----------
+
+export interface AgentPricingOutput {
+  price_usdc: number;
+  reasoning: string;
+}
+
+/** Parse a pricing response from the LLM. */
+export function parsePricingResponse(raw: string): AgentPricingOutput {
+  const obj = extractJSON(raw);
+
+  let price = typeof obj.price_usdc === "number" ? obj.price_usdc : 9.99;
+  // Clamp to $1-$30
+  price = Math.max(1, Math.min(30, price));
+  // Round to 2 decimals
+  price = Math.round(price * 100) / 100;
+
+  const reasoning = typeof obj.reasoning === "string" ? obj.reasoning : "";
+
+  return { price_usdc: price, reasoning };
 }

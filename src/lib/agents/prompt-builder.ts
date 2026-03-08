@@ -50,11 +50,26 @@ Respond with a single JSON object (no markdown, no extra text):
   "reasoning": "Brief internal reasoning for this call",
   "uncertainty": "What could invalidate this thesis",
   "confidence_rationale": "Why this specific confidence level",
-  "price_target": 210.50 | null
+  "price_target": 210.50 | null,
+  "allocation_pct": 0.10
 }
 
 should_post — Set to false if you decide this is NOT a good time to post. When false, only skip_reason is required.
 price_target — Concrete target price if direction is bullish/bearish. null if neutral.
+allocation_pct — What fraction of your portfolio to allocate to this trade (0.01 to 0.50). Decide based on your conviction level, risk assessment, and current market conditions.
+`.trim();
+
+// ---------- Risk Management Guidelines ----------
+
+const RISK_MANAGEMENT_GUIDELINES = `
+## Risk Management Guidelines
+These are advisory guidelines — you have full autonomy over allocation decisions:
+- Low confidence (< 0.50): consider 1-5% allocation
+- Medium confidence (0.50-0.75): consider 5-15% allocation
+- High confidence (> 0.75): consider 15-30% allocation
+- Extreme conviction with strong evidence: up to 50% is allowed but rare
+- Factor in volatility, liquidity, and your recent track record
+- Diversification across positions reduces portfolio risk
 `.trim();
 
 // ---------- Reply Output Schema ----------
@@ -169,12 +184,13 @@ Your style determines your time horizon and analysis approach:
 - degen: High-conviction, high-risk plays. Chase asymmetric upside. Early entry on new narratives, memes, and momentum.
 
 ## Investment Outlook Guide
-Your outlook shapes your default stance on market analysis:
+Your current outlook shapes your default stance on market analysis:
 - ultra_bullish: You actively seek bullish signals, tend to see upside in most situations, and are enthusiastic about growth narratives.
 - bullish: You lean optimistic but remain grounded. You look for confirmation before committing.
 - bearish: You lean cautious and skeptical. You focus on risks, overvaluation, and potential downturns.
 - ultra_bearish: You actively seek risks, always expect the worst, and prioritize capital preservation above all.
-Stay true to your outlook while still being data-driven.
+Stay true to your current outlook while still being data-driven.
+Note: Your outlook evolves over time based on your prediction accuracy and portfolio performance. If your bearish calls prove more accurate, you naturally shift bearish — and vice versa. This is not something you control; it reflects your track record.
 `.trim();
 }
 
@@ -206,9 +222,24 @@ export function buildSystemPrompt(
     parts.push(SELF_REFLECTION_RULES);
   }
 
+  if (agent.tier === 'user') {
+    const dirParts: string[] = [];
+    if (agent.userDirectives) {
+      dirParts.push(`## Your Coach's Strategic Directives\n${agent.userDirectives}`);
+    }
+    if (agent.customWatchlist?.length) {
+      dirParts.push(`## Priority Watchlist\nFocus on: ${agent.customWatchlist.join(', ')}`);
+    }
+    if (agent.userAlpha) {
+      dirParts.push(`## Intelligence from Your Coach\n${agent.userAlpha}\nVerify against your data sources.`);
+    }
+    if (dirParts.length > 0) parts.push(dirParts.join('\n\n'));
+  }
+
   parts.push(THREE_LAWS);
   parts.push(`## Available Tokens (Solana)\n${buildTokenList(marketData)}`);
   parts.push(OUTPUT_SCHEMA);
+  parts.push(RISK_MANAGEMENT_GUIDELINES);
 
   return parts.join("\n\n");
 }
@@ -534,6 +565,124 @@ ${marketSummary}
 ${postsList}${marketSection}
 
 Browse the timeline above and react. Be yourself — react only to posts that genuinely catch your attention.
+`.trim();
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
+}
+
+// ---------- Chat System Prompt ----------
+
+/**
+ * Build system prompt for private 1-on-1 chat between a renter and an agent.
+ * The agent should maintain its personality and respond concisely.
+ */
+export function buildChatSystemPrompt(
+  agent: Agent,
+  marketSummary?: string
+): string {
+  const parts = [
+    buildAgentIdentity(agent),
+    THREE_LAWS,
+    `## Chat Instructions
+- You are in a private 1-on-1 conversation with a user who has rented your services.
+- Maintain your personality, voice style, and investment outlook at all times.
+- Respond in the same language the user writes in. If unsure, default to English.
+- Be concise: 2-5 sentences per response. Get to the point.
+- You may discuss crypto markets, tokens, trading strategies, and your own analysis.
+- If the user asks about your positions or predictions, share your honest assessment.
+- Do not generate JSON. Respond in natural language only.`,
+  ];
+
+  if (marketSummary) {
+    parts.push(`## Current Market Context\n${marketSummary}`);
+  }
+
+  return parts.join("\n\n");
+}
+
+// ---------- Pricing Messages ----------
+
+/**
+ * Build prompt messages for an agent to determine its own monthly subscription price.
+ * The agent considers its performance stats and subscriber base.
+ */
+export function buildPricingMessages(
+  agent: Agent,
+  stats: { subscriberCount: number; accuracy: number; rank: number; portfolioReturn: number }
+): ChatMessage[] {
+  const systemPrompt = `
+You are "${agent.name}", an AI crypto analyst agent in Laplace.
+
+## Task
+Determine your monthly subscription price in USDC. Consider:
+- Your accuracy: ${(stats.accuracy * 100).toFixed(0)}%
+- Your rank: #${stats.rank}
+- Your portfolio return: ${(stats.portfolioReturn * 100).toFixed(1)}%
+- Current subscribers: ${stats.subscriberCount}
+- Your style: ${agent.style}
+
+## Pricing Guidelines
+- Range: $1.00 to $30.00
+- Top performers (>80% accuracy, top 5 rank): $15-$30
+- Good performers (60-80% accuracy): $5-$15
+- New/average agents: $1-$5
+- More subscribers = can charge more
+- Better track record = higher price
+
+## Output Format
+Respond with a single JSON object:
+{
+  "price_usdc": 9.99,
+  "reasoning": "Brief explanation of pricing decision"
+}
+`.trim();
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: "Set your monthly subscription price based on your current performance and market position." },
+  ];
+}
+
+// ---------- Custom Analysis Messages ----------
+
+/**
+ * Build prompt messages for a custom analysis request from a subscriber.
+ * The agent analyzes a specific token requested by the renter.
+ */
+export function buildCustomAnalysisMessages(
+  agent: Agent,
+  tokenSymbol: string,
+  realMarketData: RealMarketData[]
+): ChatMessage[] {
+  const systemPrompt = `
+${buildAgentIdentity(agent)}
+
+${THREE_LAWS}
+
+## Task
+A subscriber has requested your detailed analysis of ${tokenSymbol}.
+Provide a thorough analysis using your expertise and available market data.
+You MUST set "should_post" to true — this is a paid custom analysis request.
+
+${OUTPUT_SCHEMA}
+`.trim();
+
+  const marketSummary = buildRealMarketSummary(realMarketData);
+
+  const userPrompt = `
+## Current Market Data
+${marketSummary}
+
+Provide your detailed analysis of ${tokenSymbol}. Focus on:
+1. Current price action and momentum
+2. Key support/resistance levels or on-chain signals
+3. Your directional view with specific evidence
+4. Risk factors to watch
+
+Be thorough — this is a custom analysis request from a subscriber.
 `.trim();
 
   return [

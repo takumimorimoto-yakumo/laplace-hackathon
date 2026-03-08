@@ -182,15 +182,14 @@ export async function runBrowse(
           continue;
         }
 
-        // Update pool on prediction_markets
-        const market = eligibleMarkets.find((m) => m.marketId === bet.market_id);
-        if (market) {
-          const poolColumn = bet.side === "yes" ? "pool_yes" : "pool_no";
-          const currentPool = bet.side === "yes" ? market.poolYes : market.poolNo;
-          await supabase
-            .from("prediction_markets")
-            .update({ [poolColumn]: currentPool + BET_AMOUNT_BROWSE })
-            .eq("id", bet.market_id);
+        // Atomically update pool on prediction_markets
+        const { error: poolErr } = await supabase.rpc("increment_market_pool", {
+          p_market_id: bet.market_id,
+          p_side: bet.side,
+          p_amount: BET_AMOUNT_BROWSE,
+        });
+        if (poolErr) {
+          console.warn(`[runner] increment_market_pool failed: ${poolErr.message}`);
         }
 
         result.marketBets++;

@@ -15,8 +15,28 @@ const MAX_BOOKMARKS = 10;
 export { MAX_FOLLOWS };
 
 /**
+ * Atomically increment a counter column on the agents table.
+ */
+async function incrementAgentCounter(
+  agentId: string,
+  column: string,
+  amount: number = 1
+): Promise<void> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.rpc("increment_agent_counter", {
+    p_agent_id: agentId,
+    p_column: column,
+    p_amount: amount,
+  });
+  if (error) {
+    console.warn(`[social] increment_agent_counter(${column}) failed: ${error.message}`);
+  }
+}
+
+/**
  * Record an agent's vote on a post.
- * Upserts into agent_votes, updates post upvotes/downvotes and agent counters.
+ * Uses increment_vote RPC for atomic post counter + total_votes_received update,
+ * plus atomic increment for total_votes_given on the voting agent.
  */
 export async function recordAgentVote(
   agentId: string,
@@ -40,41 +60,25 @@ export async function recordAgentVote(
     return;
   }
 
-  // Increment upvotes/downvotes on the post
-  const column = direction === "up" ? "upvotes" : "downvotes";
-  const { data: postData } = await supabase
-    .from("timeline_posts")
-    .select("upvotes, downvotes")
-    .eq("id", postId)
-    .single();
+  // Atomically increment post upvotes/downvotes AND author's total_votes_received
+  const pgDirection = direction === "up" ? "up" : "down";
+  const { error: incError } = await supabase.rpc("increment_vote", {
+    p_post_id: postId,
+    p_direction: pgDirection,
+    p_amount: 0, // agent votes have no USDC amount
+  });
 
-  if (postData) {
-    const currentValue = direction === "up" ? Number(postData.upvotes) : Number(postData.downvotes);
-    await supabase
-      .from("timeline_posts")
-      .update({ [column]: currentValue + 1 })
-      .eq("id", postId);
+  if (incError) {
+    console.warn(`[social] increment_vote RPC failed: ${incError.message}`);
   }
 
-  // Increment agent's total_votes_given
-  await supabase
-    .from("agents")
-    .select("total_votes_given")
-    .eq("id", agentId)
-    .single()
-    .then(({ data }) => {
-      if (data) {
-        return supabase
-          .from("agents")
-          .update({ total_votes_given: Number(data.total_votes_given) + 1 })
-          .eq("id", agentId);
-      }
-    });
+  // Atomically increment voting agent's total_votes_given
+  await incrementAgentCounter(agentId, "total_votes_given");
 }
 
 /**
  * Record an agent's like on a post.
- * Inserts into agent_post_likes, updates post likes count and agent likes_given.
+ * Uses atomic increments for post likes and agent likes_given.
  */
 export async function recordAgentLike(
   agentId: string,
@@ -95,38 +99,22 @@ export async function recordAgentLike(
     return;
   }
 
-  // Increment likes on the post
-  const { data: postData } = await supabase
-    .from("timeline_posts")
-    .select("likes")
-    .eq("id", postId)
-    .single();
+  // Atomically increment likes on the post
+  const { error: incError } = await supabase.rpc("increment_post_likes", {
+    p_post_id: postId,
+  });
 
-  if (postData) {
-    await supabase
-      .from("timeline_posts")
-      .update({ likes: Number(postData.likes ?? 0) + 1 })
-      .eq("id", postId);
+  if (incError) {
+    console.warn(`[social] increment_post_likes RPC failed: ${incError.message}`);
   }
 
-  // Increment agent's likes_given
-  const { data: agentData } = await supabase
-    .from("agents")
-    .select("likes_given")
-    .eq("id", agentId)
-    .single();
-
-  if (agentData) {
-    await supabase
-      .from("agents")
-      .update({ likes_given: Number(agentData.likes_given ?? 0) + 1 })
-      .eq("id", agentId);
-  }
+  // Atomically increment agent's likes_given
+  await incrementAgentCounter(agentId, "likes_given");
 }
 
 /**
  * Record an agent follow relationship.
- * Inserts into agent_follows and updates follower/following counts.
+ * Inserts into agent_follows and atomically updates follower/following counts.
  * Prunes oldest follows if over MAX_FOLLOWS.
  */
 export async function recordAgentFollow(
@@ -160,35 +148,9 @@ export async function recordAgentFollow(
     return;
   }
 
-  // Update following_count for follower
-  await supabase
-    .from("agents")
-    .select("following_count")
-    .eq("id", followerAgentId)
-    .single()
-    .then(({ data }) => {
-      if (data) {
-        return supabase
-          .from("agents")
-          .update({ following_count: Number(data.following_count) + 1 })
-          .eq("id", followerAgentId);
-      }
-    });
-
-  // Update follower_count for followed
-  await supabase
-    .from("agents")
-    .select("follower_count")
-    .eq("id", followedAgentId)
-    .single()
-    .then(({ data }) => {
-      if (data) {
-        return supabase
-          .from("agents")
-          .update({ follower_count: Number(data.follower_count) + 1 })
-          .eq("id", followedAgentId);
-      }
-    });
+  // Atomically update counters
+  await incrementAgentCounter(followerAgentId, "following_count");
+  await incrementAgentCounter(followedAgentId, "follower_count");
 
   // Prune old follows if over limit
   const { data: allFollows } = await supabase
@@ -202,30 +164,21 @@ export async function recordAgentFollow(
     await supabase.from("agent_follows").delete().in("id", toDelete);
 
     // Correct the following_count after pruning
-    await supabase
+    const { error: fixErr } = await supabase
       .from("agents")
       .update({ following_count: MAX_FOLLOWS })
       .eq("id", followerAgentId);
+    if (fixErr) {
+      console.warn(`[social] following_count fix failed: ${fixErr.message}`);
+    }
   }
 }
 
 /**
- * Increment the reply_count for an agent.
+ * Atomically increment the reply_count for an agent.
  */
 export async function incrementReplyCount(agentId: string): Promise<void> {
-  const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("agents")
-    .select("reply_count")
-    .eq("id", agentId)
-    .single();
-
-  if (data) {
-    await supabase
-      .from("agents")
-      .update({ reply_count: Number(data.reply_count) + 1 })
-      .eq("id", agentId);
-  }
+  await incrementAgentCounter(agentId, "reply_count");
 }
 
 /**

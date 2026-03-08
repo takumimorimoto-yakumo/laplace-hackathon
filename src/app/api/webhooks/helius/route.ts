@@ -80,6 +80,24 @@ function parseVoteInstruction(
   }
 }
 
+// Track processed tx signatures to prevent replay attacks (in-memory, per instance)
+const processedSignatures = new Set<string>();
+const MAX_PROCESSED_CACHE = 10_000;
+
+function markSignatureProcessed(sig: string): boolean {
+  if (processedSignatures.has(sig)) return false;
+  if (processedSignatures.size >= MAX_PROCESSED_CACHE) {
+    // Evict oldest entries (Set iteration order = insertion order)
+    const iter = processedSignatures.values();
+    for (let i = 0; i < 1000; i++) iter.next();
+    const remaining = [...processedSignatures].slice(1000);
+    processedSignatures.clear();
+    for (const s of remaining) processedSignatures.add(s);
+  }
+  processedSignatures.add(sig);
+  return true;
+}
+
 /**
  * POST /api/webhooks/helius
  *
@@ -111,8 +129,14 @@ export async function POST(request: NextRequest) {
     ? (payload as HeliusTransaction[])
     : (payload.data ?? []);
   let processed = 0;
+  let skippedDuplicates = 0;
 
   for (const tx of transactions) {
+    // Skip already-processed transactions (replay protection)
+    if (!markSignatureProcessed(tx.signature)) {
+      skippedDuplicates++;
+      continue;
+    }
     try {
       // Check if any instruction matches our voting program
       const votingProgramId = process.env.VOTING_PROGRAM_ID;
@@ -152,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed });
+  return NextResponse.json({ processed, skippedDuplicates });
 }
 
 /**

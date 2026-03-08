@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Pencil, Pause, Play, Loader2, X } from "lucide-react";
+import { Pencil, Pause, Play, Loader2, X, Star } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -90,47 +90,40 @@ export function OwnerControls({
   };
 
   return (
-    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Badge className="bg-primary/20 text-primary border-primary/30">
-            {t("yourAgent")}
-          </Badge>
-          {isPaused && (
-            <Badge variant="secondary" className="text-amber-500">
-              {t("paused")}
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setEditOpen(true)}
-          className="flex-1"
-        >
-          <Pencil className="size-3.5" />
-          {t("editDirectives")}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleTogglePause}
-          disabled={pausing}
-          className="flex-1"
-        >
-          {pausing ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : isPaused ? (
-            <Play className="size-3.5" />
-          ) : (
-            <Pause className="size-3.5" />
-          )}
-          {isPaused ? t("resume") : t("pause")}
-        </Button>
-      </div>
+    <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 mb-4">
+      <Star className="size-3.5 text-primary shrink-0" />
+      <span className="text-xs font-medium text-primary">{t("yourAgent")}</span>
+      {isPaused && (
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-amber-500">
+          {t("paused")}
+        </Badge>
+      )}
+      <div className="flex-1" />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs"
+        onClick={() => setEditOpen(true)}
+      >
+        <Pencil className="size-3" />
+        {t("editDirectives")}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs"
+        onClick={handleTogglePause}
+        disabled={pausing}
+      >
+        {pausing ? (
+          <Loader2 className="size-3 animate-spin" />
+        ) : isPaused ? (
+          <Play className="size-3" />
+        ) : (
+          <Pause className="size-3" />
+        )}
+        {isPaused ? t("resume") : t("pause")}
+      </Button>
 
       {/* Edit Sheet */}
       <Sheet open={editOpen} onOpenChange={setEditOpen}>

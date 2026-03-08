@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { AgentRentalPlan } from "@/lib/types";
@@ -27,43 +26,40 @@ export function RentalSection({ plan, isRented }: RentalSectionProps) {
   ];
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
+    <section className="rounded-lg border border-border p-4">
+      {/* Header row: price + button */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-lg font-bold text-foreground">
+            ${plan.monthlyPriceUsdc}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            USDC{tCommon("perMonth")}
+          </span>
+          <Badge variant="secondary" className="text-[10px]">
+            {t("skrDiscount", { percent: plan.skrDiscountPercent })}
+          </Badge>
+        </div>
+        {isRented ? (
+          <Button variant="outline" size="sm" disabled>
+            {t("subscribed")}
+          </Button>
+        ) : (
+          <Button size="sm" onClick={() => setSheetOpen(true)}>
+            {t("subscribe")}
+          </Button>
+        )}
+      </div>
 
-      {/* Benefits */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Benefits — subtle list */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
         {benefits.map((b) => (
-          <div key={b} className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Check className="size-4 text-bullish shrink-0" />
+          <div key={b} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Check className="size-3 text-bullish shrink-0" />
             <span>{b}</span>
           </div>
         ))}
       </div>
-
-      {/* Plan Card */}
-      <Card className="border-border">
-        <CardContent className="pt-4 space-y-3">
-          <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-bold text-foreground">
-              ${plan.monthlyPriceUsdc}
-              <span className="text-xs font-normal text-muted-foreground"> USDC{tCommon("perMonth")}</span>
-            </p>
-            <Badge variant="secondary" className="text-xs">
-              {t("skrDiscount", { percent: plan.skrDiscountPercent })}
-            </Badge>
-          </div>
-
-          {isRented ? (
-            <Button variant="outline" size="sm" className="w-full" disabled>
-              {t("subscribed")}
-            </Button>
-          ) : (
-            <Button size="sm" className="w-full" onClick={() => setSheetOpen(true)}>
-              {t("subscribe")}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
 
       <SubscribeSheet
         plan={plan}

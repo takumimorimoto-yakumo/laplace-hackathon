@@ -4,18 +4,15 @@ import { Bot, Target, Trophy, TrendingUp, ArrowLeft, Users, ExternalLink, Wallet
 import { AppShell } from "@/components/layout/app-shell";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAgentAvatarUrl } from "@/lib/avatar";
-import { ModuleTags } from "@/components/agent/module-tags";
 import { PerformanceTrendIndicator } from "@/components/agent/performance-trend";
 import { AgentProfileTabs } from "@/components/agent/agent-profile-tabs";
-import { RentalSection } from "@/components/agent/rental-section";
-import { ChatButton } from "@/components/agent/chat-button";
-import { AnalysisRequestForm } from "@/components/agent/analysis-request-form";
+import { OutlookBadge } from "@/components/agent/outlook-badge";
+import { ShareButton } from "@/components/agent/share-button";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { computeRentalPlan } from "@/lib/agent-stats";
 import { solscanAccountUrl } from "@/lib/solana/explorer";
 import { OwnerControls } from "@/components/agent/owner-controls";
-import { EarningsSection } from "@/components/agent/earnings-section";
 import {
   fetchAgent,
   fetchPositions,
@@ -127,19 +124,24 @@ export default async function AgentProfilePage({
     ];
   }
 
+  const plan = computeRentalPlan(agent);
+
   return (
     <AppShell>
-      {/* Back Button */}
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 cursor-pointer"
-      >
-        <ArrowLeft className="size-4" />
-        <span>{t("back")}</span>
-      </Link>
+      {/* Navigation: Back + Share */}
+      <div className="flex items-center justify-between mb-4">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <ArrowLeft className="size-4" />
+          <span>{t("back")}</span>
+        </Link>
+        <ShareButton agentName={agent.name} />
+      </div>
 
-      {/* Profile Header — Twitter-style */}
-      <div className="mb-6">
+      {/* Profile Header */}
+      <div className="mb-4">
         {/* Avatar + Name row */}
         <div className="flex items-start gap-4 mb-3">
           <Avatar size="lg">
@@ -152,14 +154,25 @@ export default async function AgentProfilePage({
                 {agent.name}
               </h1>
               <PerformanceTrendIndicator trend={agent.trend} />
+              {agent.tier === "user" && (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  {t("tierUser")}
+                </span>
+              )}
+              {agent.tier === "external" && (
+                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+                  {t("tierExternal")}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
                 {styleLabels[agent.style] ?? agent.style}
               </span>
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
                 {llmLabels[agent.llm] ?? agent.llm}
               </span>
+              <OutlookBadge outlook={agent.outlook} />
             </div>
             {agent.walletAddress && (
               <a
@@ -178,35 +191,14 @@ export default async function AgentProfilePage({
           </div>
         </div>
 
-        {/* Bio */}
-        <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+        {/* Bio (truncated) */}
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3">
           {agent.bio}
         </p>
 
-        {/* Tier Badge + Wallet Address */}
-        {agent.tier === "user" && (
-          <div className="flex items-center gap-2 mb-3">
-            <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary">
-              {t("tierUser")}
-            </span>
-          </div>
-        )}
-        {agent.tier === "external" && (
-          <div className="flex items-center gap-2 mb-3">
-            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-500">
-              {t("tierExternal")}
-            </span>
-          </div>
-        )}
-
-        {/* Modules */}
-        <div className="mb-4">
-          <ModuleTags modules={agent.modules} />
-        </div>
-
-        {/* Stats — prominent horizontal */}
-        <div className="grid grid-cols-4 py-3 border-y border-border">
-          <div className="flex flex-col items-center gap-0.5">
+        {/* Stats — 2-col mobile, 4-col desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 py-3">
+          <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 py-2.5">
             <div className="flex items-center gap-1">
               <Target className="size-3.5 text-muted-foreground" />
               <span className="text-sm font-semibold text-foreground">
@@ -215,7 +207,7 @@ export default async function AgentProfilePage({
             </div>
             <span className="text-[11px] text-muted-foreground">{tAgents("accuracy")}</span>
           </div>
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 py-2.5">
             <div className="flex items-center gap-1">
               <Trophy className="size-3.5 text-muted-foreground" />
               <span className="text-sm font-semibold text-foreground">
@@ -224,7 +216,7 @@ export default async function AgentProfilePage({
             </div>
             <span className="text-[11px] text-muted-foreground">{tAgents("rank")}</span>
           </div>
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 py-2.5">
             <div className="flex items-center gap-1">
               <TrendingUp className="size-3.5 text-muted-foreground" />
               <span
@@ -238,7 +230,7 @@ export default async function AgentProfilePage({
             </div>
             <span className="text-[11px] text-muted-foreground">{t("return")}</span>
           </div>
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 py-2.5">
             <div className="flex items-center gap-1">
               <Users className="size-3.5 text-muted-foreground" />
               <span className="text-sm font-semibold text-foreground">
@@ -250,31 +242,17 @@ export default async function AgentProfilePage({
         </div>
       </div>
 
-      {/* Owner Controls (client component, handles wallet check internally) */}
+      {/* Owner Controls — compact banner */}
       {agent.tier === "user" && agent.ownerWallet && (
-        <>
-          <OwnerControls
-            agentId={agent.id}
-            ownerWallet={agent.ownerWallet}
-            isPaused={agent.isPaused}
-            currentDirectives={agent.userDirectives}
-            currentWatchlist={agent.customWatchlist}
-            currentAlpha={agent.userAlpha}
-          />
-          <EarningsSection agentId={agent.id} ownerWallet={agent.ownerWallet} />
-        </>
+        <OwnerControls
+          agentId={agent.id}
+          ownerWallet={agent.ownerWallet}
+          isPaused={agent.isPaused}
+          currentDirectives={agent.userDirectives}
+          currentWatchlist={agent.customWatchlist}
+          currentAlpha={agent.userAlpha}
+        />
       )}
-
-      {/* Rental */}
-      <div className="mb-6">
-        <RentalSection plan={computeRentalPlan(agent)} isRented={false} />
-      </div>
-
-      {/* Premium Features (visible when rented) */}
-      <div className="mb-6 flex flex-col gap-3">
-        <ChatButton agentId={agent.id} agentName={agent.name} />
-        <AnalysisRequestForm agentId={agent.id} />
-      </div>
 
       <AgentProfileTabs
         agent={agent}
@@ -286,6 +264,8 @@ export default async function AgentProfilePage({
         accuracySnapshots={accuracySnapshots}
         resolvedPredictions={resolvedPredictions}
         locale={locale}
+        plan={plan}
+        ownerWallet={agent.ownerWallet}
       />
     </AppShell>
   );

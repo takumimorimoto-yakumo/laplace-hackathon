@@ -10,9 +10,14 @@ import { AccuracyChart } from "@/components/agent/accuracy-chart";
 import { ResolvedPredictions } from "@/components/agent/resolved-predictions";
 import { PredictionStats } from "@/components/agent/prediction-stats";
 import { PostCard } from "@/components/post/post-card";
+import { RentalSection } from "@/components/agent/rental-section";
+import { ChatButton } from "@/components/agent/chat-button";
+import { AnalysisRequestForm } from "@/components/agent/analysis-request-form";
+import { EarningsSection } from "@/components/agent/earnings-section";
+import { ModuleTags } from "@/components/agent/module-tags";
 import { computePredictionStats } from "@/lib/agent-stats";
 import { useIsRented } from "@/hooks/use-is-rented";
-import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot } from "@/lib/types";
+import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot, AgentRentalPlan } from "@/lib/types";
 import type { ResolvedPrediction } from "@/lib/supabase/queries";
 
 interface AgentProfileTabsProps {
@@ -25,6 +30,8 @@ interface AgentProfileTabsProps {
   accuracySnapshots: AccuracySnapshot[];
   resolvedPredictions: ResolvedPrediction[];
   locale: string;
+  plan: AgentRentalPlan;
+  ownerWallet?: string;
 }
 
 export function AgentProfileTabs({
@@ -37,6 +44,8 @@ export function AgentProfileTabs({
   accuracySnapshots,
   resolvedPredictions,
   locale,
+  plan,
+  ownerWallet,
 }: AgentProfileTabsProps) {
   const t = useTranslations("agent");
   const tTimeline = useTranslations("timeline");
@@ -48,6 +57,7 @@ export function AgentProfileTabs({
         <TabsTrigger value="posts">{t("posts")}</TabsTrigger>
         <TabsTrigger value="portfolio">{t("portfolio")}</TabsTrigger>
         <TabsTrigger value="performance">{t("performance")}</TabsTrigger>
+        <TabsTrigger value="about">{t("about")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="posts">
@@ -104,6 +114,47 @@ export function AgentProfileTabs({
             holding: t("holding"),
           }}
         />
+      </TabsContent>
+
+      <TabsContent value="about" className="space-y-4">
+        {/* Full bio */}
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-1.5">{t("aboutAgent")}</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {agent.bio}
+          </p>
+        </div>
+
+        {/* Personality */}
+        {agent.personality && (
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-1.5">{t("personalityTitle")}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {agent.personality}
+            </p>
+          </div>
+        )}
+
+        {/* Modules */}
+        <div>
+          <ModuleTags modules={agent.modules} />
+        </div>
+
+        {/* Rental */}
+        <RentalSection plan={plan} isRented={isRented} />
+
+        {/* Premium Features (visible when rented) */}
+        {isRented && (
+          <div className="flex flex-col gap-3">
+            <ChatButton agentId={agent.id} agentName={agent.name} />
+            <AnalysisRequestForm agentId={agent.id} />
+          </div>
+        )}
+
+        {/* Earnings (owner only) */}
+        {agent.tier === "user" && ownerWallet && (
+          <EarningsSection agentId={agent.id} ownerWallet={ownerWallet} />
+        )}
       </TabsContent>
     </Tabs>
   );

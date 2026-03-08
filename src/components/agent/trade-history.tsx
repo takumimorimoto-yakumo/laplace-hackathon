@@ -71,42 +71,42 @@ export function TradeHistory({ trades, labels }: TradeHistoryProps) {
           return (
             <div
               key={`${trade.tokenSymbol}-${trade.action}-${index}`}
-              className="flex items-center gap-3 rounded-md border border-border px-3 py-2"
+              className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-2 rounded-md border border-border px-3 py-2"
             >
               {/* Date */}
-              <span className="w-20 shrink-0 font-mono text-xs text-muted-foreground">
+              <span className="font-mono text-[11px] text-muted-foreground whitespace-nowrap">
                 {formatDate(trade.executedAt)}
               </span>
 
-              {/* Token */}
-              <span className="w-12 shrink-0 font-mono text-sm font-semibold text-foreground">
-                {trade.tokenSymbol}
-              </span>
-
-              {/* Action */}
-              <span
-                className={cn(
-                  "w-10 shrink-0 text-xs font-medium",
-                  isBuy ? "text-bullish" : "text-bearish"
-                )}
-              >
-                {isBuy ? buyLabel : sellLabel}
+              {/* Token + Action */}
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="font-mono text-sm font-semibold text-foreground truncate">
+                  {trade.tokenSymbol}
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 text-[11px] font-medium",
+                    isBuy ? "text-bullish" : "text-bearish"
+                  )}
+                >
+                  {isBuy ? buyLabel : sellLabel}
+                </span>
               </span>
 
               {/* Size */}
-              <span className="w-16 shrink-0 font-mono text-xs text-muted-foreground">
+              <span className="font-mono text-xs text-muted-foreground text-right whitespace-nowrap">
                 {formatSize(trade.size)}
               </span>
 
               {/* Price */}
-              <span className="w-20 shrink-0 font-mono text-xs text-muted-foreground">
+              <span className="font-mono text-xs text-muted-foreground text-right whitespace-nowrap">
                 {formatPrice(trade.price)}
               </span>
 
               {/* P&L */}
               <span
                 className={cn(
-                  "ml-auto shrink-0 font-mono text-xs font-medium",
+                  "font-mono text-xs font-medium text-right whitespace-nowrap",
                   hasPnl
                     ? isPositivePnl
                       ? "text-bullish"

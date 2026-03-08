@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Activity, Bot, Copy, Check, Wallet, RefreshCw, ExternalLink, LogOut, Plus, Pause, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
+import { Activity, Bot, Code, Copy, Check, ChevronDown, Wallet, RefreshCw, ExternalLink, LogOut, Plus, LayoutDashboard } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VotingScoreCard } from "@/components/me/voting-score-card";
 import { LikedBookmarkedTabs } from "@/components/me/liked-bookmarked-tabs";
-import { DeveloperApiSection } from "@/components/me/developer-api-section";
+import { DeveloperApiSheet } from "@/components/me/developer-api-sheet";
+import { DashboardSummary } from "@/components/me/dashboard-summary";
+import { AgentCard } from "@/components/me/agent-card";
+import { AgentSortFilter } from "@/components/me/agent-sort-filter";
+import type { SortField, FilterStatus } from "@/components/me/agent-sort-filter";
+import { EarningsOverview } from "@/components/me/earnings-overview";
+import { LendingSection } from "@/components/me/lending-section";
 import { WalletButton } from "@/components/wallet/wallet-button";
 import { useWallet, useConnection } from "@/components/wallet/wallet-provider";
 import { useSolBalance } from "@/hooks/use-sol-balance";
@@ -20,6 +26,9 @@ import { useUserPostLikes } from "@/hooks/use-user-post-likes";
 import { useUserPostBookmarks } from "@/hooks/use-user-post-bookmarks";
 import { useAgents } from "@/hooks/use-agents";
 import { useRetireAgent } from "@/hooks/use-retire-agent";
+import { useOwnerDashboard } from "@/hooks/use-owner-dashboard";
+import { useOwnerLentAgents } from "@/hooks/use-owner-lent-agents";
+import { useOwnerTrades } from "@/hooks/use-owner-trades";
 import { AdoptWizard } from "@/components/agent/adopt-wizard";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAgentAvatarUrl } from "@/lib/avatar";
@@ -30,7 +39,6 @@ import { useNetwork } from "@/hooks/use-network";
 export default function MePage() {
   const t = useTranslations("me");
   const tCommon = useTranslations("common");
-  const tAgent = useTranslations("agent");
   const locale = useLocale();
 
   const { connected, publicKey, disconnect } = useWallet();
@@ -39,14 +47,22 @@ export default function MePage() {
   const { sol, loading: balanceLoading, refresh: refreshBalance } = useSolBalance(connection, publicKey ?? null);
   const { network, toggleNetwork } = useNetwork();
   const { rentals } = useUserRentals(walletAddress);
-  const { agents: registeredAgents, loading: agentsLoading } = useUserRegisteredAgents(walletAddress);
+  const { agents: registeredAgents, loading: agentsLoading, updateAgent } = useUserRegisteredAgents(walletAddress);
   const { stats } = useUserVotingStats(walletAddress);
   const { retire, loading: retireLoading } = useRetireAgent();
+  const { data: dashboardData, loading: dashboardLoading } = useOwnerDashboard(walletAddress);
+  const { lentAgents, loading: lentLoading } = useOwnerLentAgents(walletAddress);
+  const { positions, trades, loading: tradesLoading } = useOwnerTrades(walletAddress);
 
+  const AGENTS_PER_PAGE = 5;
   const [now] = useState(() => Date.now());
   const [addressCopied, setAddressCopied] = useState(false);
   const [adoptOpen, setAdoptOpen] = useState(false);
+  const [apiSheetOpen, setApiSheetOpen] = useState(false);
   const [retiringId, setRetiringId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortField>("return");
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [visibleCount, setVisibleCount] = useState(AGENTS_PER_PAGE);
   const { agents } = useAgents();
   const agentsMap = new Map(agents.map((a) => [a.id, a]));
   const { likedPosts } = useUserPostLikes(walletAddress);
@@ -54,6 +70,61 @@ export default function MePage() {
 
   const address = publicKey?.toBase58() ?? "";
   const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
+
+  // Build earnings map from dashboard data for sorting
+  const earningsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (dashboardData?.agentBreakdown) {
+      for (const ab of dashboardData.agentBreakdown) {
+        map.set(ab.agentId, ab.earnings);
+      }
+    }
+    return map;
+  }, [dashboardData]);
+
+  // Sort and filter agents
+  const sortedFilteredAgents = useMemo(() => {
+    let filtered = registeredAgents;
+
+    // Filter
+    if (filterStatus === "active") {
+      filtered = filtered.filter((a) => !a.isPaused);
+    } else if (filterStatus === "paused") {
+      filtered = filtered.filter((a) => a.isPaused);
+    }
+
+    // Sort
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "return":
+        sorted.sort((a, b) => b.portfolioReturn - a.portfolioReturn);
+        break;
+      case "accuracy":
+        sorted.sort((a, b) => (b.accuracyScore ?? 0) - (a.accuracyScore ?? 0));
+        break;
+      case "earnings":
+        sorted.sort((a, b) => (earningsMap.get(b.id) ?? 0) - (earningsMap.get(a.id) ?? 0));
+        break;
+      case "name":
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+    }
+    return sorted;
+  }, [registeredAgents, filterStatus, sortBy, earningsMap]);
+
+  const handleSortChange = useCallback((sort: SortField) => {
+    setSortBy(sort);
+    setVisibleCount(AGENTS_PER_PAGE);
+  }, [AGENTS_PER_PAGE]);
+
+  const handleFilterChange = useCallback((filter: FilterStatus) => {
+    setFilterStatus(filter);
+    setVisibleCount(AGENTS_PER_PAGE);
+  }, [AGENTS_PER_PAGE]);
+
+  const visibleAgents = sortedFilteredAgents.slice(0, visibleCount);
+  const hasMore = sortedFilteredAgents.length > visibleCount;
+  const remainingCount = sortedFilteredAgents.length - visibleCount;
 
   function daysLeft(expiresAt: string): number {
     const diff = new Date(expiresAt).getTime() - now;
@@ -137,43 +208,78 @@ export default function MePage() {
           <Tabs defaultValue="agents">
             <TabsList variant="line" className="w-full justify-start overflow-x-auto scrollbar-hide">
               <TabsTrigger value="agents" className="flex-none"><Bot className="size-4" /> {t("tabs.agents")}</TabsTrigger>
+              <TabsTrigger value="dashboard" className="flex-none"><LayoutDashboard className="size-4" /> {t("tabs.dashboard")}</TabsTrigger>
               <TabsTrigger value="activity" className="flex-none"><Activity className="size-4" /> {t("tabs.activity")}</TabsTrigger>
               <TabsTrigger value="wallet" className="flex-none"><Wallet className="size-4" /> {t("tabs.wallet")}</TabsTrigger>
             </TabsList>
 
             {/* Tab 0: Agents (default) */}
             <TabsContent value="agents" className="pt-4 pb-20">
-              {/* Adopt Agent Button */}
-              <Button
-                onClick={() => setAdoptOpen(true)}
-                className="w-full mb-4"
-              >
-                <Plus className="size-4" />
-                {t("adoptAgent")}
-              </Button>
+              {/* Create Agent + API link */}
+              <div className="mb-4">
+                <Button
+                  onClick={() => setAdoptOpen(true)}
+                  className="w-full"
+                >
+                  <Plus className="size-4" />
+                  {t("adoptAgent")}
+                </Button>
+                <button
+                  onClick={() => setApiSheetOpen(true)}
+                  className="flex items-center justify-end gap-1 w-full mt-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Code className="size-3" />
+                  {t("apiConnect")}
+                </button>
+              </div>
 
               {walletAddress && (
-                <AdoptWizard
-                  open={adoptOpen}
-                  onOpenChange={setAdoptOpen}
-                  walletAddress={walletAddress}
-                />
+                <>
+                  <AdoptWizard
+                    open={adoptOpen}
+                    onOpenChange={setAdoptOpen}
+                    walletAddress={walletAddress}
+                  />
+                  <DeveloperApiSheet
+                    open={apiSheetOpen}
+                    onOpenChange={setApiSheetOpen}
+                  />
+                </>
               )}
 
               {/* My Registered Agents */}
-              <h2 className="text-lg font-semibold mb-3">{t("myAgents")}</h2>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-lg font-semibold">{t("myAgents")}</h2>
+              </div>
+
+              {/* Sort & Filter */}
+              {registeredAgents.length > 0 && (
+                <AgentSortFilter
+                  sortBy={sortBy}
+                  onSortChange={handleSortChange}
+                  filterStatus={filterStatus}
+                  onFilterChange={handleFilterChange}
+                />
+              )}
+
               {agentsLoading ? (
                 <div className="space-y-3 mb-6">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center gap-3 py-3">
-                      <Skeleton className="size-8 rounded-full" />
-                      <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-3 w-16" />
+                    <div key={i} className="rounded-lg border border-border p-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-8 rounded-full" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <Skeleton className="h-3 w-14 ml-auto" />
-                        <Skeleton className="h-3 w-10 ml-auto" />
+                      <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-border">
+                        {[1, 2, 3, 4].map((j) => (
+                          <div key={j} className="flex flex-col items-center gap-1">
+                            <Skeleton className="h-4 w-12" />
+                            <Skeleton className="h-3 w-10" />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -185,89 +291,29 @@ export default function MePage() {
                   <p className="text-xs text-muted-foreground mt-1">{t("noAgentsHint")}</p>
                 </div>
               ) : (
-                <div className="divide-y divide-border mb-6">
-                  {registeredAgents.map((agent) => {
-                    const returnSign = agent.portfolioReturn >= 0 ? "+" : "";
-                    const returnPct = (agent.portfolioReturn * 100).toFixed(1);
-                    const isNegative = agent.portfolioReturn < 0;
-                    const isConfirmingRetire = retiringId === agent.id;
-                    return (
-                      <div key={agent.id} className="py-3 flex items-center gap-3 -mx-1 px-1">
-                        <Link
-                          href={`/agent/${agent.id}`}
-                          className="flex items-center gap-3 flex-1 min-w-0 hover:bg-muted/30 transition-colors rounded"
-                        >
-                          <Avatar size="sm">
-                            <AvatarImage src={getAgentAvatarUrl(agent.name)} alt={agent.name} />
-                            <AvatarFallback><Bot className="size-4" /></AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {agent.name}
-                              </p>
-                              {agent.isPaused && (
-                                <Pause className="size-3 text-amber-500 shrink-0" />
-                              )}
-                              {agent.tier === "user" && (
-                                <span className="rounded-full bg-primary/15 px-1.5 py-0 text-[10px] font-medium text-primary shrink-0">
-                                  {tAgent("tierUser")}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground capitalize">{agent.style}</p>
-                          </div>
-                          <div className="flex flex-col items-end gap-0.5 shrink-0">
-                            <span className="text-xs font-mono font-medium text-foreground">
-                              ${agent.portfolioValue.toLocaleString()}
-                            </span>
-                            <span className={`text-[11px] font-mono font-medium flex items-center gap-0.5 ${isNegative ? "text-bearish" : "text-bullish"}`}>
-                              {isNegative ? (
-                                <TrendingDown className="size-3" />
-                              ) : (
-                                <TrendingUp className="size-3" />
-                              )}
-                              {returnSign}{returnPct}%
-                            </span>
-                          </div>
-                        </Link>
-                        {/* Retire button — only for user-tier agents */}
-                        {agent.tier === "user" && (
-                          <div className="shrink-0">
-                            {isConfirmingRetire ? (
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="h-7 text-xs px-2"
-                                  disabled={retireLoading}
-                                  onClick={() => handleRetire(agent.id)}
-                                >
-                                  {retireLoading ? t("retiring") : t("retireAgent")}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 text-xs px-2"
-                                  onClick={() => setRetiringId(null)}
-                                >
-                                  {t("retireCancel")}
-                                </Button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setRetiringId(agent.id)}
-                                className="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                aria-label={t("retireAgent")}
-                              >
-                                <Trash2 className="size-4" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="mb-6">
+                  {visibleAgents.map((agent) => (
+                    <AgentCard
+                      key={agent.id}
+                      agent={agent}
+                      walletAddress={walletAddress}
+                      isConfirmingRetire={retiringId === agent.id}
+                      retireLoading={retireLoading}
+                      onRetireClick={() => setRetiringId(agent.id)}
+                      onRetireConfirm={() => handleRetire(agent.id)}
+                      onRetireCancel={() => setRetiringId(null)}
+                      onLiveTradingToggle={(id, enabled) => updateAgent(id, { liveTradingEnabled: enabled })}
+                    />
+                  ))}
+                  {hasMore && (
+                    <button
+                      onClick={() => setVisibleCount((c) => c + AGENTS_PER_PAGE)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg border border-dashed border-border hover:border-primary/30"
+                    >
+                      <ChevronDown className="size-4" />
+                      {t("showMore", { count: remainingCount })}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -310,14 +356,21 @@ export default function MePage() {
                   })}
                 </div>
               )}
-
-              {/* Developer API Section — moved from Developer tab */}
-              <div className="mt-4 pt-4 border-t border-border">
-                <DeveloperApiSection />
-              </div>
             </TabsContent>
 
-            {/* Tab 1: Activity */}
+            {/* Tab 1: Dashboard */}
+            <TabsContent value="dashboard" className="pt-4 pb-20">
+              {/* Dashboard Summary */}
+              <DashboardSummary data={dashboardData} loading={dashboardLoading} positions={positions} trades={trades} tradesLoading={tradesLoading} />
+
+              {/* Earnings Overview */}
+              <EarningsOverview data={dashboardData} loading={dashboardLoading} />
+
+              {/* Lending Out */}
+              <LendingSection lentAgents={lentAgents} loading={lentLoading} />
+            </TabsContent>
+
+            {/* Tab 2: Activity */}
             <TabsContent value="activity" className="pt-4 pb-20">
               {/* Voting Score */}
               <VotingScoreCard stats={stats} />

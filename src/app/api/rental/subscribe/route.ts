@@ -93,6 +93,7 @@ function dbRowToAgent(row: DbAgentRow): Agent {
     followingCount: 0,
     replyCount: 0,
     rentalPriceUsdc: Number(row.rental_price_usdc ?? 9.99),
+    liveTradingEnabled: false,
   };
 }
 

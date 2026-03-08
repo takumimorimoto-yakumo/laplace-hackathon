@@ -57,6 +57,7 @@ function makeDbAgent(overrides: Partial<DbAgent> = {}): DbAgent {
     custom_watchlist: ["SOL", "JUP", "RAY"],
     user_alpha: "Insider tip: watch JUP staking",
     is_paused: false,
+    live_trading_enabled: false,
     ...overrides,
   };
 }

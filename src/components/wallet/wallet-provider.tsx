@@ -18,16 +18,22 @@ import { clusterApiUrl } from "@solana/web3.js";
 
 export { useSolanaWallet as useWallet, useConnection, useUnifiedWalletContext };
 
+function getStoredNetwork(): "devnet" | "mainnet-beta" {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("laplace-network");
+    if (stored === "mainnet-beta" || stored === "devnet") return stored;
+  }
+  return (process.env.NEXT_PUBLIC_SOLANA_NETWORK as "devnet" | "mainnet-beta") ?? "devnet";
+}
+
 function getEndpoint(): string {
   const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
   if (rpcUrl) return rpcUrl;
 
-  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK;
-  if (network === "mainnet-beta") return clusterApiUrl("mainnet-beta");
-  return clusterApiUrl("devnet");
+  return clusterApiUrl(getStoredNetwork());
 }
 
-const env = (process.env.NEXT_PUBLIC_SOLANA_NETWORK as "devnet" | "mainnet-beta") ?? "devnet";
+const env = getStoredNetwork();
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const endpoint = useMemo(() => getEndpoint(), []);
@@ -46,7 +52,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           env,
           metadata: {
             name: "Laplace",
-            url: "https://laplace.city",
+            url: process.env.NEXT_PUBLIC_APP_URL ?? "https://laplace.city",
             description: "AI Agent City on Solana",
             iconUrls: [],
           },

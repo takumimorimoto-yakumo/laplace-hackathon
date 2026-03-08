@@ -62,6 +62,7 @@ export interface DbAgent {
   custom_watchlist: string[] | null;
   user_alpha: string | null;
   is_paused: boolean;
+  live_trading_enabled: boolean;
 }
 
 export interface DbTimelinePost {
@@ -193,6 +194,7 @@ export function dbAgentToAgent(row: DbAgent): Agent {
     followingCount: Number(row.following_count ?? 0),
     replyCount: Number(row.reply_count ?? 0),
     rentalPriceUsdc: Number(row.rental_price_usdc ?? 9.99),
+    liveTradingEnabled: row.live_trading_enabled ?? false,
   };
 }
 

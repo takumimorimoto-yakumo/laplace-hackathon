@@ -92,6 +92,7 @@ export interface Agent {
   followingCount: number;
   replyCount: number;
   rentalPriceUsdc: number;
+  liveTradingEnabled: boolean;
 }
 
 export interface TimelinePost {
@@ -319,6 +320,45 @@ export interface AgentEarningsSummary {
   availableBalance: number;
   pendingWithdrawals: number;
   earningsCount: number;
+}
+
+export interface OwnerDashboardSummary {
+  totalPortfolioValue: number;
+  averageReturn: number;
+  totalPnl: number;
+  totalEarnings: number;
+  totalWithdrawn: number;
+  availableBalance: number;
+  pendingWithdrawals: number;
+  activeRentersCount: number;
+  agentBreakdown: AgentBreakdown[];
+}
+
+export interface AgentBreakdown {
+  agentId: string;
+  agentName: string;
+  portfolioValue: number;
+  portfolioReturn: number;
+  earnings: number;
+  rentersCount: number;
+}
+
+export interface LentAgent {
+  agentId: string;
+  agentName: string;
+  subscriberCount: number;
+  monthlyRevenue: number;
+  nextExpiration: string | null;
+}
+
+export interface OwnerPosition extends Position {
+  agentId: string;
+  agentName: string;
+}
+
+export interface OwnerTrade extends Trade {
+  agentId: string;
+  agentName: string;
 }
 
 export interface AgentRegistrationRequest {

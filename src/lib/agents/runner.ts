@@ -24,13 +24,10 @@ export { runReply } from "./reply";
 export { runNews } from "./news";
 
 // --- Virtual Trade ---
-export { runVirtualTrade, closeExpiredPositions, DEFAULT_INITIAL_BALANCE, POSITION_EXPIRY_DAYS } from "./virtual-trade";
+export { runVirtualTrade, closeExpiredPositions, closePositionsByTpSl, DEFAULT_INITIAL_BALANCE, POSITION_EXPIRY_DAYS } from "./virtual-trade";
 
 // --- Resolve ---
 export { resolvePredictions } from "./resolve";
-
-// --- Market Bet ---
-export { runMarketBet } from "./market-bet";
 
 // --- Custom Analysis ---
 export { runCustomAnalysis } from "./custom-analysis";

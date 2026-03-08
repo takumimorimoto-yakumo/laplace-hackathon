@@ -196,6 +196,167 @@ export async function runVirtualTrade(
 }
 
 // ============================================================
+// 4b. Close Positions by TP/SL
+// ============================================================
+
+/**
+ * Check whether a position's TP or SL has been hit based on current price.
+ * - Long: TP hit when currentPrice >= priceTarget; SL hit when currentPrice <= stopLoss
+ * - Short: TP hit when currentPrice <= priceTarget; SL hit when currentPrice >= stopLoss
+ */
+function isTpSlHit(
+  side: string,
+  currentPrice: number,
+  priceTarget: number | null,
+  stopLoss: number | null
+): "tp" | "sl" | null {
+  if (side === "long") {
+    if (stopLoss && currentPrice <= stopLoss) return "sl";
+    if (priceTarget && currentPrice >= priceTarget) return "tp";
+  } else {
+    // short
+    if (stopLoss && currentPrice >= stopLoss) return "sl";
+    if (priceTarget && currentPrice <= priceTarget) return "tp";
+  }
+  return null;
+}
+
+/**
+ * Close positions that have hit their take-profit or stop-loss levels.
+ * Called every agent cron cycle after updating unrealized P&L.
+ */
+export async function closePositionsByTpSl(
+  agentId: string,
+  existingMarketData?: RealMarketData[]
+): Promise<number> {
+  const supabase = createAdminClient();
+
+  try {
+    // Fetch positions with TP or SL set
+    const { data: positions, error: fetchError } = await supabase
+      .from("virtual_positions")
+      .select("*")
+      .eq("agent_id", agentId)
+      .or("price_target.not.is.null,stop_loss.not.is.null");
+
+    if (fetchError || !positions || positions.length === 0) return 0;
+
+    const marketData = existingMarketData ?? await fetchMarketContext();
+    const portfolio = await getOrCreatePortfolio(agentId);
+    let cashBalanceChange = 0;
+    let totalRealizedPnl = 0;
+    let closedCount = 0;
+
+    for (const pos of positions) {
+      const currentPrice = findPriceInMarketData(
+        pos.token_symbol as string,
+        marketData
+      );
+      if (!currentPrice) continue;
+
+      const side = pos.side as string;
+      const priceTarget = pos.price_target ? Number(pos.price_target) : null;
+      const stopLoss = pos.stop_loss ? Number(pos.stop_loss) : null;
+
+      const trigger = isTpSlHit(side, currentPrice, priceTarget, stopLoss);
+      if (!trigger) continue;
+
+      const entryPrice = Number(pos.entry_price);
+      const quantity = Number(pos.quantity);
+      const amountUsdc = Number(pos.amount_usdc);
+
+      // Calculate realized P&L
+      const realizedPnl =
+        side === "long"
+          ? (currentPrice - entryPrice) * quantity
+          : (entryPrice - currentPrice) * quantity;
+      const realizedPnlPct =
+        amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
+      const now = new Date().toISOString();
+
+      // Insert close trade
+      const { data: tradeData, error: tradeError } = await supabase
+        .from("virtual_trades")
+        .insert({
+          agent_id: agentId,
+          token_address: pos.token_address,
+          token_symbol: pos.token_symbol,
+          side,
+          position_type: pos.position_type,
+          leverage: pos.leverage,
+          action: "close",
+          price: currentPrice,
+          quantity,
+          amount_usdc: amountUsdc,
+          realized_pnl: realizedPnl,
+          realized_pnl_pct: realizedPnlPct,
+          post_id: pos.post_id,
+          executed_at: now,
+        })
+        .select("id")
+        .single();
+
+      if (tradeError) {
+        console.error(
+          `[runner] Failed to insert TP/SL close trade: ${tradeError.message}`
+        );
+        continue;
+      }
+
+      // Live close — if live position fails to close on-chain, skip virtual close
+      // to prevent divergence between on-chain and virtual state
+      if (pos.is_live && tradeData?.id && pos.token_address) {
+        const liveResult = await executeLiveClose({
+          agentId,
+          tradeId: tradeData.id as string,
+          tokenAddress: pos.token_address as string,
+        });
+        if (!liveResult) {
+          console.warn(
+            `[runner] Live close (TP/SL) failed for ${pos.token_symbol}, keeping position open to prevent divergence`
+          );
+          // Rollback the close trade record
+          await supabase.from("virtual_trades").delete().eq("id", tradeData.id);
+          continue;
+        }
+      }
+
+      // Delete the position
+      await supabase.from("virtual_positions").delete().eq("id", pos.id);
+
+      cashBalanceChange += amountUsdc + realizedPnl;
+      totalRealizedPnl += realizedPnl;
+      closedCount++;
+
+      console.log(
+        `[runner] ${trigger.toUpperCase()} hit: closed ${side} ${pos.token_symbol} @ $${currentPrice.toFixed(4)} (entry $${entryPrice.toFixed(4)}, P&L $${realizedPnl.toFixed(2)})`
+      );
+    }
+
+    // Update portfolio
+    if (cashBalanceChange !== 0) {
+      await supabase
+        .from("virtual_portfolios")
+        .update({
+          cash_balance: portfolio.cash_balance + cashBalanceChange,
+          total_pnl: (portfolio.total_pnl ?? 0) + totalRealizedPnl,
+        })
+        .eq("agent_id", agentId);
+
+      await recordPortfolioSnapshot(agentId);
+    }
+
+    return closedCount;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[runner] closePositionsByTpSl failed for ${agentId}: ${message}`
+    );
+    return 0;
+  }
+}
+
+// ============================================================
 // 5. Close Expired Positions
 // ============================================================
 
@@ -298,17 +459,21 @@ export async function closeExpiredPositions(
         continue;
       }
 
-      // Live close (best-effort): sell on-chain if position was live
+      // Live close — if live position fails to close on-chain, skip virtual close
+      // to prevent divergence between on-chain and virtual state
       if (pos.is_live && tradeData?.id && pos.token_address) {
-        try {
-          await executeLiveClose({
-            agentId,
-            tradeId: tradeData.id as string,
-            tokenAddress: pos.token_address as string,
-          });
-        } catch (liveErr: unknown) {
-          const liveMsg = liveErr instanceof Error ? liveErr.message : String(liveErr);
-          console.warn(`[runner] Live close failed (best-effort): ${liveMsg}`);
+        const liveResult = await executeLiveClose({
+          agentId,
+          tradeId: tradeData.id as string,
+          tokenAddress: pos.token_address as string,
+        });
+        if (!liveResult) {
+          console.warn(
+            `[runner] Live close failed for expired ${pos.token_symbol}, keeping position open to prevent divergence`
+          );
+          // Rollback the close trade record
+          await supabase.from("virtual_trades").delete().eq("id", tradeData.id);
+          continue;
         }
       }
 

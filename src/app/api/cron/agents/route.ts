@@ -7,6 +7,7 @@ import {
   runBrowse,
   runVirtualTrade,
   closeExpiredPositions,
+  closePositionsByTpSl,
   resolvePredictions,
   updateUnrealizedPnL,
   runPricing,
@@ -160,7 +161,15 @@ async function processAgent(
     }
   }
 
-  // 8. Close expired positions (no LLM)
+  // 8a. Close positions that hit TP/SL (no LLM)
+  try {
+    await closePositionsByTpSl(agent.id, sharedMarketData);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] closePositionsByTpSl failed for ${agent.name}: ${msg}`);
+  }
+
+  // 8b. Close expired positions (no LLM)
   try {
     await closeExpiredPositions(agent.id, sharedMarketData);
     cycleResult.expiredPositionsClosed = true;

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Bot, Target, Trophy, TrendingUp, ArrowLeft, Users, ExternalLink } from "lucide-react";
+import { Bot, Target, Trophy, TrendingUp, ArrowLeft, Users, ExternalLink, Wallet } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAgentAvatarUrl } from "@/lib/avatar";
@@ -8,9 +8,14 @@ import { ModuleTags } from "@/components/agent/module-tags";
 import { PerformanceTrendIndicator } from "@/components/agent/performance-trend";
 import { AgentProfileTabs } from "@/components/agent/agent-profile-tabs";
 import { RentalSection } from "@/components/agent/rental-section";
+import { ChatButton } from "@/components/agent/chat-button";
+import { AnalysisRequestForm } from "@/components/agent/analysis-request-form";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { computeRentalPlan } from "@/lib/agent-stats";
+import { solscanAccountUrl } from "@/lib/solana/explorer";
+import { OwnerControls } from "@/components/agent/owner-controls";
+import { EarningsSection } from "@/components/agent/earnings-section";
 import {
   fetchAgent,
   fetchPositions,
@@ -90,7 +95,7 @@ export default async function AgentProfilePage({
     return (
       <AppShell>
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-lg font-semibold text-foreground">Agent Not Found</p>
+          <p className="text-lg font-semibold text-foreground">{t("notFound")}</p>
         </div>
       </AppShell>
     );
@@ -156,6 +161,20 @@ export default async function AgentProfilePage({
                 {llmLabels[agent.llm] ?? agent.llm}
               </span>
             </div>
+            {agent.walletAddress && (
+              <a
+                href={solscanAccountUrl(agent.walletAddress)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Wallet className="size-3" />
+                <span className="font-mono">
+                  {agent.walletAddress.slice(0, 4)}...{agent.walletAddress.slice(-4)}
+                </span>
+                <ExternalLink className="size-2.5" />
+              </a>
+            )}
           </div>
         </div>
 
@@ -164,26 +183,19 @@ export default async function AgentProfilePage({
           {agent.bio}
         </p>
 
-        {/* External Agent Badge + Wallet Address */}
-        {!agent.isSystem && (
+        {/* Tier Badge + Wallet Address */}
+        {agent.tier === "user" && (
           <div className="flex items-center gap-2 mb-3">
-            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-500">
-              {t("externalAgent")}
+            <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary">
+              {t("tierUser")}
             </span>
           </div>
         )}
-        {agent.walletAddress && (
-          <div className="flex items-center gap-1.5 mb-3 text-xs text-muted-foreground">
-            <span>{t("owner")}:</span>
-            <a
-              href={`https://solscan.io/account/${agent.walletAddress}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono hover:text-foreground transition-colors inline-flex items-center gap-1"
-            >
-              {agent.walletAddress.slice(0, 4)}...{agent.walletAddress.slice(-4)}
-              <ExternalLink className="size-3" />
-            </a>
+        {agent.tier === "external" && (
+          <div className="flex items-center gap-2 mb-3">
+            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-500">
+              {t("tierExternal")}
+            </span>
           </div>
         )}
 
@@ -238,9 +250,30 @@ export default async function AgentProfilePage({
         </div>
       </div>
 
+      {/* Owner Controls (client component, handles wallet check internally) */}
+      {agent.tier === "user" && agent.ownerWallet && (
+        <>
+          <OwnerControls
+            agentId={agent.id}
+            ownerWallet={agent.ownerWallet}
+            isPaused={agent.isPaused}
+            currentDirectives={agent.userDirectives}
+            currentWatchlist={agent.customWatchlist}
+            currentAlpha={agent.userAlpha}
+          />
+          <EarningsSection agentId={agent.id} ownerWallet={agent.ownerWallet} />
+        </>
+      )}
+
       {/* Rental */}
       <div className="mb-6">
         <RentalSection plan={computeRentalPlan(agent)} isRented={false} />
+      </div>
+
+      {/* Premium Features (visible when rented) */}
+      <div className="mb-6 flex flex-col gap-3">
+        <ChatButton agentId={agent.id} agentName={agent.name} />
+        <AnalysisRequestForm agentId={agent.id} />
       </div>
 
       <AgentProfileTabs

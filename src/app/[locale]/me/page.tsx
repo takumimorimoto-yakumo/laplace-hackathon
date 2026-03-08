@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Activity, Bot, Code, Copy, Check, Target, Trophy, Wallet, RefreshCw, ExternalLink, LogOut } from "lucide-react";
+import { Activity, Bot, Copy, Check, Wallet, RefreshCw, ExternalLink, LogOut, Plus, Pause, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { VotingScoreCard } from "@/components/me/voting-score-card";
 import { LikedBookmarkedTabs } from "@/components/me/liked-bookmarked-tabs";
 import { DeveloperApiSection } from "@/components/me/developer-api-section";
@@ -18,26 +19,34 @@ import { useUserVotingStats } from "@/hooks/use-user-voting-stats";
 import { useUserPostLikes } from "@/hooks/use-user-post-likes";
 import { useUserPostBookmarks } from "@/hooks/use-user-post-bookmarks";
 import { useAgents } from "@/hooks/use-agents";
+import { useRetireAgent } from "@/hooks/use-retire-agent";
+import { AdoptWizard } from "@/components/agent/adopt-wizard";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAgentAvatarUrl } from "@/lib/avatar";
 import { Link } from "@/i18n/navigation";
+import { solscanAccountUrl } from "@/lib/solana/explorer";
+import { useNetwork } from "@/hooks/use-network";
 
 export default function MePage() {
   const t = useTranslations("me");
   const tCommon = useTranslations("common");
+  const tAgent = useTranslations("agent");
   const locale = useLocale();
 
   const { connected, publicKey, disconnect } = useWallet();
   const { connection } = useConnection();
   const walletAddress = publicKey?.toBase58() ?? null;
   const { sol, loading: balanceLoading, refresh: refreshBalance } = useSolBalance(connection, publicKey ?? null);
-  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === "mainnet-beta" ? "mainnet-beta" : "devnet";
+  const { network, toggleNetwork } = useNetwork();
   const { rentals } = useUserRentals(walletAddress);
-  const { agents: registeredAgents } = useUserRegisteredAgents(walletAddress);
+  const { agents: registeredAgents, loading: agentsLoading } = useUserRegisteredAgents(walletAddress);
   const { stats } = useUserVotingStats(walletAddress);
+  const { retire, loading: retireLoading } = useRetireAgent();
 
   const [now] = useState(() => Date.now());
   const [addressCopied, setAddressCopied] = useState(false);
+  const [adoptOpen, setAdoptOpen] = useState(false);
+  const [retiringId, setRetiringId] = useState<string | null>(null);
   const { agents } = useAgents();
   const agentsMap = new Map(agents.map((a) => [a.id, a]));
   const { likedPosts } = useUserPostLikes(walletAddress);
@@ -56,6 +65,18 @@ export default function MePage() {
     setAddressCopied(true);
     setTimeout(() => setAddressCopied(false), 2000);
   }
+
+  const handleRetire = useCallback(
+    async (agentId: string) => {
+      if (!walletAddress) return;
+      const success = await retire(agentId, walletAddress);
+      if (success) {
+        setRetiringId(null);
+        window.location.reload();
+      }
+    },
+    [walletAddress, retire]
+  );
 
   return (
     <AppShell>
@@ -91,7 +112,7 @@ export default function MePage() {
                   <button
                     onClick={handleCopyAddress}
                     className="rounded-md p-1 hover:bg-muted transition-colors"
-                    aria-label={addressCopied ? t("addressCopied") : "Copy"}
+                    aria-label={addressCopied ? t("addressCopied") : tCommon("copyAddress")}
                   >
                     {addressCopied ? (
                       <Check className="size-3.5 text-bullish" />
@@ -113,15 +134,204 @@ export default function MePage() {
             </div>
           </div>
 
-          <Tabs defaultValue="wallet">
-            <TabsList variant="line" className="w-full overflow-x-auto scrollbar-hide">
-              <TabsTrigger value="wallet" className="shrink-0"><Wallet className="size-4" /> {t("tabs.wallet")}</TabsTrigger>
-              <TabsTrigger value="agents" className="shrink-0"><Bot className="size-4" /> {t("tabs.agents")}</TabsTrigger>
-              <TabsTrigger value="activity" className="shrink-0"><Activity className="size-4" /> {t("tabs.activity")}</TabsTrigger>
-              <TabsTrigger value="developer" className="shrink-0"><Code className="size-4" /> {t("tabs.developer")}</TabsTrigger>
+          <Tabs defaultValue="agents">
+            <TabsList variant="line" className="w-full justify-start overflow-x-auto scrollbar-hide">
+              <TabsTrigger value="agents" className="flex-none"><Bot className="size-4" /> {t("tabs.agents")}</TabsTrigger>
+              <TabsTrigger value="activity" className="flex-none"><Activity className="size-4" /> {t("tabs.activity")}</TabsTrigger>
+              <TabsTrigger value="wallet" className="flex-none"><Wallet className="size-4" /> {t("tabs.wallet")}</TabsTrigger>
             </TabsList>
 
-            {/* Tab 0: Wallet */}
+            {/* Tab 0: Agents (default) */}
+            <TabsContent value="agents" className="pt-4 pb-20">
+              {/* Adopt Agent Button */}
+              <Button
+                onClick={() => setAdoptOpen(true)}
+                className="w-full mb-4"
+              >
+                <Plus className="size-4" />
+                {t("adoptAgent")}
+              </Button>
+
+              {walletAddress && (
+                <AdoptWizard
+                  open={adoptOpen}
+                  onOpenChange={setAdoptOpen}
+                  walletAddress={walletAddress}
+                />
+              )}
+
+              {/* My Registered Agents */}
+              <h2 className="text-lg font-semibold mb-3">{t("myAgents")}</h2>
+              {agentsLoading ? (
+                <div className="space-y-3 mb-6">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-3 py-3">
+                      <Skeleton className="size-8 rounded-full" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                      <div className="space-y-1">
+                        <Skeleton className="h-3 w-14 ml-auto" />
+                        <Skeleton className="h-3 w-10 ml-auto" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : registeredAgents.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center mb-6">
+                  <Bot className="size-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">{t("noAgents")}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("noAgentsHint")}</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border mb-6">
+                  {registeredAgents.map((agent) => {
+                    const returnSign = agent.portfolioReturn >= 0 ? "+" : "";
+                    const returnPct = (agent.portfolioReturn * 100).toFixed(1);
+                    const isNegative = agent.portfolioReturn < 0;
+                    const isConfirmingRetire = retiringId === agent.id;
+                    return (
+                      <div key={agent.id} className="py-3 flex items-center gap-3 -mx-1 px-1">
+                        <Link
+                          href={`/agent/${agent.id}`}
+                          className="flex items-center gap-3 flex-1 min-w-0 hover:bg-muted/30 transition-colors rounded"
+                        >
+                          <Avatar size="sm">
+                            <AvatarImage src={getAgentAvatarUrl(agent.name)} alt={agent.name} />
+                            <AvatarFallback><Bot className="size-4" /></AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {agent.name}
+                              </p>
+                              {agent.isPaused && (
+                                <Pause className="size-3 text-amber-500 shrink-0" />
+                              )}
+                              {agent.tier === "user" && (
+                                <span className="rounded-full bg-primary/15 px-1.5 py-0 text-[10px] font-medium text-primary shrink-0">
+                                  {tAgent("tierUser")}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground capitalize">{agent.style}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-0.5 shrink-0">
+                            <span className="text-xs font-mono font-medium text-foreground">
+                              ${agent.portfolioValue.toLocaleString()}
+                            </span>
+                            <span className={`text-[11px] font-mono font-medium flex items-center gap-0.5 ${isNegative ? "text-bearish" : "text-bullish"}`}>
+                              {isNegative ? (
+                                <TrendingDown className="size-3" />
+                              ) : (
+                                <TrendingUp className="size-3" />
+                              )}
+                              {returnSign}{returnPct}%
+                            </span>
+                          </div>
+                        </Link>
+                        {/* Retire button — only for user-tier agents */}
+                        {agent.tier === "user" && (
+                          <div className="shrink-0">
+                            {isConfirmingRetire ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-7 text-xs px-2"
+                                  disabled={retireLoading}
+                                  onClick={() => handleRetire(agent.id)}
+                                >
+                                  {retireLoading ? t("retiring") : t("retireAgent")}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs px-2"
+                                  onClick={() => setRetiringId(null)}
+                                >
+                                  {t("retireCancel")}
+                                </Button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setRetiringId(agent.id)}
+                                className="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                aria-label={t("retireAgent")}
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Rented Agents */}
+              <h2 className="text-lg font-semibold mb-3">{t("rentedAgents")}</h2>
+              {rentals.length === 0 ? (
+                <p className="text-sm text-muted-foreground mb-6">{t("noRentals")}</p>
+              ) : (
+                <div className="divide-y divide-border mb-6">
+                  {rentals.map((rental) => {
+                    const agentData = agentsMap.get(rental.agentId);
+                    return (
+                      <Link
+                        key={rental.id}
+                        href={`/agent/${rental.agentId}`}
+                        className="py-3 flex items-center gap-3 hover:bg-muted/30 transition-colors -mx-1 px-1 rounded"
+                      >
+                        <Avatar size="sm">
+                          <AvatarImage
+                            src={getAgentAvatarUrl(agentData?.name ?? rental.agentName)}
+                            alt={rental.agentName}
+                          />
+                          <AvatarFallback><Bot className="size-4" /></AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">
+                            {rental.agentName}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 shrink-0">
+                          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                            {t("renting")}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {t("daysLeft", { days: daysLeft(rental.expiresAt) })}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Developer API Section — moved from Developer tab */}
+              <div className="mt-4 pt-4 border-t border-border">
+                <DeveloperApiSection />
+              </div>
+            </TabsContent>
+
+            {/* Tab 1: Activity */}
+            <TabsContent value="activity" className="pt-4 pb-20">
+              {/* Voting Score */}
+              <VotingScoreCard stats={stats} />
+
+              {/* Liked & Bookmarked Posts */}
+              <LikedBookmarkedTabs
+                likedPosts={likedPosts}
+                bookmarkedPosts={bookmarkedPosts}
+                agentsMap={agentsMap}
+                locale={locale}
+              />
+            </TabsContent>
+
+            {/* Tab 2: Wallet */}
             <TabsContent value="wallet" className="pt-4 pb-20">
               {/* Balance Card */}
               <div className="rounded-lg border border-border bg-card p-5 mb-4">
@@ -151,7 +361,7 @@ export default function MePage() {
                     <button
                       onClick={handleCopyAddress}
                       className="shrink-0 rounded-md p-1 hover:bg-muted transition-colors"
-                      aria-label={addressCopied ? t("addressCopied") : "Copy"}
+                      aria-label={addressCopied ? t("addressCopied") : tCommon("copyAddress")}
                     >
                       {addressCopied ? (
                         <Check className="size-3.5 text-bullish" />
@@ -162,16 +372,22 @@ export default function MePage() {
                   </div>
                 </div>
 
-                {/* Network */}
+                {/* Network Toggle */}
                 <div className="p-4 flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">{t("network")}</p>
-                  <span className="text-sm font-medium text-foreground capitalize">{network}</span>
+                  <button
+                    onClick={toggleNetwork}
+                    className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    <span className={`size-2 rounded-full ${network === "mainnet-beta" ? "bg-bullish" : "bg-amber-400"}`} />
+                    {network === "mainnet-beta" ? t("networkMainnet") : t("networkDevnet")}
+                  </button>
                 </div>
 
                 {/* Explorer Link */}
                 <div className="p-4">
                   <a
-                    href={`https://solscan.io/account/${address}${network === "devnet" ? "?cluster=devnet" : ""}`}
+                    href={solscanAccountUrl(address)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-sm text-primary hover:underline"
@@ -191,104 +407,6 @@ export default function MePage() {
                 <LogOut className="size-4 mr-2" />
                 {t("disconnect")}
               </Button>
-            </TabsContent>
-
-            {/* Tab 1: Agents */}
-            <TabsContent value="agents" className="pt-4 pb-20">
-              {/* My Registered Agents */}
-              <h2 className="text-lg font-semibold mb-3">{t("myAgents")}</h2>
-              {registeredAgents.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-6 text-center mb-6">
-                  <Bot className="size-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t("noAgents")}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t("noAgentsHint")}</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border mb-6">
-                  {registeredAgents.map((agent) => (
-                    <Link
-                      key={agent.id}
-                      href={`/agent/${agent.id}`}
-                      className="py-3 flex items-center gap-3 hover:bg-muted/30 transition-colors -mx-1 px-1 rounded"
-                    >
-                      <Avatar size="sm">
-                        <AvatarImage src={getAgentAvatarUrl(agent.name)} alt={agent.name} />
-                        <AvatarFallback><Bot className="size-4" /></AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {agent.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">{agent.style}</p>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {agent.accuracyScore != null && (
-                          <div className="flex items-center gap-1">
-                            <Target className="size-3 text-muted-foreground" />
-                            <span className="text-xs font-medium text-foreground">
-                              {Math.round(agent.accuracyScore * 100)}%
-                            </span>
-                          </div>
-                        )}
-                        {agent.leaderboardRank != null && (
-                          <div className="flex items-center gap-1">
-                            <Trophy className="size-3 text-muted-foreground" />
-                            <span className="text-xs font-medium text-foreground">
-                              #{agent.leaderboardRank}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              {/* Rented Agents */}
-              <h2 className="text-lg font-semibold mb-3">{t("rentedAgents")}</h2>
-              {rentals.length === 0 ? (
-                <p className="text-sm text-muted-foreground mb-6">{t("noRentals")}</p>
-              ) : (
-                <div className="divide-y divide-border mb-6">
-                  {rentals.map((rental) => (
-                    <div key={rental.id} className="py-3 flex items-center gap-3">
-                      <Bot className="size-5 shrink-0 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {rental.agentName}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-0.5 shrink-0">
-                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
-                          {t("renting")}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {t("daysLeft", { days: daysLeft(rental.expiresAt) })}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Tab 2: Activity */}
-            <TabsContent value="activity" className="pt-4 pb-20">
-              {/* Voting Score */}
-              <VotingScoreCard stats={stats} />
-
-              {/* Liked & Bookmarked Posts */}
-              <LikedBookmarkedTabs
-                likedPosts={likedPosts}
-                bookmarkedPosts={bookmarkedPosts}
-                agentsMap={agentsMap}
-                locale={locale}
-              />
-            </TabsContent>
-
-            {/* Tab 3: Developer */}
-            <TabsContent value="developer" className="pt-4 pb-20">
-              <DeveloperApiSection />
             </TabsContent>
           </Tabs>
         </>

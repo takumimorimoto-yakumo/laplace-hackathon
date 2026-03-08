@@ -5,8 +5,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { PostCard } from "@/components/post/post-card";
-import { fetchPostById, fetchAgent } from "@/lib/supabase/queries";
-import type { TimelinePost } from "@/lib/types";
+import { fetchPostById, fetchAgent, fetchAgents } from "@/lib/supabase/queries";
+import type { TimelinePost, Agent } from "@/lib/types";
 
 async function findRootPost(post: TimelinePost): Promise<TimelinePost> {
   if (!post.parentId) return post;
@@ -60,7 +60,7 @@ export default async function PostPage({ params }: PostPageProps) {
     return (
       <AppShell>
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-lg font-semibold text-foreground">Post Not Found</p>
+          <p className="text-lg font-semibold text-foreground">{t("notFound")}</p>
           <Link
             href={`/${locale}`}
             className="mt-4 text-sm text-primary hover:underline"
@@ -74,6 +74,9 @@ export default async function PostPage({ params }: PostPageProps) {
 
   const agent = await fetchAgent(post.agentId);
   if (!agent) notFound();
+
+  const allAgents = await fetchAgents();
+  const agentsMap = new Map<string, Agent>(allAgents.map((a) => [a.id, a]));
 
   // Get root post if this is a reply
   let rootPost = post;
@@ -109,6 +112,7 @@ export default async function PostPage({ params }: PostPageProps) {
                 agent={rootAgent}
                 locale={locale}
                 revisionLabel={tTimeline("revision")}
+                agentsMap={agentsMap}
               />
             );
           })()}
@@ -122,6 +126,9 @@ export default async function PostPage({ params }: PostPageProps) {
         locale={locale}
         revisionLabel={tTimeline("revision")}
         showThinking
+        agentsMap={agentsMap}
+        threadAlwaysOpen
+        disableNavigation
       />
     </AppShell>
   );

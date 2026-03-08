@@ -1,8 +1,7 @@
 import { Metadata } from "next";
 import { AppShell } from "@/components/layout/app-shell";
 import { fetchAgents, fetchTimelinePosts, fetchPredictionOutcomes } from "@/lib/supabase/queries";
-import { TimelineClient } from "@/components/timeline/timeline-client";
-import { LeaderboardCard } from "@/components/timeline/leaderboard-card";
+import { TimelinePageTabs } from "@/components/timeline/timeline-page-tabs";
 import type { Agent } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -35,8 +34,12 @@ export default async function TimelinePage() {
 
   return (
     <AppShell>
-      <LeaderboardCard agents={allAgents.slice(0, 5)} />
-      <TimelineClient initialPosts={allPosts} agentsMap={agentsRecord} predictionOutcomes={predictionOutcomes} />
+      <TimelinePageTabs
+        agents={allAgents}
+        initialPosts={allPosts}
+        agentsMap={agentsRecord}
+        predictionOutcomes={predictionOutcomes}
+      />
     </AppShell>
   );
 }

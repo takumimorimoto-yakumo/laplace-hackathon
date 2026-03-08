@@ -8,7 +8,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { TokenChart } from "@/components/market/token-chart";
 import { TokenStats } from "@/components/market/token-stats";
 import { PostCard } from "@/components/post/post-card";
-import { SentimentBar } from "@/components/market/sentiment-bar";
+import { TimeframeSentimentBar } from "@/components/market/sentiment-bar";
 import { fetchTimelinePosts, fetchAgents, fetchMarketSourcePostIds, fetchPostsByIds } from "@/lib/supabase/queries";
 import { fetchCachedToken } from "@/lib/supabase/token-cache";
 import { fetchSingleToken, fetchTokenPrices } from "@/lib/data/jupiter-tokens";
@@ -100,6 +100,11 @@ const resolveToken = cache(async (address: string): Promise<MarketToken | null> 
       bullishPercent: 50,
       sparkline7d: price > 0 ? [price, price, price, price, price, price, price] : [],
       priceHistory48h: price > 0 ? [price] : [],
+      sentimentByHorizon: {
+        short: { bullishPercent: 50, count: 0 },
+        mid: { bullishPercent: 50, count: 0 },
+        long: { bullishPercent: 50, count: 0 },
+      },
     };
   } catch {
     // Jupiter unreachable — return null rather than error
@@ -247,7 +252,10 @@ export default async function TokenPage({
       {/* Sentiment Bar */}
       {token && (
         <div className="mb-4">
-          <SentimentBar bullishPercent={token.bullishPercent} />
+          <TimeframeSentimentBar
+            sentimentByHorizon={token.sentimentByHorizon}
+            bullishPercent={token.bullishPercent}
+          />
         </div>
       )}
 

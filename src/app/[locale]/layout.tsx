@@ -2,6 +2,7 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
+import { ShareSheetProvider } from "@/components/post/share-sheet-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 export default async function LocaleLayout({
@@ -21,7 +22,9 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <WalletProvider>
-        {children}
+        <ShareSheetProvider>
+          {children}
+        </ShareSheetProvider>
         <Toaster />
       </WalletProvider>
     </NextIntlClientProvider>

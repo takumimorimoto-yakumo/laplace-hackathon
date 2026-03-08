@@ -12,7 +12,7 @@ import {
   dbMarketBetToBet,
 } from "./mappers";
 import type { DbAgent, DbTimelinePost, DbVirtualPosition, DbVirtualTrade, DbPredictionMarket, DbMarketBet } from "./mappers";
-import type { Agent, TimelinePost, Position, Trade, PortfolioSnapshot, AccuracySnapshot, PredictionMarket, MarketBet, ThinkingProcess, NewsItem, LocalizedContent, PredictionOutcomeStatus } from "@/lib/types";
+import type { Agent, TimelinePost, Position, Trade, PortfolioSnapshot, AccuracySnapshot, PredictionMarket, MarketBet, ThinkingProcess, NewsItem, LocalizedContent, PredictionOutcomeStatus, TimeHorizon, HorizonSentiment } from "@/lib/types";
 
 // ---------- Agents ----------
 
@@ -48,6 +48,7 @@ export async function fetchTimelinePosts(opts?: {
   limit?: number;
   agentId?: string;
   tokenAddress?: string;
+  includeUnpublished?: boolean;
 }): Promise<TimelinePost[]> {
   const supabase = createReadOnlyClient();
   let query = supabase
@@ -62,11 +63,33 @@ export async function fetchTimelinePosts(opts?: {
   if (opts?.tokenAddress) {
     query = query.eq("token_address", opts.tokenAddress);
   }
+  // published_at filter: only apply if not requesting unpublished posts
+  // Gracefully skip if column doesn't exist yet (pre-migration)
+  const applyPublishedFilter = !opts?.includeUnpublished;
+  if (applyPublishedFilter) {
+    query = query.lte("published_at", new Date().toISOString());
+  }
   if (opts?.limit) {
     query = query.limit(opts.limit);
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+
+  // Fallback: if published_at column doesn't exist yet, retry without the filter
+  if (error && error.code === "42703" && applyPublishedFilter) {
+    let fallbackQuery = supabase
+      .from("timeline_posts")
+      .select("*")
+      .is("parent_post_id", null)
+      .order("created_at", { ascending: false });
+    if (opts?.agentId) fallbackQuery = fallbackQuery.eq("agent_id", opts.agentId);
+    if (opts?.tokenAddress) fallbackQuery = fallbackQuery.eq("token_address", opts.tokenAddress);
+    if (opts?.limit) fallbackQuery = fallbackQuery.limit(opts.limit);
+    const fallback = await fallbackQuery;
+    data = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) {
     console.error("fetchTimelinePosts error:", error.message, error.code, error.details);
     return [];
@@ -169,6 +192,90 @@ export async function fetchTokenSentiment(): Promise<Map<string, TokenSentiment>
     }
   } catch (err) {
     console.error("fetchTokenSentiment error:", err);
+  }
+
+  return result;
+}
+
+// ---------- Token Sentiment by Horizon ----------
+
+/**
+ * Map DB time_horizon values to UI TimeHorizon categories.
+ */
+function mapTimeHorizon(dbHorizon: string): TimeHorizon {
+  switch (dbHorizon) {
+    case "intraday":
+    case "days":
+      return "short";
+    case "weeks":
+      return "mid";
+    case "months":
+      return "long";
+    default:
+      return "short";
+  }
+}
+
+const defaultHorizonSentiment: Record<TimeHorizon, HorizonSentiment> = {
+  short: { bullishPercent: 50, count: 0 },
+  mid: { bullishPercent: 50, count: 0 },
+  long: { bullishPercent: 50, count: 0 },
+};
+
+/**
+ * Fetch per-token sentiment broken down by time horizon.
+ * Joins timeline_posts with predictions to get time_horizon data.
+ * Posts without a prediction are excluded from horizon breakdown.
+ */
+export async function fetchTokenSentimentByHorizon(): Promise<
+  Map<string, Record<TimeHorizon, HorizonSentiment>>
+> {
+  const result = new Map<string, Record<TimeHorizon, HorizonSentiment>>();
+
+  try {
+    const supabase = createReadOnlyClient();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from("predictions")
+      .select("token_address, direction, time_horizon, timeline_posts!inner(created_at)")
+      .gte("predicted_at", sevenDaysAgo);
+
+    if (error || !data) return result;
+
+    // Aggregate per token_address + horizon
+    const agg = new Map<string, Record<TimeHorizon, { total: number; bullish: number }>>();
+
+    for (const row of data) {
+      const addr = row.token_address as string;
+      const horizon = mapTimeHorizon(row.time_horizon as string);
+
+      if (!agg.has(addr)) {
+        agg.set(addr, {
+          short: { total: 0, bullish: 0 },
+          mid: { total: 0, bullish: 0 },
+          long: { total: 0, bullish: 0 },
+        });
+      }
+
+      const entry = agg.get(addr)!;
+      entry[horizon].total++;
+      if (row.direction === "bullish") entry[horizon].bullish++;
+    }
+
+    for (const [addr, horizons] of agg) {
+      const mapped: Record<TimeHorizon, HorizonSentiment> = { ...defaultHorizonSentiment };
+      for (const h of ["short", "mid", "long"] as TimeHorizon[]) {
+        const { total, bullish } = horizons[h];
+        mapped[h] = {
+          bullishPercent: total > 0 ? Math.round((bullish / total) * 100) : 50,
+          count: total,
+        };
+      }
+      result.set(addr, mapped);
+    }
+  } catch (err) {
+    console.error("fetchTokenSentimentByHorizon error:", err);
   }
 
   return result;
@@ -366,13 +473,14 @@ export async function fetchTrades(agentId: string): Promise<Trade[]> {
 
 // ---------- Prediction Markets ----------
 
-export async function fetchPredictionMarkets(): Promise<PredictionMarket[]> {
+export async function fetchPredictionMarkets(opts?: { resolved?: boolean }): Promise<PredictionMarket[]> {
   const supabase = createReadOnlyClient();
+  const isResolved = opts?.resolved ?? false;
   const { data, error } = await supabase
     .from("prediction_markets")
     .select("*")
-    .eq("is_resolved", false)
-    .order("deadline", { ascending: true });
+    .eq("is_resolved", isResolved)
+    .order("deadline", { ascending: !isResolved });
 
   if (error) {
     console.error("fetchPredictionMarkets error:", error.message);

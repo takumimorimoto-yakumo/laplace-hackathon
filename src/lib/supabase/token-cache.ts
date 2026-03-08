@@ -5,14 +5,14 @@
 
 import { createReadOnlyClient } from "./server";
 import { createAdminClient } from "./admin";
-import { fetchTokenSentiment } from "./queries";
+import { fetchTokenSentiment, fetchTokenSentimentByHorizon } from "./queries";
 import {
   fetchSolanaEcosystemTokens,
   resolveSolanaAddress,
 } from "@/lib/data/coingecko";
 import { fetchAllProtocolTVLs } from "@/lib/data/defillama";
 import { inferTags } from "@/lib/token-utils";
-import type { MarketToken } from "@/lib/types";
+import type { MarketToken, TimeHorizon, HorizonSentiment } from "@/lib/types";
 
 // ---------- DB Row Type ----------
 
@@ -35,9 +35,16 @@ interface TokenCacheRow {
 
 // ---------- Row → MarketToken ----------
 
+const defaultHorizonSentiment: Record<TimeHorizon, HorizonSentiment> = {
+  short: { bullishPercent: 50, count: 0 },
+  mid: { bullishPercent: 50, count: 0 },
+  long: { bullishPercent: 50, count: 0 },
+};
+
 function rowToMarketToken(
   row: TokenCacheRow,
   sentiment?: { agentCount: number; bullishPercent: number },
+  horizonSentiment?: Record<TimeHorizon, HorizonSentiment>,
 ): MarketToken {
   const sparkline7d: number[] = Array.isArray(row.sparkline_7d) ? row.sparkline_7d : [];
   const priceHistory48h =
@@ -59,6 +66,7 @@ function rowToMarketToken(
     bullishPercent: sentiment?.bullishPercent ?? 50,
     sparkline7d,
     priceHistory48h,
+    sentimentByHorizon: horizonSentiment ?? { ...defaultHorizonSentiment },
   };
 }
 
@@ -70,6 +78,7 @@ function rowToMarketToken(
  */
 async function fetchFromCoinGeckoDirectly(
   sentimentMap: Map<string, { agentCount: number; bullishPercent: number }>,
+  horizonMap?: Map<string, Record<TimeHorizon, HorizonSentiment>>,
 ): Promise<MarketToken[]> {
   const ecosystemTokens = await fetchSolanaEcosystemTokens();
   if (ecosystemTokens.length === 0) return [];
@@ -109,6 +118,7 @@ async function fetchFromCoinGeckoDirectly(
       bullishPercent: sentiment?.bullishPercent ?? 50,
       sparkline7d,
       priceHistory48h,
+      sentimentByHorizon: horizonMap?.get(resolved.address) ?? { ...defaultHorizonSentiment },
     });
   }
 
@@ -130,22 +140,25 @@ export async function fetchCachedTokens(): Promise<MarketToken[]> {
     .order("volume_24h", { ascending: false });
 
   // Fetch sentiment once — used by both DB path and CoinGecko fallback
-  const sentimentMap = await fetchTokenSentiment();
+  const [sentimentMap, horizonMap] = await Promise.all([
+    fetchTokenSentiment(),
+    fetchTokenSentimentByHorizon(),
+  ]);
 
   if (error) {
     console.warn("[token-cache] DB read failed, falling back to CoinGecko:", error.message);
-    return fetchFromCoinGeckoDirectly(sentimentMap);
+    return fetchFromCoinGeckoDirectly(sentimentMap, horizonMap);
   }
 
   if (!data || data.length === 0) {
     console.warn("[token-cache] Cache empty, falling back to CoinGecko direct fetch");
-    return fetchFromCoinGeckoDirectly(sentimentMap);
+    return fetchFromCoinGeckoDirectly(sentimentMap, horizonMap);
   }
 
   const rows = data as unknown as TokenCacheRow[];
 
   return rows.map((row) =>
-    rowToMarketToken(row, sentimentMap.get(row.address)),
+    rowToMarketToken(row, sentimentMap.get(row.address), horizonMap.get(row.address)),
   );
 }
 
@@ -163,9 +176,12 @@ export async function fetchCachedToken(address: string): Promise<MarketToken | n
 
   if (error || !data) return null;
 
-  const sentimentMap = await fetchTokenSentiment();
+  const [sentimentMap, horizonMap] = await Promise.all([
+    fetchTokenSentiment(),
+    fetchTokenSentimentByHorizon(),
+  ]);
   const row = data as unknown as TokenCacheRow;
-  return rowToMarketToken(row, sentimentMap.get(row.address));
+  return rowToMarketToken(row, sentimentMap.get(row.address), horizonMap.get(row.address));
 }
 
 /**
@@ -183,9 +199,12 @@ export async function fetchCachedTokenBySymbol(symbol: string): Promise<MarketTo
 
   if (error || !data) return null;
 
-  const sentimentMap = await fetchTokenSentiment();
+  const [sentimentMap, horizonMap] = await Promise.all([
+    fetchTokenSentiment(),
+    fetchTokenSentimentByHorizon(),
+  ]);
   const row = data as unknown as TokenCacheRow;
-  return rowToMarketToken(row, sentimentMap.get(row.address));
+  return rowToMarketToken(row, sentimentMap.get(row.address), horizonMap.get(row.address));
 }
 
 // ---------- Write API (for cron) ----------

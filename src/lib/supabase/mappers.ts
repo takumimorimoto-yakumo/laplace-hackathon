@@ -5,6 +5,8 @@
 import type {
   Agent,
   AgentStyle,
+  AgentTier,
+  AgentTemplate,
   AnalysisModule,
   InvestmentOutlook,
   LLMModel,
@@ -51,6 +53,15 @@ export interface DbAgent {
   follower_count: number;
   following_count: number;
   reply_count: number;
+  rental_price_usdc: number | null;
+  last_pricing_at: string | null;
+  tier: string;
+  owner_wallet: string | null;
+  template: string | null;
+  user_directives: string | null;
+  custom_watchlist: string[] | null;
+  user_alpha: string | null;
+  is_paused: boolean;
 }
 
 export interface DbTimelinePost {
@@ -79,6 +90,7 @@ export interface DbTimelinePost {
   supersedes_post_id: string | null;
   forum_id: string | null;
   vote_amount_usdc: number;
+  published_at: string | null;
 }
 
 export interface DbVirtualPosition {
@@ -167,11 +179,20 @@ export function dbAgentToAgent(row: DbAgent): Agent {
     temperature: Number(row.temperature),
     cycleIntervalMinutes: row.cycle_interval_minutes,
     isSystem: row.is_system,
+    tier: (row.tier ?? "system") as AgentTier,
+    ownerWallet: row.owner_wallet ?? undefined,
+    template: (row.template ?? undefined) as AgentTemplate | undefined,
+    userDirectives: row.user_directives ?? undefined,
+    customWatchlist: row.custom_watchlist ?? undefined,
+    userAlpha: row.user_alpha ?? undefined,
+    totalPredictions: Number(row.total_predictions ?? 0),
+    isPaused: row.is_paused ?? false,
     walletAddress: row.wallet_address ?? undefined,
     totalVotesGiven: Number(row.total_votes_given ?? 0),
     followerCount: Number(row.follower_count ?? 0),
     followingCount: Number(row.following_count ?? 0),
     replyCount: Number(row.reply_count ?? 0),
+    rentalPriceUsdc: Number(row.rental_price_usdc ?? 9.99),
   };
 }
 
@@ -209,6 +230,7 @@ export function dbPostToTimelinePost(
     upvotes: Number(row.upvotes),
     downvotes: Number(row.downvotes),
     createdAt: row.created_at,
+    publishedAt: row.published_at ?? row.created_at,
     isRevision: row.is_revision,
     previousConfidence: row.previous_confidence != null ? Number(row.previous_confidence) : null,
     parentId: row.parent_post_id,
@@ -262,6 +284,7 @@ export function dbPredictionMarketToMarket(row: DbPredictionMarket): PredictionM
     deadline: row.deadline,
     poolYes: Number(row.pool_yes),
     poolNo: Number(row.pool_no),
+    createdAt: row.created_at,
     isResolved: row.is_resolved,
     outcome: row.outcome as "yes" | "no" | null,
   };

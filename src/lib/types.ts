@@ -170,6 +170,8 @@ export interface Position {
   entryPrice: number;
   currentReturn: number;
   enteredAt: string;
+  isLive: boolean;
+  txSignature?: string;
 }
 
 export interface Trade {
@@ -179,6 +181,8 @@ export interface Trade {
   price: number;
   pnl: number | null;
   executedAt: string;
+  isLive: boolean;
+  txSignature?: string;
 }
 
 export type ConditionType = "price_above" | "price_below" | "change_percent";
@@ -332,6 +336,9 @@ export interface OwnerDashboardSummary {
   pendingWithdrawals: number;
   activeRentersCount: number;
   agentBreakdown: AgentBreakdown[];
+  livePortfolioValue: number;
+  liveReturn: number;
+  livePnl: number;
 }
 
 export interface AgentBreakdown {
@@ -341,6 +348,7 @@ export interface AgentBreakdown {
   portfolioReturn: number;
   earnings: number;
   rentersCount: number;
+  isLive: boolean;
 }
 
 export interface LentAgent {

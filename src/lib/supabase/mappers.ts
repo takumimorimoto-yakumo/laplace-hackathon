@@ -112,6 +112,8 @@ export interface DbVirtualPosition {
   liquidation_price: number | null;
   post_id: string | null;
   opened_at: string;
+  is_live: boolean;
+  open_tx_signature: string | null;
 }
 
 export interface DbVirtualTrade {
@@ -131,6 +133,7 @@ export interface DbVirtualTrade {
   realized_pnl_pct: number | null;
   post_id: string | null;
   executed_at: string;
+  tx_signature: string | null;
 }
 
 export interface DbMarketBet {
@@ -249,6 +252,8 @@ export function dbPositionToPosition(row: DbVirtualPosition): Position {
     entryPrice: Number(row.entry_price),
     currentReturn: Number(row.unrealized_pnl_pct),
     enteredAt: row.opened_at,
+    isLive: row.is_live ?? false,
+    txSignature: row.open_tx_signature ?? undefined,
   };
 }
 
@@ -260,6 +265,8 @@ export function dbTradeToTrade(row: DbVirtualTrade): Trade {
     price: Number(row.price),
     pnl: row.realized_pnl != null ? Number(row.realized_pnl) : null,
     executedAt: row.executed_at,
+    isLive: row.tx_signature != null,
+    txSignature: row.tx_signature ?? undefined,
   };
 }
 

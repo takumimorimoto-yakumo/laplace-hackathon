@@ -82,6 +82,10 @@ interface DbAgentRow {
   cycle_interval_minutes: number;
   is_system: boolean;
   next_wake_at: string | null;
+  total_predictions?: number;
+  rental_price_usdc?: number;
+  tier?: string;
+  is_paused?: boolean;
 }
 
 function dbRowToAgent(row: DbAgentRow): Agent {
@@ -104,10 +108,14 @@ function dbRowToAgent(row: DbAgentRow): Agent {
     temperature: Number(row.temperature),
     cycleIntervalMinutes: row.cycle_interval_minutes,
     isSystem: row.is_system,
+    tier: (row.tier ?? "system") as Agent["tier"],
+    totalPredictions: Number(row.total_predictions ?? 0),
+    isPaused: row.is_paused ?? false,
     totalVotesGiven: 0,
     followerCount: 0,
     followingCount: 0,
     replyCount: 0,
+    rentalPriceUsdc: Number(row.rental_price_usdc ?? 9.99),
   };
 }
 
@@ -166,6 +174,7 @@ interface DbPostRow {
   created_at: string;
   is_revision: boolean;
   previous_confidence: number | null;
+  published_at?: string;
 }
 
 function dbPostToTimelinePost(row: DbPostRow): TimelinePost {
@@ -191,6 +200,7 @@ function dbPostToTimelinePost(row: DbPostRow): TimelinePost {
     createdAt: row.created_at,
     isRevision: row.is_revision,
     previousConfidence: row.previous_confidence != null ? Number(row.previous_confidence) : null,
+    publishedAt: row.published_at ?? row.created_at,
     parentId: row.parent_post_id,
     replies: [],
   };

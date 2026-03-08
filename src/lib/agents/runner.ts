@@ -10,6 +10,8 @@ import {
   buildReplyMessages,
   buildNewsMessages,
   buildBrowseMessages,
+  buildCustomAnalysisMessages,
+  buildPricingMessages,
 } from "./prompt-builder";
 import type { RealMarketData } from "./prompt-builder";
 import {
@@ -17,6 +19,7 @@ import {
   parseReplyResponse,
   parseNewsResponse,
   parseBrowseResponse,
+  parsePricingResponse,
 } from "./response-schema";
 import type { AgentPostOutput, VoteDirection } from "./response-schema";
 import { translatePost, translateEvidence } from "./translate";
@@ -453,6 +456,7 @@ export async function runAgent(
         uncertainty: output.uncertainty || null,
         confidence_rationale: output.confidence_rationale || null,
         created_at: now,
+        published_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       })
       .select("id")
       .single();
@@ -1093,6 +1097,7 @@ export async function runReply(
         natural_text: output.natural_text,
         content_localized: contentLocalized,
         created_at: now,
+        published_at: now,
       })
       .select("id")
       .single();
@@ -1304,6 +1309,7 @@ export async function runNews(
           zh: `[${output.category.toUpperCase()}] ${headlineLocalized.zh || headlineLocalized.en}\n\n${contentLocalized.zh || contentLocalized.en}`,
         },
         created_at: now,
+        published_at: now,
       })
       .select("id")
       .single();
@@ -1328,10 +1334,6 @@ export async function runNews(
 // 4. Virtual Trade Generation
 // ============================================================
 
-/** Minimum allocation percentage of portfolio for a trade */
-const MIN_ALLOCATION_PCT = 0.05;
-/** Maximum allocation percentage of portfolio for a trade */
-const MAX_ALLOCATION_PCT = 0.15;
 /** Default portfolio initial balance */
 const DEFAULT_INITIAL_BALANCE = 10000;
 /** Position expiry in days */
@@ -1395,13 +1397,10 @@ export async function runVirtualTrade(
       return;
     }
 
-    // 4. Calculate position size: 5-15% of portfolio based on confidence
-    const allocationPct =
-      MIN_ALLOCATION_PCT +
-      (MAX_ALLOCATION_PCT - MIN_ALLOCATION_PCT) * output.confidence;
+    // 4. Calculate position size using AI-decided allocation
     const amountUsdc = Math.min(
       portfolio.cash_balance,
-      portfolio.total_value * allocationPct
+      portfolio.total_value * output.allocation_pct
     );
 
     if (amountUsdc < 1) {
@@ -1860,5 +1859,158 @@ async function upsertBookmark(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function runMarketBet(agentId: string): Promise<number> {
   return 0;
+}
+
+// ============================================================
+// 9. Custom Analysis Request
+// ============================================================
+
+/**
+ * Execute a custom analysis request for a specific token.
+ * Similar to runAgent but forced to analyze a specific token
+ * requested by a renter.
+ */
+export async function runCustomAnalysis(
+  agentId: string,
+  request: { id: string; tokenSymbol: string; tokenAddress?: string | null },
+  existingMarketData?: RealMarketData[]
+): Promise<RunResult> {
+  const supabase = createAdminClient();
+  const agent = await fetchAgent(agentId);
+  if (!agent) return { action: "error", error: `Agent ${agentId} not found` };
+
+  const keyError = checkApiKey(agent);
+  if (keyError) return { action: "error", error: keyError };
+
+  try {
+    const marketData = existingMarketData ?? await fetchMarketContext();
+    const messages = buildCustomAnalysisMessages(agent, request.tokenSymbol, marketData);
+    const raw = await chatCompletion(messages, {
+      llmModel: agent.llm,
+      temperature: agent.temperature,
+    });
+
+    const output = parseAgentResponse(raw);
+    if (!output.should_post) {
+      return { action: "skipped", error: "Agent declined to analyze" };
+    }
+
+    // Force the token
+    output.token_symbol = request.tokenSymbol;
+    if (request.tokenAddress) output.token_address = request.tokenAddress;
+
+    // Resolve address from market data if needed
+    if (!output.token_address) {
+      const match = marketData.find(
+        (m) => m.symbol.toUpperCase() === request.tokenSymbol.toUpperCase()
+      );
+      if (match?.address) output.token_address = match.address;
+    }
+
+    const contentLocalized = await translateText(output.natural_text, agent.name);
+
+    let evidenceLocalized: { en: string; ja: string; zh: string }[] | null = null;
+    if (output.evidence.length > 0) {
+      try {
+        evidenceLocalized = await translateEvidence(output.evidence);
+      } catch {
+        /* non-critical */
+      }
+    }
+
+    const now = new Date().toISOString();
+    const { data: post, error: insertError } = await supabase
+      .from("timeline_posts")
+      .insert({
+        agent_id: agentId,
+        post_type: "prediction",
+        token_address: output.token_address || null,
+        token_symbol: output.token_symbol || null,
+        direction: output.direction,
+        confidence: output.confidence,
+        evidence: output.evidence,
+        evidence_localized: evidenceLocalized,
+        natural_text: output.natural_text,
+        content_localized: contentLocalized,
+        reasoning: output.reasoning || null,
+        uncertainty: output.uncertainty || null,
+        confidence_rationale: output.confidence_rationale || null,
+        created_at: now,
+        published_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (insertError) throw new Error(`Failed to insert post: ${insertError.message}`);
+
+    // Update the analysis request
+    await supabase
+      .from("analysis_requests")
+      .update({ status: "completed", result_post_id: post.id, completed_at: now })
+      .eq("id", request.id);
+
+    return { action: "posted", postId: post.id, output };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[runner] Custom analysis failed for ${agent.name}: ${message}`);
+    return { action: "error", error: message };
+  }
+}
+
+// ============================================================
+// 10. AI Auto-Pricing
+// ============================================================
+
+/**
+ * Run AI-driven pricing for an agent.
+ * The agent determines its own monthly rental price based on performance.
+ */
+export async function runPricing(agentId: string): Promise<void> {
+  const supabase = createAdminClient();
+  const agent = await fetchAgent(agentId);
+  if (!agent) return;
+
+  const keyError = checkApiKey(agent);
+  if (keyError) return;
+
+  try {
+    // Count active subscribers
+    const { count: subscriberCount } = await supabase
+      .from("agent_rentals")
+      .select("*", { count: "exact", head: true })
+      .eq("agent_id", agentId)
+      .eq("is_active", true);
+
+    const stats = {
+      subscriberCount: subscriberCount ?? 0,
+      accuracy: agent.accuracy,
+      rank: agent.rank,
+      portfolioReturn: agent.portfolioReturn,
+    };
+
+    const messages = buildPricingMessages(agent, stats);
+    const raw = await chatCompletion(messages, {
+      llmModel: agent.llm,
+      temperature: 0.3, // Lower temperature for pricing decisions
+    });
+
+    const output = parsePricingResponse(raw);
+
+    // Update agent's rental price
+    await supabase
+      .from("agents")
+      .update({
+        rental_price_usdc: output.price_usdc,
+        last_pricing_at: new Date().toISOString(),
+      })
+      .eq("id", agentId);
+
+    console.log(
+      `[runner] ${agent.name} set price to $${output.price_usdc}: ${output.reasoning}`
+    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[runner] Pricing failed for ${agent.name}: ${message}`);
+  }
 }
 

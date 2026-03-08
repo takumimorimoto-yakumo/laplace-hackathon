@@ -145,6 +145,44 @@ export async function POST(
     );
   }
 
+  // --- Daily withdrawal limit (max 1000 USDC per day) ---
+  const DAILY_LIMIT = 1000;
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentWithdrawals } = await supabase
+    .from("agent_withdrawals")
+    .select("amount, created_at")
+    .eq("agent_id", id)
+    .gte("created_at", oneDayAgo);
+
+  const dailyTotal = (recentWithdrawals ?? []).reduce(
+    (sum, row) => sum + Number(row.amount),
+    0
+  );
+
+  if (dailyTotal + body.amount > DAILY_LIMIT) {
+    return badRequest(
+      `Daily withdrawal limit exceeded. Remaining today: ${(DAILY_LIMIT - dailyTotal).toFixed(6)} USDC`
+    );
+  }
+
+  // --- Withdrawal cooldown (minimum 10 minutes between withdrawals) ---
+  const COOLDOWN_MS = 10 * 60 * 1000;
+  if (recentWithdrawals && recentWithdrawals.length > 0) {
+    const latest = recentWithdrawals.reduce((a, b) =>
+      new Date(a.created_at as string) > new Date(b.created_at as string)
+        ? a
+        : b
+    );
+    const elapsed =
+      Date.now() - new Date(latest.created_at as string).getTime();
+    if (elapsed < COOLDOWN_MS) {
+      const waitMinutes = Math.ceil((COOLDOWN_MS - elapsed) / 60_000);
+      return badRequest(
+        `Please wait ${waitMinutes} minute(s) before making another withdrawal.`
+      );
+    }
+  }
+
   // Insert withdrawal (MVP: immediate completion)
   const { data: withdrawal, error: insertError } = await supabase
     .from("agent_withdrawals")

@@ -11,13 +11,23 @@ import { formatPrice } from "@/lib/format";
 import type { Direction, EntryPoint } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+export interface ExitPoint {
+  id: string;
+  price: number;
+  exitedAt: string;
+  pnl: number | null;
+}
+
 interface EntryPointChartProps {
   priceData: number[];
   entryPoints: EntryPoint[];
+  exitPoints?: ExitPoint[];
   variant: "mini" | "full";
   className?: string;
   /** Override the default height. Only used for "full" variant. */
   heightOverride?: number;
+  /** Show entry price label next to marker (full variant only) */
+  showEntryLabel?: boolean;
 }
 
 function directionColor(d: Direction): string {
@@ -29,9 +39,11 @@ function directionColor(d: Direction): string {
 export function EntryPointChart({
   priceData,
   entryPoints,
+  exitPoints,
   variant,
   className,
   heightOverride,
+  showEntryLabel,
 }: EntryPointChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(300);
@@ -90,7 +102,8 @@ export function EntryPointChart({
     return entryPoints.map((ep) => {
       const createdAtMs = new Date(ep.createdAt).getTime();
       const hoursAgo = (referenceTime - createdAtMs) / (1000 * 60 * 60);
-      const coord = findEntryPointCoordinate(
+      // Calculate X from time, then snap Y to the price line
+      const rawCoord = findEntryPointCoordinate(
         hoursAgo,
         ep.priceAtPrediction,
         priceData.length,
@@ -101,9 +114,34 @@ export function EntryPointChart({
         padX,
         padY
       );
+      // Snap to nearest data point on the price line for accurate visual
+      const dataIndex = Math.round(
+        Math.max(0, Math.min(priceData.length - 1, priceData.length - 1 - hoursAgo))
+      );
+      const snappedCoord = coords[dataIndex] ?? rawCoord;
+      // Use snapped X (on line) but keep entry price Y for visual reference
+      const coord = { x: snappedCoord.x, y: snappedCoord.y };
       return { ep, coord, color: directionColor(ep.direction) };
     });
-  }, [entryPoints, priceData.length, priceMin, priceMax, width, height, padX, padY, referenceTime]);
+  }, [entryPoints, priceData.length, priceMin, priceMax, width, height, padX, padY, referenceTime, coords]);
+
+  const exitMarkers = useMemo(() => {
+    if (!exitPoints) return [];
+    return exitPoints.map((ep) => {
+      const exitAtMs = new Date(ep.exitedAt).getTime();
+      const hoursAgo = (referenceTime - exitAtMs) / (1000 * 60 * 60);
+      const dataIndex = Math.round(
+        Math.max(0, Math.min(priceData.length - 1, priceData.length - 1 - hoursAgo))
+      );
+      const snappedCoord = coords[dataIndex];
+      const coord = snappedCoord ?? findEntryPointCoordinate(
+        hoursAgo, ep.price, priceData.length, priceMin, priceMax,
+        width, height, padX, padY
+      );
+      const color = ep.pnl !== null && ep.pnl >= 0 ? "#22c55e" : "#ef4444";
+      return { ep, coord, color };
+    });
+  }, [exitPoints, priceData.length, priceMin, priceMax, width, height, padX, padY, referenceTime, coords]);
 
   // Current price Y coordinate for full variant
   const priceRange = priceMax - priceMin || 1;
@@ -207,13 +245,77 @@ export function EntryPointChart({
             <circle
               cx={coord.x}
               cy={coord.y}
-              r={isMini ? 3.5 : 4.5}
+              r={isMini ? 3.5 : 5}
               fill={color}
               stroke={isMini ? "none" : "#ffffff"}
-              strokeWidth={isMini ? 0 : 1}
+              strokeWidth={isMini ? 0 : 1.5}
             />
+            {/* Entry price label (full variant only) */}
+            {!isMini && showEntryLabel && (
+              <text
+                x={coord.x + 8}
+                y={coord.y - 8}
+                fill={color}
+                fontSize={9}
+                fontWeight={600}
+                fontFamily="monospace"
+              >
+                {formatPrice(ep.priceAtPrediction)}
+              </text>
+            )}
           </g>
         ))}
+
+        {/* Exit point markers (X shape) */}
+        {exitMarkers.map(({ ep, coord, color }) => {
+          const s = isMini ? 3 : 4.5;
+          return (
+            <g key={ep.id}>
+              <line
+                x1={coord.x}
+                y1={coord.y}
+                x2={coord.x}
+                y2={baselineY}
+                stroke={color}
+                strokeOpacity={0.2}
+                strokeDasharray="2 2"
+                strokeWidth={1}
+              />
+              {/* X marker */}
+              <line
+                x1={coord.x - s}
+                y1={coord.y - s}
+                x2={coord.x + s}
+                y2={coord.y + s}
+                stroke={color}
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+              <line
+                x1={coord.x + s}
+                y1={coord.y - s}
+                x2={coord.x - s}
+                y2={coord.y + s}
+                stroke={color}
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+              {/* Exit price label */}
+              {!isMini && showEntryLabel && (
+                <text
+                  x={coord.x + 8}
+                  y={coord.y - 8}
+                  fill={color}
+                  fontSize={9}
+                  fontWeight={600}
+                  fontFamily="monospace"
+                >
+                  {formatPrice(ep.price)}
+                </text>
+              )}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );

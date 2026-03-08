@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { formatPrice, formatChange } from "@/lib/format";
@@ -78,11 +77,6 @@ export function MarketTokenRow({ token }: MarketTokenRowProps) {
         })}
       </div>
 
-      {/* Agent count — always visible, pushed right */}
-      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-        <Bot className="size-3.5" />
-        <span>{token.agentCount > 0 ? token.agentCount : "---"}</span>
-      </div>
     </Link>
   );
 }

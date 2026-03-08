@@ -8,7 +8,7 @@ interface CategoryTabsProps {
   onCategoryChange: (cat: string) => void;
 }
 
-const categories = ["all", "defi", "meme", "infra", "lst", "stablecoin"] as const;
+const categories = ["all", "infra", "defi", "meme", "lst", "stablecoin", "rwa", "wrapped"] as const;
 
 export function CategoryTabs({
   activeCategory,

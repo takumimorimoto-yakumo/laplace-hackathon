@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { PredictionMarket, Agent } from "@/lib/types";
 import { PredictionMarketList } from "./prediction-market-list";
 
@@ -17,62 +17,39 @@ export function PredictionMarketTabs({
   agents,
 }: PredictionMarketTabsProps) {
   const t = useTranslations("prediction");
-  const [tab, setTab] = useState<"active" | "resolved">("active");
 
   return (
-    <div className="space-y-4">
-      {/* Tab bar */}
-      <div className="flex gap-1 rounded-lg bg-muted/50 p-1" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "active"}
-          onClick={() => setTab("active")}
-          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
-            tab === "active"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
+    <Tabs defaultValue="active">
+      <TabsList variant="line" className="w-full justify-start">
+        <TabsTrigger value="active" className="flex-none">
           {t("activeTab")}
           {activeMarkets.length > 0 && (
             <span className="ml-1.5 text-xs opacity-60">
               {activeMarkets.length}
             </span>
           )}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "resolved"}
-          onClick={() => setTab("resolved")}
-          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
-            tab === "resolved"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
+        </TabsTrigger>
+        <TabsTrigger value="resolved" className="flex-none">
           {t("resolvedTab")}
           {resolvedMarkets.length > 0 && (
             <span className="ml-1.5 text-xs opacity-60">
               {resolvedMarkets.length}
             </span>
           )}
-        </button>
-      </div>
+        </TabsTrigger>
+      </TabsList>
 
-      {/* Tab content */}
-      <div role="tabpanel">
-        {tab === "active" ? (
-          <PredictionMarketList markets={activeMarkets} agents={agents} />
-        ) : (
-          <PredictionMarketList
-            markets={resolvedMarkets}
-            agents={agents}
-            showResolved
-          />
-        )}
-      </div>
-    </div>
+      <TabsContent value="active">
+        <PredictionMarketList markets={activeMarkets} agents={agents} />
+      </TabsContent>
+
+      <TabsContent value="resolved">
+        <PredictionMarketList
+          markets={resolvedMarkets}
+          agents={agents}
+          showResolved
+        />
+      </TabsContent>
+    </Tabs>
   );
 }

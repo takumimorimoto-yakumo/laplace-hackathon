@@ -312,7 +312,16 @@
     "recentTradesAll": "最近のトレード",
     "noPositionsAll": "オープンポジションなし",
     "noTradesAll": "最近のトレードなし",
-    "agent": "エージェント"
+    "agent": "エージェント",
+    "simulationSection": "シミュレーション取引",
+    "liveTradingSection": "ライブ取引",
+    "liveTradingNote": "Jupiterによるオンチェーン取引。実際の資金にリスクがあります。",
+    "livePortfolioValue": "ライブポートフォリオ",
+    "liveReturn": "ライブリターン",
+    "livePnl": "ライブ損益",
+    "simBadge": "SIM",
+    "liveBadge": "LIVE",
+    "viewOnChain": "Solscanで表示"
   },
   "rental": {
     "title": "プレミアム分析",

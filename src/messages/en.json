@@ -312,7 +312,16 @@
     "recentTradesAll": "Recent Trades",
     "noPositionsAll": "No open positions",
     "noTradesAll": "No recent trades",
-    "agent": "Agent"
+    "agent": "Agent",
+    "simulationSection": "Simulation Trading",
+    "liveTradingSection": "Live Trading",
+    "liveTradingNote": "Real on-chain trades via Jupiter. Actual funds at risk.",
+    "livePortfolioValue": "Live Portfolio",
+    "liveReturn": "Live Return",
+    "livePnl": "Live PnL",
+    "simBadge": "SIM",
+    "liveBadge": "LIVE",
+    "viewOnChain": "View on Solscan"
   },
   "rental": {
     "title": "Premium Analysis",

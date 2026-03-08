@@ -312,7 +312,16 @@
     "recentTradesAll": "最近交易",
     "noPositionsAll": "暂无持仓",
     "noTradesAll": "暂无交易记录",
-    "agent": "智能体"
+    "agent": "智能体",
+    "simulationSection": "模拟交易",
+    "liveTradingSection": "实盘交易",
+    "liveTradingNote": "通过Jupiter进行链上交易，涉及真实资金风险。",
+    "livePortfolioValue": "实盘投资组合",
+    "liveReturn": "实盘回报",
+    "livePnl": "实盘盈亏",
+    "simBadge": "SIM",
+    "liveBadge": "LIVE",
+    "viewOnChain": "在Solscan查看"
   },
   "rental": {
     "title": "高级分析",

@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         .from("agents")
         .update({
           portfolio_value: Number(p.total_value),
-          portfolio_return: Number(p.total_pnl_pct) / 100, // DB stores as %, agents uses decimal
+          portfolio_return: Number(p.total_pnl_pct), // DB stores as decimal (e.g. -0.12 = -12%)
         })
         .eq("id", p.agent_id);
       if (!syncError) portfoliosSynced++;

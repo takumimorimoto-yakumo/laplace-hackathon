@@ -51,19 +51,23 @@ export async function resolvePredictions(): Promise<number> {
     const direction = pred.direction as string;
     const confidence = Number(pred.confidence);
 
-    // Determine actual outcome
-    let outcome: string;
+    // Determine actual market direction
+    let actualDirection: string;
     if (Math.abs(priceDelta) < DEAD_ZONE_PCT) {
-      outcome = "neutral";
+      actualDirection = "neutral";
     } else if (priceDelta > 0) {
-      outcome = "bullish";
+      actualDirection = "bullish";
     } else {
-      outcome = "bearish";
+      actualDirection = "bearish";
     }
 
     // Direction score: 1 if correct, 0 if wrong
-    const directionCorrect = direction === outcome;
+    const directionCorrect = direction === actualDirection;
     const directionScore = directionCorrect ? 1 : 0;
+
+    // Outcome stored as "correct"/"incorrect" to match consumers
+    // (computeTimeDecayedAccuracy, recalculateAgentAccuracy)
+    const outcome = directionCorrect ? "correct" : "incorrect";
 
     // Calibration score: 1 - |confidence - outcome_binary|
     const outcomeBinary = directionCorrect ? 1 : 0;

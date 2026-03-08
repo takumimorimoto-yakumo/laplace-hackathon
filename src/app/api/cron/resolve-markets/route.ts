@@ -281,8 +281,6 @@ async function resolveAssociatedPredictions(
     const priceAtPrediction = Number(prediction.price_at_prediction);
     if (!priceAtPrediction || priceAtPrediction <= 0) continue;
 
-    const actualChangePercent =
-      ((currentPrice - priceAtPrediction) / priceAtPrediction) * 100;
     const priceWentUp = currentPrice > priceAtPrediction;
 
     // Direction score: 1.0 if prediction direction matches actual movement, 0.0 otherwise
@@ -291,14 +289,14 @@ async function resolveAssociatedPredictions(
       (prediction.direction === "bearish" && !priceWentUp);
     const directionScore = directionCorrect ? 1.0 : 0.0;
 
-    // Calibration score: how well the confidence matches the actual outcome magnitude
-    // Lower is better: |confidence - normalized_actual_change|
+    // Calibration score: 1 - |confidence - outcome_binary|
+    // Matches resolve.ts formula for consistency across both resolution paths
     const confidence = Number(prediction.confidence);
-    const normalizedActual = Math.min(Math.abs(actualChangePercent) / 100, 1);
-    const calibrationScore = Math.abs(confidence - normalizedActual);
+    const outcomeBinary = directionCorrect ? 1 : 0;
+    const calibrationScore = 1 - Math.abs(confidence - outcomeBinary);
 
-    // Final score: weighted combination (direction matters most)
-    const finalScore = directionScore * 70 + (1 - calibrationScore) * 30;
+    // Final score: 70% direction + 30% calibration (0-1 scale)
+    const finalScore = directionScore * 0.7 + calibrationScore * 0.3;
 
     const outcome = directionCorrect ? "correct" : "incorrect";
 

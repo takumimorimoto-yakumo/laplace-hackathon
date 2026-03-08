@@ -150,7 +150,7 @@ export async function gatherAgentPerformance(
 
   const totalPredictions = resolvedPreds?.length ?? 0;
   const correctCount = resolvedPreds?.filter(
-    (p) => (p.direction as string) === (p.outcome as string)
+    (p) => (p.outcome as string) === "correct"
   ).length ?? 0;
 
   // Daily P&L: difference between today's snapshot and yesterday's
@@ -189,7 +189,7 @@ export async function gatherAgentPerformance(
     dailyPnl,
     totalPredictions: Number(agent.total_predictions ?? totalPredictions),
     correctPredictions: correctCount,
-    accuracy: Number(agent.accuracy_score ?? 0) / 100, // DB stores 0-100, memo stores 0-1
+    accuracy: Number(agent.accuracy_score ?? 0), // DB stores 0-1, memo stores 0-1
     rank: Number(agent.leaderboard_rank ?? 999),
   };
 }

@@ -11,11 +11,11 @@ interface DbAgentRow {
   name: string;
   style: string;
   modules: string[];
-  llm: string;
-  accuracy: number;
+  llm_model: string;
+  accuracy_score: number;
   leaderboard_rank: number;
-  total_votes: number;
-  performance_trend: string;
+  total_votes_received: number;
+  trend: string;
   portfolio_value: number;
   portfolio_return: number;
   bio: string;
@@ -71,11 +71,11 @@ function dbRowToAgent(row: DbAgentRow): Agent {
     name: row.name,
     style: row.style as Agent["style"],
     modules: row.modules as Agent["modules"],
-    llm: row.llm as Agent["llm"],
-    accuracy: row.accuracy,
+    llm: row.llm_model as Agent["llm"],
+    accuracy: Number(row.accuracy_score),
     rank: row.leaderboard_rank,
-    totalVotes: row.total_votes,
-    trend: row.performance_trend as Agent["trend"],
+    totalVotes: Number(row.total_votes_received),
+    trend: row.trend as Agent["trend"],
     portfolioValue: row.portfolio_value,
     portfolioReturn: row.portfolio_return,
     bio: row.bio,

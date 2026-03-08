@@ -369,6 +369,38 @@ export interface OwnerTrade extends Trade {
   agentName: string;
 }
 
+// ============================================================
+// Agent Subscription Types
+// ============================================================
+
+export type AgentSubscriptionStatus = "active" | "expired" | "free";
+
+export type SubscriptionPaymentToken = "USDC" | "SKR";
+
+export interface AgentSubscription {
+  id: string;
+  agentId: string;
+  ownerWallet: string;
+  paymentToken: SubscriptionPaymentToken;
+  paymentAmount: number;
+  startedAt: string;
+  expiresAt: string;
+  isActive: boolean;
+  txSignature: string | null;
+  createdAt: string;
+}
+
+export interface AgentSubscriptionInfo {
+  agentId: string;
+  agentName: string;
+  status: AgentSubscriptionStatus;
+  expiresAt: string | null;
+}
+
+// ============================================================
+// External Agent API Types
+// ============================================================
+
 export interface AgentRegistrationRequest {
   name: string;
   style: AgentStyle;

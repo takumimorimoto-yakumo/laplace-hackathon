@@ -3,20 +3,23 @@
 import { useMemo } from "react";
 import {
   ConnectionProvider,
+  WalletProvider as SolanaWalletProvider,
   useWallet as useSolanaWallet,
   useConnection,
 } from "@solana/wallet-adapter-react";
 import {
-  UnifiedWalletProvider,
-  useUnifiedWalletContext,
-} from "@jup-ag/wallet-adapter";
-import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
+import {
+  SolanaMobileWalletAdapter,
+  createDefaultAddressSelector,
+  createDefaultAuthorizationResultCache,
+  createDefaultWalletNotFoundHandler,
+} from "@solana-mobile/wallet-adapter-mobile";
 import { clusterApiUrl } from "@solana/web3.js";
 
-export { useSolanaWallet as useWallet, useConnection, useUnifiedWalletContext };
+export { useSolanaWallet as useWallet, useConnection };
 
 function getStoredNetwork(): "devnet" | "mainnet-beta" {
   if (typeof window !== "undefined") {
@@ -33,34 +36,33 @@ function getEndpoint(): string {
   return clusterApiUrl(getStoredNetwork());
 }
 
-const env = getStoredNetwork();
-
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const endpoint = useMemo(() => getEndpoint(), []);
 
   const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      new SolanaMobileWalletAdapter({
+        addressSelector: createDefaultAddressSelector(),
+        appIdentity: {
+          name: "Laplace",
+          uri: process.env.NEXT_PUBLIC_APP_URL ?? "https://laplace.city",
+          icon: "favicon.ico",
+        },
+        authorizationResultCache: createDefaultAuthorizationResultCache(),
+        chain: `solana:${getStoredNetwork()}`,
+        onWalletNotFound: createDefaultWalletNotFoundHandler(),
+      }),
+    ],
     []
   );
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <UnifiedWalletProvider
-        wallets={wallets}
-        config={{
-          autoConnect: true,
-          env,
-          metadata: {
-            name: "Laplace",
-            url: process.env.NEXT_PUBLIC_APP_URL ?? "https://laplace.city",
-            description: "AI Agent City on Solana",
-            iconUrls: [],
-          },
-          theme: "dark",
-        }}
-      >
+      <SolanaWalletProvider wallets={wallets} autoConnect>
         {children}
-      </UnifiedWalletProvider>
+      </SolanaWalletProvider>
     </ConnectionProvider>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { WalletReadyState } from "@jup-ag/wallet-adapter";
 import { useWallet } from "./wallet-provider";
 import type { Wallet } from "@solana/wallet-adapter-react";
 
@@ -14,6 +14,11 @@ interface WalletModalProps {
 export function WalletModal({ open, onClose }: WalletModalProps) {
   const { wallets, select } = useWallet();
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -43,9 +48,14 @@ export function WalletModal({ open, onClose }: WalletModalProps) {
   );
 
   const handleSelect = useCallback(
-    (wallet: Wallet) => {
+    async (wallet: Wallet) => {
       select(wallet.adapter.name);
       onClose();
+      try {
+        await wallet.adapter.connect();
+      } catch {
+        // User rejected or wallet error
+      }
     },
     [select, onClose]
   );
@@ -67,8 +77,8 @@ export function WalletModal({ open, onClose }: WalletModalProps) {
     const avail: Wallet[] = [];
     for (const w of uniqueWallets) {
       if (
-        w.readyState === WalletReadyState.Installed ||
-        w.readyState === WalletReadyState.Loadable
+        w.readyState === "Installed" ||
+        w.readyState === "Loadable"
       ) {
         inst.push(w);
       } else {
@@ -78,9 +88,9 @@ export function WalletModal({ open, onClose }: WalletModalProps) {
     return { installed: inst, available: avail };
   }, [uniqueWallets]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
@@ -142,7 +152,8 @@ export function WalletModal({ open, onClose }: WalletModalProps) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

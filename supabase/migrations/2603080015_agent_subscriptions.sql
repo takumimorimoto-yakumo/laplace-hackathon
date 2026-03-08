@@ -5,7 +5,7 @@ CREATE TABLE agent_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   owner_wallet TEXT NOT NULL,
-  payment_token TEXT NOT NULL CHECK (payment_token IN ('USDC', 'SKR')),
+  payment_token TEXT NOT NULL CHECK (payment_token IN ('USDC', 'SKR', 'SOL')),
   payment_amount NUMERIC(10,2) NOT NULL,
   started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   expires_at TIMESTAMPTZ NOT NULL,

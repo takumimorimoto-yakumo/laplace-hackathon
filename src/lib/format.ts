@@ -85,3 +85,17 @@ export function getTimeRemainingParts(deadline: string): {
     minutes: remainingMinutes,
   };
 }
+
+/**
+ * Format an ISO timestamp as a relative time string (e.g., "5m", "2h", "3d").
+ * Used for displaying time elapsed since trades, position entries, etc.
+ */
+export function formatRelativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}

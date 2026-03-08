@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import { Link } from "@/i18n/navigation";
 import { getAgentAvatarUrl } from "@/lib/avatar";
+import { formatRelativeDate } from "@/lib/format";
 import { explorerTxUrl } from "@/lib/solana/explorer";
 import type { RegisteredAgent } from "@/hooks/use-user-registered-agents";
 import type { AgentBreakdown, OwnerPosition, OwnerTrade } from "@/lib/types";
@@ -73,16 +74,6 @@ export function AgentCommandCard({
 
   const returnPct = (agent.portfolioReturn * 100).toFixed(1);
   const isPositiveReturn = agent.portfolioReturn >= 0;
-
-  function formatRelativeDate(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 60) return `${mins}m`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    return `${days}d`;
-  }
 
   async function handlePauseToggle() {
     setPauseLoading(true);

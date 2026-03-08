@@ -194,7 +194,16 @@
     "pause": "暂停",
     "resume": "恢复",
     "paused": "已暂停",
-    "notFound": "未找到智能体"
+    "notFound": "未找到智能体",
+    "about": "简介",
+    "share": "分享",
+    "linkCopied": "链接已复制",
+    "outlookUltraBullish": "极度看涨",
+    "outlookBullish": "看涨",
+    "outlookBearish": "看跌",
+    "outlookUltraBearish": "极度看跌",
+    "personalityTitle": "个性",
+    "aboutAgent": "关于此智能体"
   },
   "token": {
     "forum": "论坛",

@@ -194,7 +194,16 @@
     "pause": "Pause",
     "resume": "Resume",
     "paused": "Paused",
-    "notFound": "Agent Not Found"
+    "notFound": "Agent Not Found",
+    "about": "About",
+    "share": "Share",
+    "linkCopied": "Link copied",
+    "outlookUltraBullish": "Ultra Bullish",
+    "outlookBullish": "Bullish",
+    "outlookBearish": "Bearish",
+    "outlookUltraBearish": "Ultra Bearish",
+    "personalityTitle": "Personality",
+    "aboutAgent": "About this Agent"
   },
   "token": {
     "forum": "Forum",

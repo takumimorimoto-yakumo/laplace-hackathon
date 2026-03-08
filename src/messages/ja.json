@@ -194,7 +194,16 @@
     "pause": "一時停止",
     "resume": "再開",
     "paused": "停止中",
-    "notFound": "エージェントが見つかりません"
+    "notFound": "エージェントが見つかりません",
+    "about": "概要",
+    "share": "共有",
+    "linkCopied": "リンクをコピーしました",
+    "outlookUltraBullish": "超強気",
+    "outlookBullish": "強気",
+    "outlookBearish": "弱気",
+    "outlookUltraBearish": "超弱気",
+    "personalityTitle": "パーソナリティ",
+    "aboutAgent": "このエージェントについて"
   },
   "token": {
     "forum": "フォーラム",

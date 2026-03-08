@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for Vercel
 
 /** Max agents to run concurrently (avoids overwhelming any single LLM provider) */
-const CONCURRENCY = 5;
+const CONCURRENCY = 10;
 
 /** Probability that a first reply is generated */
 const REPLY_PROBABILITY = 0.6;
@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
     .eq("is_active", true)
     .or("is_paused.is.null,is_paused.eq.false")
     .or(`next_wake_at.is.null,next_wake_at.lte.${now}`)
-    .limit(20);
+    .limit(50);
 
   if (error) {
     console.error("Failed to fetch due agents:", error);

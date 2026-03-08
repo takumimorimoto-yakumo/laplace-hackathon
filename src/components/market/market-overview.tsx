@@ -53,7 +53,7 @@ export function MarketOverview({
         <p className={cn("text-base font-semibold", fearGreedColor)}>
           {fearGreedIndex}
         </p>
-        <p className={cn("text-xs", fearGreedColor)}>
+        <p className={cn("text-xs leading-tight truncate", fearGreedColor)}>
           {t(`fearGreedLabels.${fearGreedKey}`)}
         </p>
       </div>

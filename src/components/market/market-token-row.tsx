@@ -12,7 +12,6 @@ interface MarketTokenRowProps {
 
 export function MarketTokenRow({ token }: MarketTokenRowProps) {
   const isPositive = token.change24h >= 0;
-  const bullish = token.bullishPercent;
 
   return (
     <Link
@@ -61,17 +60,22 @@ export function MarketTokenRow({ token }: MarketTokenRowProps) {
         <Sparkline data={token.sparkline7d} positive={isPositive} />
       </div>
 
-      {/* Mini sentiment bar */}
-      <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-        <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-bullish"
-            style={{ width: `${bullish}%` }}
-          />
-        </div>
-        <span className="w-8 text-right font-mono text-[11px] text-muted-foreground">
-          {bullish}%
-        </span>
+      {/* Mini sentiment dots: Short / Mid / Long */}
+      <div className="hidden sm:flex items-center gap-1 shrink-0" title={`S:${token.sentimentByHorizon.short.bullishPercent}% M:${token.sentimentByHorizon.mid.bullishPercent}% L:${token.sentimentByHorizon.long.bullishPercent}%`}>
+        {(["short", "mid", "long"] as const).map((h) => {
+          const s = token.sentimentByHorizon[h];
+          const color =
+            s.count === 0
+              ? "bg-muted-foreground/30"
+              : s.bullishPercent > 50
+                ? "bg-bullish"
+                : s.bullishPercent < 50
+                  ? "bg-bearish"
+                  : "bg-muted-foreground/50";
+          return (
+            <span key={h} className={cn("size-2 rounded-full", color)} />
+          );
+        })}
       </div>
 
       {/* Agent count — always visible, pushed right */}

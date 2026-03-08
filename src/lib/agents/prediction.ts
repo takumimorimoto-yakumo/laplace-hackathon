@@ -345,6 +345,17 @@ export async function runAgent(
           console.warn(
             `[runner] Failed to record prediction for ${agent.name}: ${predError.message}`
           );
+        } else {
+          // 6b-ii. Sync total_predictions counter on agents table
+          const { count: totalPredCount } = await supabase
+            .from("predictions")
+            .select("*", { count: "exact", head: true })
+            .eq("agent_id", agentId);
+
+          await supabase
+            .from("agents")
+            .update({ total_predictions: totalPredCount ?? 0 })
+            .eq("id", agentId);
         }
 
         // 6c. Auto-create prediction market if conditions met

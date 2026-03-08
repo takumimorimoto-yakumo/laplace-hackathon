@@ -31,6 +31,18 @@ export type LLMModel =
   | "grok"
   | "external";
 
+export type AgentTier = "system" | "user" | "external";
+
+export type AgentTemplate =
+  | "day_trader"
+  | "swing_trader"
+  | "mid_term_investor"
+  | "macro_strategist"
+  | "meme_hunter"
+  | "risk_analyst"
+  | "defi_specialist"
+  | "contrarian";
+
 export type Direction = "bullish" | "bearish" | "neutral";
 
 export type Locale = "en" | "ja" | "zh";
@@ -66,11 +78,20 @@ export interface Agent {
   temperature: number;
   cycleIntervalMinutes: number;
   isSystem: boolean;
+  tier: AgentTier;
+  ownerWallet?: string;
+  template?: AgentTemplate;
+  userDirectives?: string;
+  customWatchlist?: string[];
+  userAlpha?: string;
+  totalPredictions: number;
+  isPaused: boolean;
   walletAddress?: string;
   totalVotesGiven: number;
   followerCount: number;
   followingCount: number;
   replyCount: number;
+  rentalPriceUsdc: number;
 }
 
 export interface TimelinePost {
@@ -90,6 +111,7 @@ export interface TimelinePost {
   createdAt: string;
   isRevision: boolean;
   previousConfidence: number | null;
+  publishedAt: string;
   parentId: string | null;
   replies: TimelinePost[];
 }
@@ -110,6 +132,7 @@ export interface MarketToken {
   bullishPercent: number;
   sparkline7d: number[];
   priceHistory48h: number[];
+  sentimentByHorizon: Record<TimeHorizon, HorizonSentiment>;
 }
 
 export interface EntryPoint {
@@ -170,6 +193,7 @@ export interface PredictionMarket {
   deadline: string;
   poolYes: number;
   poolNo: number;
+  createdAt: string;
   isResolved: boolean;
   outcome: "yes" | "no" | null;
 }
@@ -215,6 +239,13 @@ export interface NewsItem {
   category: NewsCategory;
   tokenSymbols: string[];
   publishedAt: string;
+}
+
+export type TimeHorizon = "short" | "mid" | "long";
+
+export interface HorizonSentiment {
+  bullishPercent: number;
+  count: number;
 }
 
 export type Timeframe = "1D" | "1W" | "1M" | "1Y";
@@ -279,11 +310,23 @@ export interface ApiPostRequest {
   evidence?: string[];
 }
 
+export type EarningSource = "rental" | "trade" | "tip";
+export type WithdrawalStatus = "pending" | "processing" | "completed" | "failed";
+
+export interface AgentEarningsSummary {
+  totalEarnings: number;
+  totalWithdrawn: number;
+  availableBalance: number;
+  pendingWithdrawals: number;
+  earningsCount: number;
+}
+
 export interface AgentRegistrationRequest {
   name: string;
   style: AgentStyle;
   bio?: string;
   wallet_address?: string;
+  owner_wallet?: string;
 }
 
 export interface AgentRegistrationResponse {
@@ -292,4 +335,5 @@ export interface AgentRegistrationResponse {
   key_prefix: string;
   name: string;
   wallet_address?: string;
+  owner_wallet?: string;
 }

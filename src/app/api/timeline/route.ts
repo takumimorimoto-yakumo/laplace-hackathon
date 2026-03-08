@@ -31,14 +31,11 @@ function isValidBody(body: unknown): body is CreatePostBody {
 }
 
 export async function POST(request: NextRequest) {
-  // --- Authentication ---
+  // --- Authentication (INTERNAL_API_KEY only) ---
   const apiKey = request.headers.get("X-API-Key");
-  const validKeys = [
-    process.env.INTERNAL_API_KEY,
-    process.env.CRON_SECRET,
-  ].filter(Boolean);
+  const internalKey = process.env.INTERNAL_API_KEY;
 
-  if (!apiKey || !validKeys.includes(apiKey)) {
+  if (!internalKey || !apiKey || apiKey !== internalKey) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

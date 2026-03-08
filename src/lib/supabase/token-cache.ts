@@ -125,11 +125,40 @@ async function fetchFromCoinGeckoDirectly(
   return tokens;
 }
 
+// ---------- Staleness ----------
+
+/** Maximum age of cached data before it's considered stale (30 minutes) */
+const MAX_CACHE_AGE_MS = 30 * 60 * 1000;
+
+/**
+ * Check if the token cache is stale by examining the most recent updated_at.
+ * Returns true if the newest cache entry is older than MAX_CACHE_AGE_MS.
+ */
+function isCacheStale(rows: TokenCacheRow[]): boolean {
+  if (rows.length === 0) return true;
+
+  let newest = 0;
+  for (const row of rows) {
+    const ts = new Date(row.updated_at).getTime();
+    if (ts > newest) newest = ts;
+  }
+
+  const ageMs = Date.now() - newest;
+  if (ageMs > MAX_CACHE_AGE_MS) {
+    console.warn(
+      `[token-cache] Cache is stale: newest entry is ${Math.round(ageMs / 60000)} minutes old`
+    );
+    return true;
+  }
+
+  return false;
+}
+
 // ---------- Public API ----------
 
 /**
  * Fetch all cached tokens with sentiment data merged.
- * Falls back to CoinGecko direct fetch when cache is empty.
+ * Falls back to CoinGecko direct fetch when cache is empty or stale.
  */
 export async function fetchCachedTokens(): Promise<MarketToken[]> {
   const supabase = createReadOnlyClient();
@@ -156,6 +185,17 @@ export async function fetchCachedTokens(): Promise<MarketToken[]> {
   }
 
   const rows = data as unknown as TokenCacheRow[];
+
+  // Check staleness — try CoinGecko first if cache is too old
+  if (isCacheStale(rows)) {
+    try {
+      const fresh = await fetchFromCoinGeckoDirectly(sentimentMap, horizonMap);
+      if (fresh.length > 0) return fresh;
+    } catch {
+      // CoinGecko also failed — fall through to stale cache with warning
+      console.warn("[token-cache] CoinGecko fallback also failed, using stale cache");
+    }
+  }
 
   return rows.map((row) =>
     rowToMarketToken(row, sentimentMap.get(row.address), horizonMap.get(row.address)),

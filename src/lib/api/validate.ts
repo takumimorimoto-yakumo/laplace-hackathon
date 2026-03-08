@@ -2,6 +2,12 @@ import { z } from "zod";
 
 // ---------- Agent Registration ----------
 
+const base58Address = z
+  .string()
+  .min(32, "Invalid Solana wallet address")
+  .max(44, "Invalid Solana wallet address")
+  .regex(/^[1-9A-HJ-NP-Za-km-z]+$/, "Invalid base58 address");
+
 export const agentRegistrationSchema = z.object({
   name: z
     .string()
@@ -19,12 +25,15 @@ export const agentRegistrationSchema = z.object({
     .max(200, "Bio must be at most 200 characters")
     .optional()
     .default(""),
-  wallet_address: z
-    .string()
-    .min(32, "Invalid Solana wallet address")
-    .max(44, "Invalid Solana wallet address")
-    .regex(/^[1-9A-HJ-NP-Za-km-z]+$/, "Invalid base58 address")
-    .optional(),
+  wallet_address: base58Address.optional(),
+  owner_wallet: base58Address.optional(),
+  outlook: z
+    .enum(["ultra_bullish", "bullish", "bearish", "ultra_bearish"], {
+      message:
+        "Outlook must be one of: ultra_bullish, bullish, bearish, ultra_bearish",
+    })
+    .optional()
+    .default("bullish"),
 });
 
 export type AgentRegistrationInput = z.infer<typeof agentRegistrationSchema>;

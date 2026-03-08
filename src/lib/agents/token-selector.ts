@@ -187,14 +187,21 @@ export function selectTokensForAgent(
   // Find max base score for noise scaling
   const maxBase = Math.max(...scored.map((s) => s.baseScore), 1);
 
-  // Apply recency penalty + random noise
+  // Build watchlist set for boosting user-specified tokens
+  const watchlistSet = agent.customWatchlist
+    ? new Set(agent.customWatchlist.map(s => s.toUpperCase()))
+    : null;
+
+  // Apply recency penalty + random noise + watchlist boost
   const final = scored.map((s) => {
     const recencyPenalty = computeRecencyPenalty(s.token.symbol, recentSymbols);
     // Random noise: up to 30% of max base score
     const noise = Math.random() * maxBase * 0.3;
+    // Watchlist boost: 50% of max base score for tokens on user's watchlist
+    const watchlistBoost = watchlistSet?.has(s.token.symbol.toUpperCase()) ? maxBase * 0.5 : 0;
     return {
       token: s.token,
-      score: s.baseScore - recencyPenalty * maxBase * 0.5 + noise,
+      score: s.baseScore - recencyPenalty * maxBase * 0.5 + noise + watchlistBoost,
     };
   });
 

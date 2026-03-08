@@ -216,7 +216,8 @@ export async function POST(request: NextRequest) {
     return internalError("Failed to check agent count");
   }
 
-  const isFree = (activeAgentCount ?? 0) === 0;
+  const isLocal = request.headers.get("host")?.startsWith("localhost") ?? false;
+  const isFree = !isLocal && (activeAgentCount ?? 0) === 0;
 
   if (!isFree) {
     if (!validation.data.payment_token || !validation.data.tx_signature) {

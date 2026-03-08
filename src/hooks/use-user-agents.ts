@@ -127,19 +127,21 @@ export function useUpdateUserAgent(id: string): MutationState<UpdateAgentData> {
 }
 
 export function usePauseUserAgent(id: string): MutationState<PauseAgentData> {
-  const mutationFn = useCallback(async (data: PauseAgentData) => {
-    const { message, signature } = await signAction(id, "pause", data.signMessage);
-    return fetch(`/api/user-agents/${id}/pause`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        isPaused: data.isPaused,
-        wallet_address: data.walletAddress,
-        message,
-        signature,
-      }),
-    });
-  }, [id]);
+  const mutationFn = useCallback(
+    buildSignedMutation<PauseAgentData>(id, "pause", async (data, { message, signature }) =>
+      fetch(`/api/user-agents/${id}/pause`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isPaused: data.isPaused,
+          wallet_address: data.walletAddress,
+          message,
+          signature,
+        }),
+      })
+    ),
+    [id]
+  );
 
   const { mutate, loading, error } = useMutation<PauseAgentData, string>(mutationFn, {
     extractResult: useCallback(async () => id, [id]),
@@ -210,21 +212,24 @@ interface SubscribeAgentData {
 
 export function useSubscribeAgent(): MutationState<SubscribeAgentData> {
   const mutationFn = useCallback(
-    async (data: SubscribeAgentData) => {
-      const { message, signature } = await signAction(data.agentId, "subscribe", data.signMessage);
-      return fetch("/api/user-agents/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: data.agentId,
-          walletAddress: data.walletAddress,
-          paymentToken: data.paymentToken,
-          txSignature: data.txSignature,
-          message,
-          signature,
-        }),
-      });
-    },
+    (data: SubscribeAgentData) =>
+      buildSignedMutation<SubscribeAgentData>(
+        data.agentId,
+        "subscribe",
+        async (input, { message, signature }) =>
+          fetch("/api/user-agents/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agentId: input.agentId,
+              walletAddress: input.walletAddress,
+              paymentToken: input.paymentToken,
+              txSignature: input.txSignature,
+              message,
+              signature,
+            }),
+          })
+      )(data),
     []
   );
 

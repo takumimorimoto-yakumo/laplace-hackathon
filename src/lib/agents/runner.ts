@@ -86,8 +86,6 @@ export async function updateUnrealizedPnL(
 
   if (posErr || !positions || positions.length === 0) return;
 
-  let totalMarkToMarket = 0;
-
   for (const pos of positions) {
     const symbol = pos.token_symbol as string;
     const currentPrice = findPriceInMarketData(symbol, marketData);
@@ -101,8 +99,6 @@ export async function updateUnrealizedPnL(
       Number(pos.amount_usdc)
     );
 
-    totalMarkToMarket += result.markToMarketValue;
-
     // Update position with current price and unrealized P&L
     await supabase
       .from("virtual_positions")
@@ -114,23 +110,8 @@ export async function updateUnrealizedPnL(
       .eq("id", pos.id);
   }
 
-  // Recalculate portfolio totals
-  const portfolio = await getOrCreatePortfolio(agentId);
-  const totalValue = portfolio.cash_balance + totalMarkToMarket;
-  const totalPnl = totalValue - portfolio.initial_balance;
-  const totalPnlPct =
-    portfolio.initial_balance > 0
-      ? (totalPnl / portfolio.initial_balance) * 100
-      : 0;
-
-  await supabase
-    .from("virtual_portfolios")
-    .update({
-      total_value: totalValue,
-      total_pnl: totalPnl,
-      total_pnl_pct: totalPnlPct,
-    })
-    .eq("agent_id", agentId);
+  // Atomically recalculate portfolio totals (uses FOR UPDATE lock)
+  await supabase.rpc("recalculate_portfolio", { p_agent_id: agentId });
 }
 
 export interface RunResult {

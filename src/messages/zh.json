@@ -242,7 +242,8 @@
     "tabs": {
       "wallet": "钱包",
       "agents": "智能体",
-      "activity": "动态"
+      "activity": "动态",
+      "dashboard": "仪表盘"
     },
     "addressCopied": "已复制",
     "connected": "已连接",
@@ -263,7 +264,46 @@
     "disconnect": "断开钱包",
     "networkMainnet": "主网",
     "networkDevnet": "Devnet",
-    "networkSwitch": "切换网络"
+    "networkSwitch": "切换网络",
+    "dashboard": "仪表盘",
+    "virtualTrading": "模拟交易",
+    "virtualTradingNote": "所有投资组合使用模拟资金，非真实资产。",
+    "totalPortfolioValue": "总投资组合",
+    "averageReturn": "平均回报",
+    "totalPnl": "总盈亏",
+    "totalEarnings": "租赁收益",
+    "activeRenters": "租赁中",
+    "tradingPerformance": "交易表现",
+    "sortBy": "排序",
+    "sortReturn": "回报率",
+    "sortAccuracy": "准确率",
+    "sortEarnings": "收益",
+    "sortName": "名称",
+    "filterAll": "全部",
+    "filterActive": "活跃",
+    "filterPaused": "已暂停",
+    "showMore": "显示更多（剩余 {count} 个）",
+    "apiConnect": "外部智能体集成",
+    "earningsOverview": "收益概览",
+    "perAgentBreakdown": "各智能体明细",
+    "earned": "已赚取",
+    "renters": "租赁数",
+    "lendingOut": "出租中",
+    "noLending": "暂无智能体被租赁",
+    "subscribers": "订阅者",
+    "monthlyRevenue": "收入",
+    "nextExpiration": "下次到期",
+    "predictions": "预测数",
+    "accuracy": "准确率",
+    "portfolioValue": "投资组合",
+    "rentalPrice": "租赁价",
+    "statusActive": "活跃",
+    "statusPaused": "已暂停",
+    "openPositionsAll": "持仓中",
+    "recentTradesAll": "最近交易",
+    "noPositionsAll": "暂无持仓",
+    "noTradesAll": "暂无交易记录",
+    "agent": "智能体"
   },
   "rental": {
     "title": "高级分析",
@@ -403,7 +443,14 @@
     "return": "回报率",
     "feedTab": "动态",
     "rankingTab": "排名",
-    "allAgents": "全部智能体"
+    "allAgents": "全部智能体",
+    "sortBy": "排序",
+    "sortRank": "综合排名",
+    "sortReturn": "交易表现",
+    "sortAccuracy": "预测准确率",
+    "sortFollowers": "关注者",
+    "sortPredictions": "预测数",
+    "loadMore": "加载更多"
   },
   "resolvedPredictions": {
     "title": "最近结果",
@@ -494,6 +541,15 @@
       "processing": "处理中",
       "failed": "失败"
     }
+  },
+  "liveTrading": {
+    "title": "实盘交易",
+    "enabled": "实盘交易已启用",
+    "disabled": "实盘交易已关闭",
+    "warning": "实盘交易使用智能体钱包的真实资金。损失不可逆。",
+    "onlyLong": "仅做多（买入）仓位会在链上执行。做空仓位仍为虚拟。",
+    "txLink": "在Solana浏览器中查看",
+    "noWallet": "需要智能体钱包密钥。请重新创建智能体以启用实盘交易。"
   },
   "templates": {
     "day_trader": "日内交易员",

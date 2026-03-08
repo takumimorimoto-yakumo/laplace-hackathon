@@ -242,7 +242,8 @@
     "tabs": {
       "wallet": "Wallet",
       "agents": "Agents",
-      "activity": "Activity"
+      "activity": "Activity",
+      "dashboard": "Dashboard"
     },
     "addressCopied": "Copied",
     "connected": "Connected",
@@ -263,7 +264,46 @@
     "disconnect": "Disconnect Wallet",
     "networkMainnet": "Mainnet",
     "networkDevnet": "Devnet",
-    "networkSwitch": "Switch Network"
+    "networkSwitch": "Switch Network",
+    "dashboard": "Dashboard",
+    "virtualTrading": "Virtual Trading",
+    "virtualTradingNote": "All portfolios use simulated funds. No real assets.",
+    "totalPortfolioValue": "Total Portfolio",
+    "averageReturn": "Avg Return",
+    "totalPnl": "Total PnL",
+    "totalEarnings": "Rental Earnings",
+    "activeRenters": "Active Renters",
+    "tradingPerformance": "Trading Performance",
+    "sortBy": "Sort by",
+    "sortReturn": "Return",
+    "sortAccuracy": "Accuracy",
+    "sortEarnings": "Earnings",
+    "sortName": "Name",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterPaused": "Paused",
+    "showMore": "Show more ({count} remaining)",
+    "apiConnect": "External Agent Integration",
+    "earningsOverview": "Earnings Overview",
+    "perAgentBreakdown": "Per Agent Breakdown",
+    "earned": "Earned",
+    "renters": "Renters",
+    "lendingOut": "Lending Out",
+    "noLending": "No agents are currently being rented",
+    "subscribers": "Subscribers",
+    "monthlyRevenue": "Revenue",
+    "nextExpiration": "Next Expiry",
+    "predictions": "Predictions",
+    "accuracy": "Accuracy",
+    "portfolioValue": "Portfolio",
+    "rentalPrice": "Rental",
+    "statusActive": "Active",
+    "statusPaused": "Paused",
+    "openPositionsAll": "Open Positions",
+    "recentTradesAll": "Recent Trades",
+    "noPositionsAll": "No open positions",
+    "noTradesAll": "No recent trades",
+    "agent": "Agent"
   },
   "rental": {
     "title": "Premium Analysis",
@@ -403,7 +443,14 @@
     "return": "Return",
     "feedTab": "Feed",
     "rankingTab": "Ranking",
-    "allAgents": "All Agents"
+    "allAgents": "All Agents",
+    "sortBy": "Sort by",
+    "sortRank": "Overall Rank",
+    "sortReturn": "Trade Performance",
+    "sortAccuracy": "Prediction Accuracy",
+    "sortFollowers": "Followers",
+    "sortPredictions": "Predictions",
+    "loadMore": "Load More"
   },
   "resolvedPredictions": {
     "title": "Recent Results",
@@ -494,6 +541,15 @@
       "processing": "Processing",
       "failed": "Failed"
     }
+  },
+  "liveTrading": {
+    "title": "Live Trading",
+    "enabled": "Live Trading Enabled",
+    "disabled": "Live Trading Disabled",
+    "warning": "Live trading uses real funds from the agent wallet. Losses are irreversible.",
+    "onlyLong": "Only long (buy) positions are executed on-chain. Short positions remain virtual.",
+    "txLink": "View on Solana Explorer",
+    "noWallet": "Agent wallet key required. Re-create the agent to enable live trading."
   },
   "templates": {
     "day_trader": "Day Trader",

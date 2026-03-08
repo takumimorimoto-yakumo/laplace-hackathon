@@ -242,7 +242,8 @@
     "tabs": {
       "wallet": "ウォレット",
       "agents": "エージェント",
-      "activity": "アクティビティ"
+      "activity": "アクティビティ",
+      "dashboard": "ダッシュボード"
     },
     "addressCopied": "コピー済み",
     "connected": "接続中",
@@ -263,7 +264,46 @@
     "disconnect": "ウォレットを切断",
     "networkMainnet": "メインネット",
     "networkDevnet": "Devnet",
-    "networkSwitch": "ネットワーク切替"
+    "networkSwitch": "ネットワーク切替",
+    "dashboard": "ダッシュボード",
+    "virtualTrading": "仮想取引",
+    "virtualTradingNote": "すべてのポートフォリオはシミュレーション資金です。実資産ではありません。",
+    "totalPortfolioValue": "総ポートフォリオ",
+    "averageReturn": "平均リターン",
+    "totalPnl": "損益合計",
+    "totalEarnings": "レンタル収益",
+    "activeRenters": "レンタル中",
+    "tradingPerformance": "運用成績",
+    "sortBy": "並び替え",
+    "sortReturn": "リターン",
+    "sortAccuracy": "正答率",
+    "sortEarnings": "収益",
+    "sortName": "名前",
+    "filterAll": "すべて",
+    "filterActive": "アクティブ",
+    "filterPaused": "停止中",
+    "showMore": "もっと見る（残り {count} 体）",
+    "apiConnect": "外部エージェント連携",
+    "earningsOverview": "収益概要",
+    "perAgentBreakdown": "エージェント別内訳",
+    "earned": "獲得",
+    "renters": "レンタル数",
+    "lendingOut": "貸し出し中",
+    "noLending": "レンタルされているエージェントはありません",
+    "subscribers": "利用者",
+    "monthlyRevenue": "収入",
+    "nextExpiration": "次の期限",
+    "predictions": "予測数",
+    "accuracy": "正答率",
+    "portfolioValue": "ポートフォリオ",
+    "rentalPrice": "レンタル",
+    "statusActive": "アクティブ",
+    "statusPaused": "停止中",
+    "openPositionsAll": "オープンポジション",
+    "recentTradesAll": "最近のトレード",
+    "noPositionsAll": "オープンポジションなし",
+    "noTradesAll": "最近のトレードなし",
+    "agent": "エージェント"
   },
   "rental": {
     "title": "プレミアム分析",
@@ -403,7 +443,14 @@
     "return": "リターン",
     "feedTab": "フィード",
     "rankingTab": "ランキング",
-    "allAgents": "全エージェント"
+    "allAgents": "全エージェント",
+    "sortBy": "並び替え",
+    "sortRank": "総合ランク",
+    "sortReturn": "トレード成績",
+    "sortAccuracy": "予測精度",
+    "sortFollowers": "フォロワー数",
+    "sortPredictions": "予測数",
+    "loadMore": "もっと見る"
   },
   "resolvedPredictions": {
     "title": "直近の結果",
@@ -494,6 +541,15 @@
       "processing": "処理中",
       "failed": "失敗"
     }
+  },
+  "liveTrading": {
+    "title": "ライブ取引",
+    "enabled": "ライブ取引 有効",
+    "disabled": "ライブ取引 無効",
+    "warning": "ライブ取引はエージェントウォレットの実資金を使用します。損失は取り消せません。",
+    "onlyLong": "ロング（買い）ポジションのみオンチェーンで実行されます。ショートポジションは仮想のままです。",
+    "txLink": "Solana Explorerで表示",
+    "noWallet": "エージェントウォレット鍵が必要です。ライブ取引を有効にするにはエージェントを再作成してください。"
   },
   "templates": {
     "day_trader": "デイトレーダー",

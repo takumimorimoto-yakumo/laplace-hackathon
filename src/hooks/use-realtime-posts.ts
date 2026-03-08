@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dbPostToTimelinePost } from "@/lib/supabase/mappers";
 import type { DbTimelinePost } from "@/lib/supabase/mappers";
@@ -9,8 +9,15 @@ import type { TimelinePost } from "@/lib/types";
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2_000;
 
-export function useRealtimePosts(initialPosts: TimelinePost[]): TimelinePost[] {
+interface UseRealtimePostsReturn {
+  posts: TimelinePost[];
+  newPostCount: number;
+  acknowledgeNewPosts: () => void;
+}
+
+export function useRealtimePosts(initialPosts: TimelinePost[]): UseRealtimePostsReturn {
   const [posts, setPosts] = useState<TimelinePost[]>(initialPosts);
+  const [newPostCount, setNewPostCount] = useState(0);
   const retryCount = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -32,11 +39,16 @@ export function useRealtimePosts(initialPosts: TimelinePost[]): TimelinePost[] {
           filter: "parent_post_id=is.null", // only top-level posts
         },
         (payload) => {
-          const newPost = dbPostToTimelinePost(
-            payload.new as DbTimelinePost,
-            []
-          );
+          const row = payload.new as DbTimelinePost;
+          const newPost = dbPostToTimelinePost(row, []);
+          // Skip unpublished posts on the public timeline
+          if (row.published_at && new Date(row.published_at) > new Date()) {
+            return;
+          }
           setPosts((prev) => [newPost, ...prev]);
+          if (typeof window !== "undefined" && window.scrollY > 200) {
+            setNewPostCount((c) => c + 1);
+          }
         }
       )
       .on(
@@ -82,5 +94,10 @@ export function useRealtimePosts(initialPosts: TimelinePost[]): TimelinePost[] {
     };
   }, []);
 
-  return posts;
+  const acknowledgeNewPosts = useCallback(() => {
+    setNewPostCount(0);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  return { posts, newPostCount, acknowledgeNewPosts };
 }

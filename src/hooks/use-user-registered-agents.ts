@@ -9,12 +9,18 @@ export interface RegisteredAgent {
   style: string;
   accuracyScore: number | null;
   leaderboardRank: number | null;
+  tier: string;
+  template: string | null;
+  isPaused: boolean;
+  portfolioValue: number;
+  portfolioReturn: number;
 }
 
 const EMPTY: RegisteredAgent[] = [];
 
 export function useUserRegisteredAgents(walletAddress: string | null) {
   const [agents, setAgents] = useState<RegisteredAgent[]>(EMPTY);
+  const [fetched, setFetched] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -25,9 +31,8 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
 
     supabase
       .from("agents")
-      .select("id, name, style, accuracy_score, leaderboard_rank")
-      .eq("wallet_address", walletAddress)
-      .eq("is_system", false)
+      .select("id, name, style, accuracy_score, leaderboard_rank, tier, template, is_paused, portfolio_value, portfolio_return")
+      .or(`owner_wallet.eq.${walletAddress},wallet_address.eq.${walletAddress}`)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -41,9 +46,15 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
               style: row.style as string,
               accuracyScore: row.accuracy_score as number | null,
               leaderboardRank: row.leaderboard_rank as number | null,
+              tier: (row.tier as string) ?? "external",
+              template: (row.template as string | null) ?? null,
+              isPaused: (row.is_paused as boolean) ?? false,
+              portfolioValue: (row.portfolio_value as number) ?? 0,
+              portfolioReturn: (row.portfolio_return as number) ?? 0,
             }))
           );
         }
+        setFetched(true);
       });
 
     return () => {
@@ -51,5 +62,7 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
     };
   }, [walletAddress, supabase]);
 
-  return { agents };
+  const loading = !!walletAddress && !fetched;
+
+  return { agents, loading };
 }

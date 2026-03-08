@@ -99,14 +99,14 @@ export function SubscribeSheet({ plan, agentId, open, onOpenChange }: SubscribeS
               size="sm"
               onClick={() => setCurrency("SKR")}
             >
-              SKR ({plan.skrDiscountPercent}% off)
+              {t("skrDiscount", { percent: plan.skrDiscountPercent })}
             </Button>
           </div>
 
           <div className="rounded-lg bg-muted p-4">
             <p className="text-3xl font-bold text-foreground">
               ${price.toFixed(2)}
-              <span className="text-sm font-normal text-muted-foreground"> {currency}/mo</span>
+              <span className="text-sm font-normal text-muted-foreground"> {currency}{tCommon("perMonth")}</span>
             </p>
           </div>
         </div>
@@ -118,7 +118,7 @@ export function SubscribeSheet({ plan, agentId, open, onOpenChange }: SubscribeS
             onClick={handleSubscribe}
           >
             {signing && <Loader2 className="size-4 mr-2 animate-spin" />}
-            {publicKey ? t("confirm") : "Connect Wallet"}
+            {publicKey ? t("confirm") : tCommon("connectWallet")}
           </Button>
         </SheetFooter>
       </SheetContent>

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
 import { PredictionOutcomeBadge } from "@/components/post/prediction-outcome-badge";
 import { cn } from "@/lib/utils";
+import { explorerTxUrl } from "@/lib/solana/explorer";
 import type { ResolvedPrediction } from "@/lib/supabase/queries";
 
 interface ResolvedPredictionsProps {
@@ -12,6 +13,7 @@ interface ResolvedPredictionsProps {
 
 export function ResolvedPredictions({ predictions }: ResolvedPredictionsProps) {
   const t = useTranslations("resolvedPredictions");
+  const tToken = useTranslations("token");
 
   if (predictions.length === 0) {
     return (
@@ -50,7 +52,7 @@ export function ResolvedPredictions({ predictions }: ResolvedPredictionsProps) {
                       : "bg-bearish/15 text-bearish"
                   )}
                 >
-                  {prediction.direction}
+                  {tToken(prediction.direction as "bullish" | "bearish" | "neutral")}
                 </span>
               </div>
               <PredictionOutcomeBadge
@@ -72,7 +74,7 @@ export function ResolvedPredictions({ predictions }: ResolvedPredictionsProps) {
             {/* Solana verification link */}
             {prediction.txSignature && (
               <a
-                href={`https://explorer.solana.com/tx/${prediction.txSignature}?cluster=devnet`}
+                href={explorerTxUrl(prediction.txSignature)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"

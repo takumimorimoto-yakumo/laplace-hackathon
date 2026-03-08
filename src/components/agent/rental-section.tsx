@@ -16,6 +16,7 @@ interface RentalSectionProps {
 
 export function RentalSection({ plan, isRented }: RentalSectionProps) {
   const t = useTranslations("rental");
+  const tCommon = useTranslations("common");
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const benefits = [
@@ -45,7 +46,7 @@ export function RentalSection({ plan, isRented }: RentalSectionProps) {
           <div className="flex items-baseline justify-between">
             <p className="text-2xl font-bold text-foreground">
               ${plan.monthlyPriceUsdc}
-              <span className="text-xs font-normal text-muted-foreground"> USDC/mo</span>
+              <span className="text-xs font-normal text-muted-foreground"> USDC{tCommon("perMonth")}</span>
             </p>
             <Badge variant="secondary" className="text-xs">
               {t("skrDiscount", { percent: plan.skrDiscountPercent })}

@@ -19,6 +19,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 /** Minimum SOL balance required for transaction fees */
 const MIN_SOL_BALANCE = 0.01 * LAMPORTS_PER_SOL;
 
+// ---------- Risk Control Constants ----------
+
+/** Maximum dollar amount per single live trade */
+const MAX_TRADE_AMOUNT_USDC = 500;
+
+/** Maximum number of concurrent live positions per agent */
+const MAX_LIVE_POSITIONS = 5;
+
+/** Maximum cumulative live trade losses allowed per 24h before auto-pause */
+const DAILY_LOSS_LIMIT_USDC = 1000;
+
 /**
  * Execute a live open trade (USDC → token) for an agent's virtual position.
  * Only called for long positions on agents with live_trading_enabled = true.
@@ -34,6 +45,52 @@ export async function executeLiveOpen(params: {
   const { agentId, positionId, tokenAddress, amountUsdc } = params;
 
   try {
+    // 0a. Per-trade dollar limit
+    if (amountUsdc > MAX_TRADE_AMOUNT_USDC) {
+      console.warn(
+        `[live-trade] Trade $${amountUsdc.toFixed(2)} exceeds per-trade limit $${MAX_TRADE_AMOUNT_USDC}, skipping live open`
+      );
+      return null;
+    }
+
+    // 0b. Check concurrent live position count
+    const supabaseCheck = createAdminClient();
+    const { count: livePositionCount } = await supabaseCheck
+      .from("virtual_positions")
+      .select("*", { count: "exact", head: true })
+      .eq("agent_id", agentId)
+      .eq("is_live", true);
+
+    if ((livePositionCount ?? 0) >= MAX_LIVE_POSITIONS) {
+      console.warn(
+        `[live-trade] Agent ${agentId} has ${livePositionCount} live positions (max ${MAX_LIVE_POSITIONS}), skipping live open`
+      );
+      return null;
+    }
+
+    // 0c. Daily loss limit check — sum realized losses in past 24h
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentClosedTrades } = await supabaseCheck
+      .from("virtual_trades")
+      .select("realized_pnl")
+      .eq("agent_id", agentId)
+      .eq("action", "close")
+      .not("realized_pnl", "is", null)
+      .not("tx_signature", "is", null)
+      .gte("executed_at", dayAgo);
+
+    const dailyLoss = (recentClosedTrades ?? []).reduce((sum, t) => {
+      const pnl = Number(t.realized_pnl);
+      return pnl < 0 ? sum + Math.abs(pnl) : sum;
+    }, 0);
+
+    if (dailyLoss >= DAILY_LOSS_LIMIT_USDC) {
+      console.warn(
+        `[live-trade] Agent ${agentId} hit daily loss limit ($${dailyLoss.toFixed(2)} >= $${DAILY_LOSS_LIMIT_USDC}), skipping live open`
+      );
+      return null;
+    }
+
     // 1. Get agent keypair
     const keypair = await getAgentKeypair(agentId);
     if (!keypair) {
@@ -51,7 +108,7 @@ export async function executeLiveOpen(params: {
       return null;
     }
 
-    // 3. Execute swap: USDC → token
+    // 3. Execute swap: USDC → token (capped at limit)
     const result = await executeAgentSwap({
       keypair,
       inputMint: getUsdcMint(),

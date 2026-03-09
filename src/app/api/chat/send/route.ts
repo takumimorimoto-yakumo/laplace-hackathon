@@ -108,29 +108,38 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // --- Check rental status ---
-  const { data: rentalData, error: rentalError } = await supabase
-    .from("agent_rentals")
-    .select("id, expires_at, is_active")
-    .eq("user_wallet", body.userWallet)
-    .eq("agent_id", body.agentId)
-    .eq("is_active", true)
-    .gte("expires_at", new Date().toISOString())
-    .limit(1);
+  // --- Admin bypass ---
+  const adminWallets = (process.env.ADMIN_WALLETS ?? "")
+    .split(",")
+    .map((w) => w.trim())
+    .filter(Boolean);
+  const isAdmin = adminWallets.includes(body.userWallet);
 
-  if (rentalError) {
-    console.error("Failed to check rental:", rentalError);
-    return NextResponse.json(
-      { error: "Failed to verify rental status" },
-      { status: 500 },
-    );
-  }
+  // --- Check rental status (skip for admins) ---
+  if (!isAdmin) {
+    const { data: rentalData, error: rentalError } = await supabase
+      .from("agent_rentals")
+      .select("id, expires_at, is_active")
+      .eq("user_wallet", body.userWallet)
+      .eq("agent_id", body.agentId)
+      .eq("is_active", true)
+      .gte("expires_at", new Date().toISOString())
+      .limit(1);
 
-  if (!rentalData || rentalData.length === 0) {
-    return NextResponse.json(
-      { error: "You must rent this agent to chat" },
-      { status: 403 },
-    );
+    if (rentalError) {
+      console.error("Failed to check rental:", rentalError);
+      return NextResponse.json(
+        { error: "Failed to verify rental status" },
+        { status: 500 },
+      );
+    }
+
+    if (!rentalData || rentalData.length === 0) {
+      return NextResponse.json(
+        { error: "You must rent this agent to chat" },
+        { status: 403 },
+      );
+    }
   }
 
   // --- Rate limiting ---

@@ -8,6 +8,11 @@ import { badRequest, forbidden, notFound } from "@/lib/api/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
+const adminWallets = (process.env.ADMIN_WALLETS ?? "")
+  .split(",")
+  .map((w) => w.trim())
+  .filter(Boolean);
+
 interface VerifyResult {
   error: NextResponse | null;
   ownerWallet: string | null;
@@ -16,6 +21,9 @@ interface VerifyResult {
 /**
  * Verify wallet ownership for a user-agent action.
  * Expects `message` and `signature` in the request body.
+ *
+ * Admin wallets (ADMIN_WALLETS env) can modify any agent including system agents.
+ * For non-admin wallets, only user-tier agents owned by the signer are allowed.
  */
 export async function verifyAgentOwnership(
   agentId: string,
@@ -69,41 +77,79 @@ export async function verifyAgentOwnership(
     return { error: notFound("Agent not found"), ownerWallet: null };
   }
 
-  if (agent.tier !== "user") {
-    return {
-      error: forbidden("Only user-tier agents can be modified"),
-      ownerWallet: null,
-    };
+  // Determine the signer's wallet from the message to check admin status.
+  // We need to verify signature against whichever wallet is the signer.
+  // For owner: verify against agent.owner_wallet
+  // For admin: verify against the admin's own wallet (parsed from the request)
+
+  // First, try to verify as owner (if agent has one)
+  const agentOwner = agent.owner_wallet as string | null;
+
+  // Check if the signer is an admin by trying each admin wallet
+  let isAdmin = false;
+  let signerWallet: string | null = null;
+
+  // Try verifying signature with owner wallet first
+  if (agentOwner) {
+    try {
+      const ownerPubkey = new PublicKey(agentOwner);
+      const ownerBytes = ownerPubkey.toBytes();
+      const ownerValid = verifyWalletSignature(message, signature, ownerBytes);
+      if (ownerValid) {
+        signerWallet = agentOwner;
+      }
+    } catch {
+      // Invalid owner wallet, continue to admin check
+    }
   }
 
-  if (!agent.owner_wallet) {
-    return { error: forbidden("Agent has no owner"), ownerWallet: null };
+  // If not verified as owner, try admin wallets
+  if (!signerWallet) {
+    for (const adminAddr of adminWallets) {
+      try {
+        const adminPubkey = new PublicKey(adminAddr);
+        const adminBytes = adminPubkey.toBytes();
+        const adminValid = verifyWalletSignature(message, signature, adminBytes);
+        if (adminValid) {
+          signerWallet = adminAddr;
+          isAdmin = true;
+          break;
+        }
+      } catch {
+        // Invalid admin wallet address, skip
+      }
+    }
   }
 
-  let publicKeyBytes: Uint8Array;
-  try {
-    const pubkey = new PublicKey(agent.owner_wallet as string);
-    publicKeyBytes = pubkey.toBytes();
-  } catch {
-    return {
-      error: forbidden("Invalid owner wallet on record"),
-      ownerWallet: null,
-    };
-  }
-
-  const signatureValid = verifyWalletSignature(
-    message,
-    signature,
-    publicKeyBytes
-  );
-  if (!signatureValid) {
+  if (!signerWallet) {
     return {
       error: forbidden("Invalid wallet signature"),
       ownerWallet: null,
     };
   }
 
-  return { error: null, ownerWallet: agent.owner_wallet as string };
+  // Non-admin: enforce tier and ownership restrictions
+  if (!isAdmin) {
+    if (agent.tier !== "user") {
+      return {
+        error: forbidden("Only user-tier agents can be modified"),
+        ownerWallet: null,
+      };
+    }
+
+    if (!agentOwner) {
+      return { error: forbidden("Agent has no owner"), ownerWallet: null };
+    }
+
+    if (signerWallet !== agentOwner) {
+      return {
+        error: forbidden("You do not own this agent"),
+        ownerWallet: null,
+      };
+    }
+  }
+
+  return { error: null, ownerWallet: signerWallet };
 }
 
 /**

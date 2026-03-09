@@ -60,11 +60,15 @@ export async function fetchTokenSentiment(): Promise<Map<string, TokenSentiment>
  */
 function mapTimeHorizon(dbHorizon: string): TimeHorizon {
   switch (dbHorizon) {
+    case "scalp":
     case "intraday":
     case "days":
       return "short";
+    case "swing":
     case "weeks":
       return "mid";
+    case "position":
+    case "long_term":
     case "months":
       return "long";
     default:

@@ -5,6 +5,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchMarketContext } from "./market-context";
 import { findPriceInMarketData } from "./trade-helpers";
+import { resolutionCutoffMs } from "./time-horizon";
 
 /** Dead zone: price changes smaller than 0.1% are considered neutral. */
 const DEAD_ZONE_PCT = 0.001;
@@ -16,26 +17,34 @@ const DEAD_ZONE_PCT = 0.001;
  */
 export async function resolvePredictions(): Promise<number> {
   const supabase = createAdminClient();
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-  // Fetch unresolved predictions older than 24h
-  const { data: predictions, error } = await supabase
+  // Fetch all unresolved predictions (filter by time_horizon individually)
+  const { data: allPredictions, error } = await supabase
     .from("predictions")
     .select("*")
     .eq("resolved", false)
-    .lte("predicted_at", cutoff)
-    .limit(50);
+    .limit(100);
 
   if (error) {
     console.error(`[runner] resolvePredictions fetch error: ${error.message}`);
     return 0;
   }
 
-  if (!predictions || predictions.length === 0) return 0;
+  if (!allPredictions || allPredictions.length === 0) return 0;
+
+  // Filter predictions that have passed their time_horizon cutoff
+  const now = Date.now();
+  const predictions = allPredictions.filter((pred) => {
+    const predictedAt = new Date(pred.predicted_at as string).getTime();
+    const cutoff = resolutionCutoffMs((pred.time_horizon as string) ?? "swing");
+    return now - predictedAt >= cutoff;
+  });
+
+  if (predictions.length === 0) return 0;
 
   const marketData = await fetchMarketContext();
   let resolvedCount = 0;
-  const now = new Date().toISOString();
+  const nowIso = new Date().toISOString();
 
   for (const pred of predictions) {
     const symbol = pred.token_symbol as string;
@@ -66,7 +75,6 @@ export async function resolvePredictions(): Promise<number> {
     const directionScore = directionCorrect ? 1 : 0;
 
     // Outcome stored as "correct"/"incorrect" to match consumers
-    // (computeTimeDecayedAccuracy, recalculateAgentAccuracy)
     const outcome = directionCorrect ? "correct" : "incorrect";
 
     // Calibration score: 1 - |confidence - outcome_binary|
@@ -82,7 +90,7 @@ export async function resolvePredictions(): Promise<number> {
         resolved: true,
         outcome,
         price_at_resolution: currentPrice,
-        resolved_at: now,
+        resolved_at: nowIso,
         direction_score: directionScore,
         calibration_score: calibrationScore,
         final_score: finalScore,
@@ -96,7 +104,7 @@ export async function resolvePredictions(): Promise<number> {
 
     resolvedCount++;
     console.log(
-      `[runner] Resolved: ${symbol} ${direction} → ${outcome} (score: ${finalScore.toFixed(2)})`
+      `[runner] Resolved: ${symbol} ${direction} → ${outcome} (score: ${finalScore.toFixed(2)}, horizon: ${pred.time_horizon})`
     );
   }
 

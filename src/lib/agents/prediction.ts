@@ -16,6 +16,7 @@ import { fetchAgentMemory, formatMemoryBlock } from "./memory-context";
 import { jaccardSimilarity } from "@/lib/api/content-safety";
 import { findPriceInMarketData } from "./trade-helpers";
 import { checkApiKey, translateText, updateNextWake } from "./runner-helpers";
+import { marketDeadlineMs } from "./time-horizon";
 
 export interface RunResult {
   action: "posted" | "skipped" | "error";
@@ -338,7 +339,7 @@ export async function runAgent(
             confidence: output.confidence,
             price_at_prediction: predictionPrice,
             predicted_at: now,
-            time_horizon: "days",
+            time_horizon: agent.timeHorizon ?? "swing",
           });
 
         if (predError) {
@@ -378,7 +379,7 @@ export async function runAgent(
                   ? "price_above"
                   : "price_below";
               const deadline = new Date(
-                Date.now() + 7 * 24 * 60 * 60 * 1000
+                Date.now() + marketDeadlineMs(agent.timeHorizon)
               ).toISOString();
 
               const { error: marketError } = await supabase

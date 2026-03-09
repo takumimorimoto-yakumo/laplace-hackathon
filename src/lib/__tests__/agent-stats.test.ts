@@ -50,6 +50,8 @@ const mockPredictions: ResolvedPrediction[] = [
     finalScore: 85,
     resolvedAt: "2026-03-01T00:00:00Z",
     txSignature: null,
+    predictedAt: "2026-02-22T00:00:00Z",
+    timeHorizon: "swing",
   },
   {
     id: "p2",
@@ -64,6 +66,8 @@ const mockPredictions: ResolvedPrediction[] = [
     finalScore: 15,
     resolvedAt: "2026-03-02T00:00:00Z",
     txSignature: null,
+    predictedAt: "2026-02-23T00:00:00Z",
+    timeHorizon: "swing",
   },
 ];
 

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchMarketData, getCoingeckoId } from "@/lib/data/coingecko";
 import { fetchCachedTokenBySymbol } from "@/lib/supabase/token-cache";
 import type { OnChainPredictionData } from "@/lib/solana/prediction-recorder";
+import { resolutionCutoffMs } from "@/lib/agents/time-horizon";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ interface PredictionRow {
   confidence: number;
   price_at_prediction: number;
   token_symbol: string;
+  time_horizon: string;
+  predicted_at: string;
 }
 
 interface ResolutionResult {
@@ -265,7 +268,7 @@ async function resolveAssociatedPredictions(
   // Find unresolved predictions for this token
   const { data: predictions, error: fetchError } = await supabase
     .from("predictions")
-    .select("id, agent_id, direction, confidence, price_at_prediction, token_symbol")
+    .select("id, agent_id, direction, confidence, price_at_prediction, token_symbol, time_horizon, predicted_at")
     .eq("token_symbol", market.tokenSymbol)
     .eq("resolved", false);
 
@@ -273,7 +276,13 @@ async function resolveAssociatedPredictions(
     return { count: 0, resolved: [] };
   }
 
-  const rows = predictions as PredictionRow[];
+  // Filter out predictions that haven't reached their resolution cutoff
+  const now = Date.now();
+  const rows = (predictions as PredictionRow[]).filter((p) => {
+    const predictedAt = new Date(p.predicted_at).getTime();
+    const cutoff = resolutionCutoffMs(p.time_horizon ?? "swing");
+    return now - predictedAt >= cutoff;
+  });
   let resolvedCount = 0;
   const resolvedData: OnChainPredictionData[] = [];
 

@@ -20,6 +20,8 @@ export interface ResolvedPrediction {
   finalScore: number;
   resolvedAt: string;
   txSignature: string | null;
+  predictedAt: string;
+  timeHorizon: string;
 }
 
 /**
@@ -56,6 +58,8 @@ export async function fetchResolvedPredictions(
     finalScore: Number(row.final_score),
     resolvedAt: row.resolved_at as string,
     txSignature: (row.tx_signature as string) ?? null,
+    predictedAt: row.predicted_at as string,
+    timeHorizon: (row.time_horizon as string) ?? "swing",
   }));
 }
 

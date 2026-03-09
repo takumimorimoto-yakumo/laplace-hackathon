@@ -72,6 +72,8 @@ These are advisory guidelines — you have full autonomy over allocation decisio
 - Extreme conviction with strong evidence: up to 50% is allowed but rare
 - Factor in volatility, liquidity, and your recent track record
 - Diversification across positions reduces portfolio risk
+- Check "Your Portfolio" in the memory section for your current cash balance and exposure before deciding allocation.
+- There is no hard minimum cash reserve — use your judgment based on market conditions and your risk tolerance.
 `.trim();
 
 // ---------- Reply Output Schema ----------
@@ -169,11 +171,11 @@ function buildAgentIdentity(agent: Agent): string {
 
   const styleGuide = hasNewAxes ? `
 ## Time Horizon
-${agent.timeHorizon === 'scalp' ? 'You trade on minute-to-hour timeframes. React to immediate price action and momentum.' :
-  agent.timeHorizon === 'intraday' ? 'You focus on intraday to 24h moves. Use short-term technical indicators and react to immediate catalysts.' :
-  agent.timeHorizon === 'swing' ? 'You target moves over days to weeks. Combine technicals with on-chain trends for trend continuation or reversal setups.' :
-  agent.timeHorizon === 'position' ? 'You think in weeks to months. Focus on structural trends and macro cycles.' :
-  'You have a long-term horizon of months to quarters. Focus on fundamental value and macro shifts.'}
+${agent.timeHorizon === 'scalp' ? 'You scalp on seconds-to-minutes timeframes. React to immediate price action, order flow, and momentum spikes. Your predictions resolve within ~4 hours.' :
+  agent.timeHorizon === 'intraday' ? 'You focus on intraday moves within 24 hours. Use short-term technical indicators and react to immediate catalysts. Your predictions resolve within ~24 hours.' :
+  agent.timeHorizon === 'swing' ? 'You target swing moves over hours to a few days (crypto moves faster than stocks). Combine technicals with on-chain trends. Your predictions resolve within ~3 days.' :
+  agent.timeHorizon === 'position' ? 'You think in days to weeks. Focus on structural trends, macro cycles, and DeFi fundamentals. Your predictions resolve within ~14 days.' :
+  'You have a long-term horizon of weeks to months. Focus on fundamental value, macro shifts, and sector rotation. Your predictions resolve within ~30 days.'}
 
 ## Reasoning Approach
 ${agent.reasoningStyle === 'momentum' ? 'You follow price momentum and volume trends. Buy strength, sell weakness.' :
@@ -197,10 +199,10 @@ ${agent.assetFocus === 'blue_chip' ? 'You focus on large-cap, established tokens
   'You analyze the broad market across all token categories.'}
 ` : `
 ## Trading Style Guide
-Your style determines your time horizon and analysis approach:
+Your style determines your time horizon and analysis approach. NOTE: Crypto markets move much faster than traditional markets — adjust your expectations accordingly.
 - daytrader: Focus on intraday to 24h moves. Use short-term technical indicators (RSI, MACD, volume spikes). React to immediate catalysts.
-- swing: Target moves over days to weeks. Combine technicals with on-chain trends. Look for trend continuation or reversal setups.
-- macro: Think in weeks to months. Focus on monetary policy, regulatory shifts, sector rotation, and structural narratives.
+- swing: Target moves over hours to a few days. Combine technicals with on-chain trends. Look for trend continuation or reversal setups.
+- macro: Think in days to weeks. Focus on monetary policy, regulatory shifts, sector rotation, and structural narratives.
 - quant: Use statistical models and data-driven signals. Minimize subjective judgment. Focus on risk-adjusted returns and edge quantification.
 - contrarian: Go against prevailing sentiment. Buy fear, sell greed. Look for overcrowded trades and sentiment extremes.
 - degen: High-conviction, high-risk plays. Chase asymmetric upside. Early entry on new narratives, memes, and momentum.
@@ -257,16 +259,21 @@ export function buildSystemPrompt(
     parts.push(SELF_REFLECTION_RULES);
   }
 
-  if (agent.tier === 'user') {
+  // Apply directives for any tier (admin can configure system agents too)
+  const hasDirectives = agent.userDirectives || agent.customWatchlist?.length || agent.userAlpha;
+  if (hasDirectives) {
+    const isSystem = agent.tier !== 'user';
+    const dirLabel = isSystem ? 'Admin Configuration Overrides' : "Your Coach's Strategic Directives";
+    const alphaLabel = isSystem ? 'Admin Intelligence' : 'Intelligence from Your Coach';
     const dirParts: string[] = [];
     if (agent.userDirectives) {
-      dirParts.push(`## Your Coach's Strategic Directives\n${agent.userDirectives}`);
+      dirParts.push(`## ${dirLabel}\n${agent.userDirectives}`);
     }
     if (agent.customWatchlist?.length) {
       dirParts.push(`## Priority Watchlist\nFocus on: ${agent.customWatchlist.join(', ')}`);
     }
     if (agent.userAlpha) {
-      dirParts.push(`## Intelligence from Your Coach\n${agent.userAlpha}\nVerify against your data sources.`);
+      dirParts.push(`## ${alphaLabel}\n${agent.userAlpha}\nVerify against your data sources.`);
     }
     if (dirParts.length > 0) parts.push(dirParts.join('\n\n'));
   }

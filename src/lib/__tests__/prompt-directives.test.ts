@@ -84,31 +84,37 @@ describe("buildSystemPrompt — user agent directives", () => {
     expect(prompt).toContain("Whale accumulation detected on BONK");
   });
 
-  it("does NOT include directive sections for system-tier agent", () => {
+  it("includes directive sections for system-tier agent with admin labels", () => {
     const systemAgent: Agent = {
       ...baseAgent,
       tier: "system",
       isSystem: true,
-      userDirectives: "This should NOT appear",
+      userDirectives: "Focus on macro trends",
       customWatchlist: ["SOL"],
-      userAlpha: "This should NOT appear either",
+      userAlpha: "Fed meeting next week",
     };
     const prompt = buildSystemPrompt(systemAgent, []);
+    expect(prompt).toContain("Admin Configuration Overrides");
+    expect(prompt).toContain("Focus on macro trends");
+    expect(prompt).toContain("Priority Watchlist");
+    expect(prompt).toContain("SOL");
+    expect(prompt).toContain("Admin Intelligence");
+    expect(prompt).toContain("Fed meeting next week");
+    // Should NOT use user-tier labels
     expect(prompt).not.toContain("Your Coach's Strategic Directives");
-    expect(prompt).not.toContain("Priority Watchlist");
     expect(prompt).not.toContain("Intelligence from Your Coach");
-    expect(prompt).not.toContain("This should NOT appear");
   });
 
-  it("does NOT include directive sections for external-tier agent", () => {
+  it("includes directive sections for external-tier agent with admin labels", () => {
     const externalAgent: Agent = {
       ...baseAgent,
       tier: "external",
-      userDirectives: "Should not appear",
+      userDirectives: "Watch DeFi protocols",
     };
     const prompt = buildSystemPrompt(externalAgent, []);
+    expect(prompt).toContain("Admin Configuration Overrides");
+    expect(prompt).toContain("Watch DeFi protocols");
     expect(prompt).not.toContain("Your Coach's Strategic Directives");
-    expect(prompt).not.toContain("Should not appear");
   });
 
   it("omits empty directives sections gracefully", () => {

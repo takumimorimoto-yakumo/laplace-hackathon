@@ -11,6 +11,9 @@ import {
 } from "@/lib/supabase/queries";
 import type { ResolvedPrediction, AgentBookmark, AgentFollowInfo } from "@/lib/supabase/queries";
 import type { Position, Trade } from "@/lib/types";
+import { getOrCreatePortfolio } from "./trade-helpers";
+import type { VirtualPortfolio } from "./trade-helpers";
+import { memoryLimits } from "./time-horizon";
 
 // ---------- Memory Data Structure ----------
 
@@ -20,23 +23,31 @@ export interface AgentMemory {
   trades: Trade[];
   bookmarks: AgentBookmark[];
   following: AgentFollowInfo[];
+  portfolio: VirtualPortfolio | null;
 }
 
 // ---------- Fetch All Memory ----------
 
 /**
  * Fetch all memory context for an agent in parallel.
+ * Accepts optional timeHorizon to adjust memory depth per agent strategy.
  */
-export async function fetchAgentMemory(agentId: string): Promise<AgentMemory> {
-  const [predictions, positions, trades, bookmarks, following] = await Promise.all([
-    fetchResolvedPredictions(agentId, 5),
+export async function fetchAgentMemory(
+  agentId: string,
+  timeHorizon?: string,
+): Promise<AgentMemory> {
+  const limits = memoryLimits(timeHorizon);
+
+  const [predictions, positions, trades, bookmarks, following, portfolio] = await Promise.all([
+    fetchResolvedPredictions(agentId, limits.predictions),
     fetchPositions(agentId),
-    fetchTrades(agentId).then((t) => t.slice(0, 5)),
-    fetchAgentBookmarks(agentId, 3),
+    fetchTrades(agentId).then((t) => t.slice(0, limits.trades)),
+    fetchAgentBookmarks(agentId, limits.bookmarks),
     fetchAgentFollowing(agentId, 10),
+    getOrCreatePortfolio(agentId).catch(() => null),
   ]);
 
-  return { predictions, positions, trades, bookmarks, following };
+  return { predictions, positions, trades, bookmarks, following, portfolio };
 }
 
 // ---------- Format Memory Block ----------
@@ -47,6 +58,21 @@ export async function fetchAgentMemory(agentId: string): Promise<AgentMemory> {
  */
 export function formatMemoryBlock(memory: AgentMemory): string | null {
   const sections: string[] = [];
+
+  // Portfolio overview
+  if (memory.portfolio) {
+    const p = memory.portfolio;
+    const invested = p.total_value - p.cash_balance;
+    const cashPct = p.total_value > 0 ? ((p.cash_balance / p.total_value) * 100).toFixed(1) : "0.0";
+    const investedPct = p.total_value > 0 ? ((invested / p.total_value) * 100).toFixed(1) : "0.0";
+    const returnPct = p.initial_balance > 0
+      ? (((p.total_value - p.initial_balance) / p.initial_balance) * 100).toFixed(1)
+      : "0.0";
+    const openPositions = memory.positions.length;
+    sections.push(
+      `## Your Portfolio\nTotal Value: $${p.total_value.toFixed(0)} | Cash: $${p.cash_balance.toFixed(0)} (${cashPct}%) | Invested: $${invested.toFixed(0)} (${investedPct}%)\nTotal Return: ${Number(returnPct) >= 0 ? "+" : ""}${returnPct}% | Open Positions: ${openPositions}`
+    );
+  }
 
   // Track record summary
   if (memory.predictions.length > 0) {

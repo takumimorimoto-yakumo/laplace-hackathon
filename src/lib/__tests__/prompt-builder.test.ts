@@ -323,18 +323,21 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("Verify against your data sources");
   });
 
-  it("excludes user directives for system-tier agent even when fields are set", () => {
+  it("includes directives for system-tier agent with admin labels", () => {
     const sysAgent = createMockAgent({
       tier: "system",
-      userDirectives: "Should not appear",
+      userDirectives: "Admin directive here",
       customWatchlist: ["SOL"],
-      userAlpha: "Should not appear",
+      userAlpha: "Admin intel here",
     });
     const prompt = buildSystemPrompt(sysAgent, marketData);
 
+    expect(prompt).toContain("Admin Configuration Overrides");
+    expect(prompt).toContain("Admin directive here");
+    expect(prompt).toContain("Priority Watchlist");
+    expect(prompt).toContain("Admin Intelligence");
+    expect(prompt).toContain("Admin intel here");
     expect(prompt).not.toContain("Your Coach's Strategic Directives");
-    expect(prompt).not.toContain("Priority Watchlist");
-    expect(prompt).not.toContain("Intelligence from Your Coach");
   });
 
   it("handles user-tier agent with no directives set", () => {

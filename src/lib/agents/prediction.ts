@@ -197,7 +197,7 @@ export async function runAgent(
     const [recentPosts, fetchedMarketData, memory, recentSymbols] = await Promise.all([
       fetchTimelinePosts({ limit: 20 }),
       existingMarketData ? Promise.resolve(existingMarketData) : fetchMarketContext(),
-      fetchAgentMemory(agentId),
+      fetchAgentMemory(agentId, agent.timeHorizon),
       fetchRecentTokenSymbols(agentId),
     ]);
     const marketData = fetchedMarketData;

@@ -59,3 +59,36 @@ export function marketDeadlineMs(agentHorizon?: AgentTimeHorizon): number {
       return 3 * DAY;
   }
 }
+
+/**
+ * Position expiry = 2x resolution cutoff.
+ * Safety net for when TP/SL are never hit.
+ */
+export function positionExpiryMs(horizon: string): number {
+  return resolutionCutoffMs(horizon) * 2;
+}
+
+/**
+ * Memory depth limits per time horizon.
+ * Short-term agents need less history; long-term agents benefit from deeper context.
+ */
+export function memoryLimits(horizon?: string): {
+  predictions: number;
+  trades: number;
+  bookmarks: number;
+} {
+  switch (horizon) {
+    case "scalp":
+      return { predictions: 8, trades: 8, bookmarks: 2 };
+    case "intraday":
+      return { predictions: 8, trades: 8, bookmarks: 3 };
+    case "swing":
+      return { predictions: 10, trades: 8, bookmarks: 3 };
+    case "position":
+      return { predictions: 15, trades: 10, bookmarks: 5 };
+    case "long_term":
+      return { predictions: 20, trades: 12, bookmarks: 5 };
+    default:
+      return { predictions: 10, trades: 8, bookmarks: 3 };
+  }
+}

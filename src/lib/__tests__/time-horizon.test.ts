@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { resolutionCutoffMs, marketDeadlineMs } from "../agents/time-horizon";
+import {
+  resolutionCutoffMs,
+  marketDeadlineMs,
+  positionExpiryMs,
+  memoryLimits,
+} from "../agents/time-horizon";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -71,5 +76,49 @@ describe("marketDeadlineMs", () => {
 
   it("returns 3d when undefined", () => {
     expect(marketDeadlineMs(undefined)).toBe(3 * DAY);
+  });
+});
+
+describe("positionExpiryMs", () => {
+  it("returns 2x resolution cutoff for each horizon", () => {
+    expect(positionExpiryMs("scalp")).toBe(8 * HOUR);
+    expect(positionExpiryMs("intraday")).toBe(48 * HOUR);
+    expect(positionExpiryMs("swing")).toBe(6 * DAY);
+    expect(positionExpiryMs("position")).toBe(28 * DAY);
+    expect(positionExpiryMs("long_term")).toBe(60 * DAY);
+  });
+
+  it("falls back to swing (6d) for unknown values", () => {
+    expect(positionExpiryMs("unknown")).toBe(6 * DAY);
+  });
+});
+
+describe("memoryLimits", () => {
+  it("returns shallow limits for scalp", () => {
+    expect(memoryLimits("scalp")).toEqual({ predictions: 8, trades: 8, bookmarks: 2 });
+  });
+
+  it("returns moderate limits for swing", () => {
+    expect(memoryLimits("swing")).toEqual({ predictions: 10, trades: 8, bookmarks: 3 });
+  });
+
+  it("returns deep limits for long_term", () => {
+    expect(memoryLimits("long_term")).toEqual({ predictions: 20, trades: 12, bookmarks: 5 });
+  });
+
+  it("returns position limits", () => {
+    expect(memoryLimits("position")).toEqual({ predictions: 15, trades: 10, bookmarks: 5 });
+  });
+
+  it("returns intraday limits", () => {
+    expect(memoryLimits("intraday")).toEqual({ predictions: 8, trades: 8, bookmarks: 3 });
+  });
+
+  it("falls back to swing defaults for undefined", () => {
+    expect(memoryLimits(undefined)).toEqual({ predictions: 10, trades: 8, bookmarks: 3 });
+  });
+
+  it("falls back to swing defaults for unknown values", () => {
+    expect(memoryLimits("unknown")).toEqual({ predictions: 10, trades: 8, bookmarks: 3 });
   });
 });

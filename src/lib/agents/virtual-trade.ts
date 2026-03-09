@@ -15,6 +15,7 @@ import {
   getOrCreatePortfolio,
   findPriceInMarketData,
 } from "./trade-helpers";
+import { positionExpiryMs } from "./time-horizon";
 
 // Re-export constants for backwards compatibility
 export { DEFAULT_INITIAL_BALANCE, POSITION_EXPIRY_DAYS };
@@ -361,19 +362,20 @@ export async function closePositionsByTpSl(
 // ============================================================
 
 /**
- * Close all virtual positions older than 7 days for a given agent.
+ * Close all virtual positions older than the time-horizon-based expiry for a given agent.
+ * Uses 2x the resolution cutoff as the expiry window (falls back to swing/6 days).
  * Calculates realized P&L based on current market price vs entry price.
  */
 export async function closeExpiredPositions(
   agentId: string,
-  existingMarketData?: RealMarketData[]
+  existingMarketData?: RealMarketData[],
+  agentTimeHorizon?: string,
 ): Promise<void> {
   const supabase = createAdminClient();
 
   try {
-    const expiryDate = new Date(
-      Date.now() - POSITION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
-    ).toISOString();
+    const expiryMs = positionExpiryMs(agentTimeHorizon ?? "swing");
+    const expiryDate = new Date(Date.now() - expiryMs).toISOString();
 
     // Fetch expired positions
     const { data: positions, error: fetchError } = await supabase

@@ -48,14 +48,14 @@ export function deriveTemperature(risk: RiskTolerance, reasoning: ReasoningStyle
   return matrix[risk][reasoning];
 }
 
-/** Derive cycle interval from time horizon */
+/** Derive cycle interval from time horizon (minutes between analysis cycles) */
 export function deriveCycleInterval(horizon: AgentTimeHorizon): number {
   const map: Record<AgentTimeHorizon, number> = {
-    scalp: 15,
-    intraday: 30,
-    swing: 60,
-    position: 120,
-    long_term: 240,
+    scalp: 10,
+    intraday: 15,
+    swing: 20,
+    position: 30,
+    long_term: 60,
   };
   return map[horizon];
 }
@@ -93,8 +93,8 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     defaultLlm: "deepseek",
     temperature: 0.5,
     personality:
-      "Patient swing trader who combines technical setups with DeFi fundamentals. Targets multi-day moves.",
-    bio: "Swing trader blending technicals with DeFi insights. Patience is profit.",
+      "Patient swing trader who combines technical setups with DeFi fundamentals. Targets moves over hours to days.",
+    bio: "Swing trader blending technicals with DeFi insights. Captures crypto's fast multi-hour to multi-day moves.",
     voiceStyle: "analytical",
     defaultOutlook: "bullish",
     timeHorizon: "swing",
@@ -108,8 +108,8 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     defaultLlm: "deepseek",
     temperature: 0.4,
     personality:
-      "Thoughtful mid-term investor focused on DeFi fundamentals and macro trends. Thinks in weeks to months.",
-    bio: "Mid-term DeFi investor. TVL flows, protocol economics, and macro shifts guide my calls.",
+      "Thoughtful mid-term investor focused on DeFi fundamentals and macro trends. Thinks in days to weeks.",
+    bio: "Mid-term DeFi investor. TVL flows, protocol economics, and macro shifts guide my calls over days to weeks.",
     voiceStyle: "structural",
     defaultOutlook: "bullish",
     timeHorizon: "position",
@@ -123,8 +123,8 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     defaultLlm: "gpt-4o",
     temperature: 0.4,
     personality:
-      "Big-picture macro strategist analyzing monetary policy, regulation, and sector rotation for crypto.",
-    bio: "Macro strategist. Fed policy, regulatory shifts, and capital flows shape my thesis.",
+      "Big-picture macro strategist analyzing monetary policy, regulation, and sector rotation for crypto. Horizon of weeks to months.",
+    bio: "Macro strategist. Fed policy, regulatory shifts, and capital flows shape my thesis over weeks to months.",
     voiceStyle: "structural",
     defaultOutlook: "bearish",
     timeHorizon: "long_term",

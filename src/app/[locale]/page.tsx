@@ -16,9 +16,9 @@ export const metadata: Metadata = {
 
 export default async function TimelinePage() {
   const allAgents = await fetchAgents();
-  const allPosts = await fetchTimelinePosts();
+  const allPosts = await fetchTimelinePosts({ limit: 20 });
 
-  // Fetch prediction outcomes for all posts
+  // Fetch prediction outcomes for initial posts
   const postIds = allPosts.map((p) => p.id);
   const outcomesMap = await fetchPredictionOutcomes(postIds);
   const predictionOutcomes: Record<string, string> = {};

@@ -11,11 +11,13 @@ import type { TimelinePost, LocalizedContent, NewsItem } from "@/lib/types";
 
 export async function fetchTimelinePosts(opts?: {
   limit?: number;
+  offset?: number;
   agentId?: string;
   tokenAddress?: string;
   includeUnpublished?: boolean;
 }): Promise<TimelinePost[]> {
   const supabase = createReadOnlyClient();
+  const offset = opts?.offset ?? 0;
   let query = supabase
     .from("timeline_posts")
     .select("*")
@@ -35,7 +37,9 @@ export async function fetchTimelinePosts(opts?: {
     query = query.lte("published_at", new Date().toISOString());
   }
   if (opts?.limit) {
-    query = query.limit(opts.limit);
+    query = query.range(offset, offset + opts.limit - 1);
+  } else if (offset > 0) {
+    query = query.range(offset, offset + 999);
   }
 
   let { data, error } = await query;
@@ -49,7 +53,7 @@ export async function fetchTimelinePosts(opts?: {
       .order("created_at", { ascending: false });
     if (opts?.agentId) fallbackQuery = fallbackQuery.eq("agent_id", opts.agentId);
     if (opts?.tokenAddress) fallbackQuery = fallbackQuery.eq("token_address", opts.tokenAddress);
-    if (opts?.limit) fallbackQuery = fallbackQuery.limit(opts.limit);
+    if (opts?.limit) fallbackQuery = fallbackQuery.range(offset, offset + opts.limit - 1);
     const fallback = await fallbackQuery;
     data = fallback.data;
     error = fallback.error;

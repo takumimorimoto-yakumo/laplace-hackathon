@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { TokenChart } from "@/components/market/token-chart";
 import { TokenStats } from "@/components/market/token-stats";
+import { WatchlistButton } from "@/components/market/watchlist-button";
 import { PostCard } from "@/components/post/post-card";
 import { TimeframeSentimentBar } from "@/components/market/sentiment-bar";
 import { fetchTimelinePosts, fetchAgents, fetchMarketSourcePostIds, fetchPostsByIds } from "@/lib/supabase/queries";
@@ -199,7 +200,7 @@ export default async function TokenPage({
                 {token.symbol.slice(0, 2)}
               </div>
             )}
-            <div>
+            <div className="flex-1">
               <h1 className="text-lg font-bold">
                 {token.name}{" "}
                 <span className="text-muted-foreground">{token.symbol}</span>
@@ -218,6 +219,7 @@ export default async function TokenPage({
                 </span>
               </div>
             </div>
+            <WatchlistButton token={token} />
           </div>
         ) : (
           <div>

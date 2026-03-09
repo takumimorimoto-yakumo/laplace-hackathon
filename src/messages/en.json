@@ -214,7 +214,10 @@
     "outlookBearish": "Bearish",
     "outlookUltraBearish": "Ultra Bearish",
     "personalityTitle": "Personality",
-    "aboutAgent": "About this Agent"
+    "aboutAgent": "About this Agent",
+    "editConfig": "Edit Agent",
+    "configSaved": "Saved",
+    "directivesSection": "Custom Directives"
   },
   "token": {
     "forum": "Forum",
@@ -235,7 +238,9 @@
     "bearishPercent": "{percent}% Bearish",
     "horizonShort": "Short",
     "horizonMid": "Mid",
-    "horizonLong": "Long"
+    "horizonLong": "Long",
+    "addToWatchlist": "Add to watchlist",
+    "removeFromWatchlist": "Remove from watchlist"
   },
   "me": {
     "title": "Me",
@@ -319,6 +324,7 @@
     "rentalPrice": "Rental",
     "statusActive": "Active",
     "statusPaused": "Paused",
+    "statusDeactivated": "Deactivated",
     "openPositionsAll": "Open Positions",
     "recentTradesAll": "Recent Trades",
     "noPositionsAll": "No open positions",
@@ -440,15 +446,21 @@
     "noData": "No portfolio data yet"
   },
   "accuracyChart": {
-    "title": "Accuracy Trend (30d)",
+    "title": "Win Rate Trend (30d)",
     "accuracy": "Accuracy"
   },
   "predictionStats": {
-    "title": "Prediction Stats",
-    "total": "Total Predictions",
+    "title": "Performance Summary",
+    "total": "Predictions",
     "correct": "Correct",
     "calibration": "Calibration",
-    "votesEarned": "Votes Earned"
+    "votesEarned": "Votes Earned",
+    "winRate": "Win Rate",
+    "winRateDetail": "{correct} of {total} correct",
+    "confidenceAccuracy": "Confidence Accuracy",
+    "avgScore": "Avg Score",
+    "streak_win": "{count} win streak",
+    "streak_loss": "{count} loss streak"
   },
   "language": {
     "title": "Language",
@@ -508,7 +520,12 @@
     "horizon_weeks": "Position (~14d)",
     "horizon_months": "Long Term (~30d)",
     "predictedAt": "Predicted",
-    "resolvedAt": "Resolved"
+    "resolvedAt": "Resolved",
+    "priceChange": "Change",
+    "score_excellent": "Excellent",
+    "score_good": "Good",
+    "score_average": "Average",
+    "score_poor": "Poor"
   },
   "chat": {
     "title": "Chat",
@@ -647,15 +664,15 @@
     "timeHorizon": "Time Horizon",
     "timeHorizonDesc": "How long do you want your agent to hold positions?",
     "scalp": "Scalp",
-    "scalpDesc": "Minutes to hours",
+    "scalpDesc": "Seconds to minutes",
     "intraday": "Intraday",
     "intradayDesc": "Within a day",
     "swing": "Swing",
-    "swingDesc": "Days to weeks",
+    "swingDesc": "Hours to days",
     "position": "Position",
-    "positionDesc": "Weeks to months",
+    "positionDesc": "Days to weeks",
     "long_term": "Long Term",
-    "long_termDesc": "Months to quarters",
+    "long_termDesc": "Weeks to months",
     "reasoningStyle": "Reasoning Style",
     "reasoningStyleDesc": "How does your agent think about markets?",
     "momentum": "Momentum",

@@ -287,17 +287,8 @@ export default async function AgentProfilePage({
         </div>
       </div>
 
-      {/* Owner Controls — compact banner */}
-      {agent.tier === "user" && agent.ownerWallet && (
-        <OwnerControls
-          agentId={agent.id}
-          ownerWallet={agent.ownerWallet}
-          isPaused={agent.isPaused}
-          currentDirectives={agent.userDirectives}
-          currentWatchlist={agent.customWatchlist}
-          currentAlpha={agent.userAlpha}
-        />
-      )}
+      {/* Owner Controls — compact banner (owner or admin) */}
+      <OwnerControls agent={agent} />
 
       <AgentProfileTabs
         agent={agent}

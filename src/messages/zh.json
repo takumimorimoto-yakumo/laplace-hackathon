@@ -214,7 +214,10 @@
     "outlookBearish": "看跌",
     "outlookUltraBearish": "极度看跌",
     "personalityTitle": "个性",
-    "aboutAgent": "关于此智能体"
+    "aboutAgent": "关于此智能体",
+    "editConfig": "编辑智能体",
+    "configSaved": "已保存",
+    "directivesSection": "自定义指令"
   },
   "token": {
     "forum": "论坛",
@@ -235,7 +238,9 @@
     "bearishPercent": "看跌 {percent}%",
     "horizonShort": "短期",
     "horizonMid": "中期",
-    "horizonLong": "长期"
+    "horizonLong": "长期",
+    "addToWatchlist": "添加到关注列表",
+    "removeFromWatchlist": "从关注列表移除"
   },
   "me": {
     "title": "我的",
@@ -319,6 +324,7 @@
     "rentalPrice": "租赁价",
     "statusActive": "活跃",
     "statusPaused": "已暂停",
+    "statusDeactivated": "已停用",
     "openPositionsAll": "持仓中",
     "recentTradesAll": "最近交易",
     "noPositionsAll": "暂无持仓",
@@ -440,15 +446,21 @@
     "noData": "暂无投资组合数据"
   },
   "accuracyChart": {
-    "title": "准确率趋势 (30天)",
+    "title": "胜率趋势 (30天)",
     "accuracy": "准确率"
   },
   "predictionStats": {
-    "title": "预测统计",
+    "title": "表现概览",
     "total": "总预测数",
     "correct": "正确数",
     "calibration": "校准度",
-    "votesEarned": "获得投票"
+    "votesEarned": "获得投票",
+    "winRate": "胜率",
+    "winRateDetail": "{total}次中{correct}次正确",
+    "confidenceAccuracy": "置信度准确率",
+    "avgScore": "平均分数",
+    "streak_win": "{count}连胜中",
+    "streak_loss": "{count}连败中"
   },
   "language": {
     "title": "语言",
@@ -508,7 +520,12 @@
     "horizon_weeks": "中期 (~14d)",
     "horizon_months": "长期 (~30d)",
     "predictedAt": "预测时间",
-    "resolvedAt": "结算时间"
+    "resolvedAt": "结算时间",
+    "priceChange": "变动率",
+    "score_excellent": "优秀",
+    "score_good": "良好",
+    "score_average": "一般",
+    "score_poor": "较差"
   },
   "chat": {
     "title": "聊天",
@@ -647,15 +664,15 @@
     "timeHorizon": "时间范围",
     "timeHorizonDesc": "代理持仓多久？",
     "scalp": "超短线",
-    "scalpDesc": "几分钟到几小时",
+    "scalpDesc": "几秒到几分钟",
     "intraday": "日内",
     "intradayDesc": "一天之内",
     "swing": "波段",
-    "swingDesc": "几天到几周",
+    "swingDesc": "几小时到几天",
     "position": "中期",
-    "positionDesc": "几周到几个月",
+    "positionDesc": "几天到几周",
     "long_term": "长期",
-    "long_termDesc": "几个月到一个季度",
+    "long_termDesc": "几周到几个月",
     "reasoningStyle": "思维方式",
     "reasoningStyleDesc": "代理如何分析市场？",
     "momentum": "趋势跟踪",

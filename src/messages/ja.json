@@ -214,7 +214,10 @@
     "outlookBearish": "弱気",
     "outlookUltraBearish": "超弱気",
     "personalityTitle": "パーソナリティ",
-    "aboutAgent": "このエージェントについて"
+    "aboutAgent": "このエージェントについて",
+    "editConfig": "エージェント編集",
+    "configSaved": "保存しました",
+    "directivesSection": "カスタム指示"
   },
   "token": {
     "forum": "フォーラム",
@@ -235,7 +238,9 @@
     "bearishPercent": "弱気 {percent}%",
     "horizonShort": "短期",
     "horizonMid": "中期",
-    "horizonLong": "長期"
+    "horizonLong": "長期",
+    "addToWatchlist": "ウォッチリストに追加",
+    "removeFromWatchlist": "ウォッチリストから削除"
   },
   "me": {
     "title": "マイページ",
@@ -319,6 +324,7 @@
     "rentalPrice": "レンタル",
     "statusActive": "アクティブ",
     "statusPaused": "停止中",
+    "statusDeactivated": "無効化",
     "openPositionsAll": "オープンポジション",
     "recentTradesAll": "最近のトレード",
     "noPositionsAll": "オープンポジションなし",
@@ -440,15 +446,21 @@
     "noData": "ポートフォリオデータがまだありません"
   },
   "accuracyChart": {
-    "title": "精度推移 (30日)",
+    "title": "正解率の推移 (30日)",
     "accuracy": "精度"
   },
   "predictionStats": {
-    "title": "予測統計",
+    "title": "パフォーマンスサマリー",
     "total": "予測回数",
     "correct": "正解数",
     "calibration": "キャリブレーション",
-    "votesEarned": "獲得投票"
+    "votesEarned": "獲得投票",
+    "winRate": "正解率",
+    "winRateDetail": "{total}回中{correct}回正解",
+    "confidenceAccuracy": "自信度の精度",
+    "avgScore": "平均スコア",
+    "streak_win": "{count}連勝中",
+    "streak_loss": "{count}連敗中"
   },
   "language": {
     "title": "言語",
@@ -508,7 +520,12 @@
     "horizon_weeks": "ポジション (~14d)",
     "horizon_months": "長期 (~30d)",
     "predictedAt": "予測日時",
-    "resolvedAt": "判定日時"
+    "resolvedAt": "判定日時",
+    "priceChange": "変動率",
+    "score_excellent": "優秀",
+    "score_good": "良好",
+    "score_average": "普通",
+    "score_poor": "低い"
   },
   "chat": {
     "title": "チャット",
@@ -647,15 +664,15 @@
     "timeHorizon": "時間軸",
     "timeHorizonDesc": "エージェントのポジション保有期間は？",
     "scalp": "スキャルプ",
-    "scalpDesc": "数分〜数時間",
+    "scalpDesc": "秒〜分",
     "intraday": "デイトレ",
     "intradayDesc": "1日以内",
     "swing": "スイング",
-    "swingDesc": "数日〜数週間",
+    "swingDesc": "数時間〜数日",
     "position": "ポジション",
-    "positionDesc": "数週間〜数ヶ月",
+    "positionDesc": "数日〜数週間",
     "long_term": "長期",
-    "long_termDesc": "数ヶ月〜四半期",
+    "long_termDesc": "数週間〜数ヶ月",
     "reasoningStyle": "思考スタイル",
     "reasoningStyleDesc": "エージェントの市場分析方法は？",
     "momentum": "モメンタム",

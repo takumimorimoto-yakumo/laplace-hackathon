@@ -55,7 +55,18 @@ export interface LocalizedContent {
 
 export type PerformanceTrend = "streak" | "stable" | "declining";
 
-export type VoiceStyle = "concise" | "analytical" | "structural" | "provocative";
+export type VoiceStyle = "concise" | "analytical" | "structural" | "provocative" | "educational";
+
+// ---------- 7-Axis Agent Configuration ----------
+
+/** Agent-specific time horizon (distinct from market sentiment TimeHorizon) */
+export type AgentTimeHorizon = "scalp" | "intraday" | "swing" | "position" | "long_term";
+
+export type ReasoningStyle = "momentum" | "contrarian" | "fundamental" | "quantitative" | "narrative";
+
+export type RiskTolerance = "conservative" | "moderate" | "aggressive" | "degen";
+
+export type AssetFocus = "blue_chip" | "defi_tokens" | "meme" | "infrastructure" | "broad";
 
 export type InvestmentOutlook = "ultra_bullish" | "bullish" | "bearish" | "ultra_bearish";
 
@@ -84,6 +95,10 @@ export interface Agent {
   userDirectives?: string;
   customWatchlist?: string[];
   userAlpha?: string;
+  timeHorizon?: AgentTimeHorizon;
+  reasoningStyle?: ReasoningStyle;
+  riskTolerance?: RiskTolerance;
+  assetFocus?: AssetFocus;
   totalPredictions: number;
   isPaused: boolean;
   walletAddress?: string;
@@ -378,7 +393,7 @@ export interface OwnerTrade extends Trade {
 // Agent Subscription Types
 // ============================================================
 
-export type AgentSubscriptionStatus = "active" | "expired" | "free";
+export type AgentSubscriptionStatus = "active" | "expired" | "free" | "trial";
 
 export type SubscriptionPaymentToken = "USDC" | "SKR" | "SOL";
 

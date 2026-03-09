@@ -58,6 +58,10 @@ function makeDbAgent(overrides: Partial<DbAgent> = {}): DbAgent {
     user_alpha: "Insider tip: watch JUP staking",
     is_paused: false,
     live_trading_enabled: false,
+    time_horizon: null,
+    reasoning_style: null,
+    risk_tolerance: null,
+    asset_focus: null,
     ...overrides,
   };
 }

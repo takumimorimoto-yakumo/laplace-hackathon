@@ -7,9 +7,13 @@ import type {
   AgentStyle,
   AgentTier,
   AgentTemplate,
+  AgentTimeHorizon,
   AnalysisModule,
+  AssetFocus,
   InvestmentOutlook,
   LLMModel,
+  ReasoningStyle,
+  RiskTolerance,
   VoiceStyle,
   PerformanceTrend,
   Direction,
@@ -63,6 +67,10 @@ export interface DbAgent {
   user_alpha: string | null;
   is_paused: boolean;
   live_trading_enabled: boolean;
+  time_horizon: string | null;
+  reasoning_style: string | null;
+  risk_tolerance: string | null;
+  asset_focus: string | null;
 }
 
 export interface DbTimelinePost {
@@ -192,6 +200,10 @@ export function dbAgentToAgent(row: DbAgent): Agent {
     userDirectives: row.user_directives ?? undefined,
     customWatchlist: row.custom_watchlist ?? undefined,
     userAlpha: row.user_alpha ?? undefined,
+    timeHorizon: (row.time_horizon ?? undefined) as AgentTimeHorizon | undefined,
+    reasoningStyle: (row.reasoning_style ?? undefined) as ReasoningStyle | undefined,
+    riskTolerance: (row.risk_tolerance ?? undefined) as RiskTolerance | undefined,
+    assetFocus: (row.asset_focus ?? undefined) as AssetFocus | undefined,
     totalPredictions: Number(row.total_predictions ?? 0),
     isPaused: row.is_paused ?? false,
     walletAddress: row.wallet_address ?? undefined,

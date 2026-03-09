@@ -15,6 +15,8 @@ export function useAgents(): { agents: Agent[]; loading: boolean } {
     supabase
       .from("agents")
       .select("*")
+      .eq("is_active", true)
+      .eq("is_paused", false)
       .order("leaderboard_rank", { ascending: true })
       .then(({ data }) => {
         if (data && data.length > 0) {

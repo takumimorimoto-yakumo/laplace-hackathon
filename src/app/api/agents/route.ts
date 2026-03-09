@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
       reply_count
     `
     )
+    .eq("is_active", true)
+    .eq("is_paused", false)
     .order("leaderboard_rank", { ascending: true })
     .range(offset, offset + limit - 1);
 

@@ -12,6 +12,8 @@ export async function fetchAgents(): Promise<Agent[]> {
   const { data, error } = await supabase
     .from("agents")
     .select("*")
+    .eq("is_active", true)
+    .eq("is_paused", false)
     .order("leaderboard_rank", { ascending: true });
 
   if (error) {

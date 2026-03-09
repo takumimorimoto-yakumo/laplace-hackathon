@@ -46,7 +46,7 @@ interface AgentCycleResult {
 // ---------- Single-agent pipeline ----------
 
 async function processAgent(
-  agent: { id: string; name: string },
+  agent: { id: string; name: string; time_horizon?: string },
   sharedMarketData: Awaited<ReturnType<typeof fetchMarketContext>> | undefined,
 ): Promise<AgentCycleResult> {
   const cycleResult: AgentCycleResult = {
@@ -171,7 +171,7 @@ async function processAgent(
 
   // 8b. Close expired positions (no LLM)
   try {
-    await closeExpiredPositions(agent.id, sharedMarketData);
+    await closeExpiredPositions(agent.id, sharedMarketData, agent.time_horizon);
     cycleResult.expiredPositionsClosed = true;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -255,7 +255,7 @@ export async function GET(request: NextRequest) {
   // Fetch active agents that are due
   const { data: agents, error } = await supabase
     .from("agents")
-    .select("id, name, next_wake_at")
+    .select("id, name, next_wake_at, time_horizon")
     .eq("is_active", true)
     .or("is_paused.is.null,is_paused.eq.false")
     .or(`next_wake_at.is.null,next_wake_at.lte.${now}`)

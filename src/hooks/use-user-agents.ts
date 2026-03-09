@@ -45,6 +45,12 @@ interface UpdateAgentData {
   directives?: string;
   watchlist?: string[];
   alpha?: string;
+  timeHorizon?: AgentTimeHorizon;
+  reasoningStyle?: ReasoningStyle;
+  riskTolerance?: RiskTolerance;
+  assetFocus?: AssetFocus;
+  voiceStyle?: VoiceStyle;
+  modules?: AnalysisModule[];
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   walletAddress: string;
 }
@@ -106,6 +112,12 @@ export function useUpdateUserAgent(id: string): MutationState<UpdateAgentData> {
         directives: data.directives,
         watchlist: data.watchlist,
         alpha: data.alpha,
+        time_horizon: data.timeHorizon,
+        reasoning_style: data.reasoningStyle,
+        risk_tolerance: data.riskTolerance,
+        asset_focus: data.assetFocus,
+        voice_style: data.voiceStyle,
+        modules: data.modules,
         wallet_address: data.walletAddress,
         message,
         signature,

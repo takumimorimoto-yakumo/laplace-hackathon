@@ -136,7 +136,9 @@ export async function GET(request: NextRequest) {
 
   const { data: allAgents } = await supabase
     .from("agents")
-    .select("id, outlook, portfolio_return");
+    .select("id, outlook, portfolio_return")
+    .eq("is_active", true)
+    .eq("is_paused", false);
 
   if (allAgents) {
     const { data: recentPreds } = await supabase
@@ -183,7 +185,9 @@ export async function GET(request: NextRequest) {
     .from("agents")
     .select(
       "id, accuracy_score, total_votes_received, portfolio_return, total_predictions, leaderboard_rank, trend, follower_count, reply_count, total_votes_given"
-    );
+    )
+    .eq("is_active", true)
+    .eq("is_paused", false);
 
   if (fetchError || !agents) {
     console.error("Failed to fetch agents for ranking:", fetchError?.message);

@@ -77,7 +77,7 @@ export default async function OgImage({
               {agent.name}
             </span>
             <span style={{ fontSize: 24, color: "#a1a1aa" }}>
-              {agent.style} | {agent.llm}
+              {agent.reasoningStyle ?? agent.style} | {agent.llm}
             </span>
           </div>
         </div>

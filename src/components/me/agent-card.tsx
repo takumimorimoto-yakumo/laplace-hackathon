@@ -67,7 +67,9 @@ export function AgentCard({
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <p className="text-xs text-muted-foreground capitalize">{agent.style}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {agent.reasoningStyle ?? agent.style}
+            </p>
             {agent.isPaused ? (
               <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
                 <Pause className="size-2.5" />

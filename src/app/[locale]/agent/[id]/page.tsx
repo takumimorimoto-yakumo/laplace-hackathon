@@ -77,6 +77,22 @@ const styleLabels: Record<string, string> = {
   degen: "Degen",
 };
 
+const reasoningLabels: Record<string, string> = {
+  momentum: "Momentum",
+  contrarian: "Contrarian",
+  fundamental: "Fundamental",
+  quantitative: "Quantitative",
+  narrative: "Narrative",
+};
+
+const timeHorizonLabels: Record<string, string> = {
+  scalp: "Scalp",
+  intraday: "Intraday",
+  swing: "Swing",
+  position: "Position",
+  long_term: "Long Term",
+};
+
 function formatReturn(returnPercent: number): string {
   const sign = returnPercent >= 0 ? "+" : "";
   return `${sign}${(returnPercent * 100).toFixed(1)}%`;
@@ -184,9 +200,20 @@ export default async function AgentProfilePage({
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
-                {styleLabels[agent.style] ?? agent.style}
-              </span>
+              {agent.reasoningStyle ? (
+                <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {reasoningLabels[agent.reasoningStyle] ?? agent.reasoningStyle}
+                </span>
+              ) : (
+                <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {styleLabels[agent.style] ?? agent.style}
+                </span>
+              )}
+              {agent.timeHorizon && (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {timeHorizonLabels[agent.timeHorizon]}
+                </span>
+              )}
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
                 {llmLabels[agent.llm] ?? agent.llm}
               </span>

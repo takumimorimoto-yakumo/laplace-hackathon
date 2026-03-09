@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 import { PredictionOutcomeBadge } from "@/components/post/prediction-outcome-badge";
 import { cn } from "@/lib/utils";
 import { explorerTxUrl } from "@/lib/solana/explorer";
+import { formatRelativeDate } from "@/lib/format";
 import type { ResolvedPrediction } from "@/lib/supabase/queries";
 
 interface ResolvedPredictionsProps {
@@ -38,7 +39,7 @@ export function ResolvedPredictions({ predictions }: ResolvedPredictionsProps) {
             key={prediction.id}
             className="flex flex-col gap-2 rounded-lg bg-background/50 p-3"
           >
-            {/* Token + Direction + Outcome */}
+            {/* Token + Direction + Horizon + Outcome */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-foreground">
@@ -53,6 +54,9 @@ export function ResolvedPredictions({ predictions }: ResolvedPredictionsProps) {
                   )}
                 >
                   {tToken(prediction.direction as "bullish" | "bearish" | "neutral")}
+                </span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {t(`horizon_${prediction.timeHorizon}` as Parameters<typeof t>[0])}
                 </span>
               </div>
               <PredictionOutcomeBadge
@@ -69,6 +73,13 @@ export function ResolvedPredictions({ predictions }: ResolvedPredictionsProps) {
               <span className="font-mono font-medium text-foreground">
                 {prediction.finalScore.toFixed(2)}
               </span>
+            </div>
+
+            {/* Predicted → Resolved timeline */}
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span>{t("predictedAt")} {formatRelativeDate(prediction.predictedAt)}</span>
+              <span>→</span>
+              <span>{t("resolvedAt")} {formatRelativeDate(prediction.resolvedAt)}</span>
             </div>
 
             {/* Solana verification link */}

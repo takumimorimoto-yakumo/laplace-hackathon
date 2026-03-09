@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Utility scripts (not part of main codebase)
     "docs/hackathon/generate-pitch-deck.js",
+    "docs/hackathon/generate-pitch-deck-ja.js",
+    // Video project (separate codebase)
+    "video/**",
   ]),
 ]);
 

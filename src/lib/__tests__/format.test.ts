@@ -7,6 +7,9 @@ import {
   formatPredictionPrice,
   formatConditionShort,
   getTimeRemainingParts,
+  formatPriceChange,
+  formatAbsoluteDate,
+  getScoreLabel,
 } from "@/lib/format";
 import { timeframeConfigs, inferTags } from "@/lib/token-utils";
 import { getAgentAvatarUrl } from "@/lib/avatar";
@@ -270,6 +273,126 @@ describe("format.ts", () => {
       expect(formatConditionShort("", "price_above", 100, "")).toBe(
         " > $100 ()"
       );
+    });
+  });
+
+  // ----------------------------------------------------------
+  // formatPriceChange
+  // ----------------------------------------------------------
+  describe("formatPriceChange", () => {
+    it("returns +X% and isPositive: true for positive change", () => {
+      const result = formatPriceChange(100, 150);
+      expect(result.text).toBe("+50.0%");
+      expect(result.isPositive).toBe(true);
+    });
+
+    it("returns -X% and isPositive: false for negative change", () => {
+      const result = formatPriceChange(100, 80);
+      expect(result.text).toBe("-20.0%");
+      expect(result.isPositive).toBe(false);
+    });
+
+    it("returns N/A when from is zero", () => {
+      const result = formatPriceChange(0, 100);
+      expect(result.text).toBe("N/A");
+      expect(result.isPositive).toBe(false);
+    });
+
+    it("handles large percentage changes", () => {
+      const result = formatPriceChange(1, 100);
+      expect(result.text).toBe("+9900.0%");
+      expect(result.isPositive).toBe(true);
+    });
+
+    it("handles small percentage changes with precision", () => {
+      const result = formatPriceChange(1000, 1001);
+      expect(result.text).toBe("+0.1%");
+      expect(result.isPositive).toBe(true);
+    });
+
+    it("returns +0.0% for no change", () => {
+      const result = formatPriceChange(100, 100);
+      expect(result.text).toBe("+0.0%");
+      expect(result.isPositive).toBe(true);
+    });
+  });
+
+  // ----------------------------------------------------------
+  // formatAbsoluteDate
+  // ----------------------------------------------------------
+  describe("formatAbsoluteDate", () => {
+    it("formats English locale with month, day, and time (same year)", () => {
+      const result = formatAbsoluteDate("2026-03-07T14:30:00Z", "en");
+      // Should contain "Mar" and "7" and time in HH:MM format
+      expect(result).toMatch(/Mar 7, \d{2}:\d{2}/);
+    });
+
+    it("includes year in English format when different year", () => {
+      const result = formatAbsoluteDate("2025-03-07T14:30:00Z", "en");
+      expect(result).toMatch(/Mar 7, 2025, \d{2}:\d{2}/);
+    });
+
+    it("formats Japanese locale as 'M月D日 HH:MM' (same year)", () => {
+      const result = formatAbsoluteDate("2026-03-07T14:30:00Z", "ja");
+      // Should contain "3月7日" and time in HH:MM format
+      expect(result).toMatch(/3月7日 \d{2}:\d{2}/);
+    });
+
+    it("includes year in Japanese format when different year", () => {
+      const result = formatAbsoluteDate("2025-03-07T14:30:00Z", "ja");
+      expect(result).toMatch(/2025年3月7日 \d{2}:\d{2}/);
+    });
+
+    it("formats Chinese locale same as Japanese (same year)", () => {
+      const result = formatAbsoluteDate("2026-03-07T14:30:00Z", "zh");
+      // Should contain "3月7日" and time in HH:MM format
+      expect(result).toMatch(/3月7日 \d{2}:\d{2}/);
+    });
+
+    it("includes year in Chinese format when different year", () => {
+      const result = formatAbsoluteDate("2025-03-07T14:30:00Z", "zh");
+      expect(result).toMatch(/2025年3月7日 \d{2}:\d{2}/);
+    });
+
+    it("pads hours and minutes with zeros", () => {
+      const result = formatAbsoluteDate("2026-03-07T09:05:00Z", "en");
+      // Time should have zero-padded minutes (05) and hours should be zero-padded
+      expect(result).toMatch(/Mar 7, \d{2}:05/);
+    });
+  });
+
+  // ----------------------------------------------------------
+  // getScoreLabel
+  // ----------------------------------------------------------
+  describe("getScoreLabel", () => {
+    it("returns 'excellent' for score >= 0.8", () => {
+      expect(getScoreLabel(0.8)).toBe("excellent");
+      expect(getScoreLabel(0.9)).toBe("excellent");
+      expect(getScoreLabel(1.0)).toBe("excellent");
+    });
+
+    it("returns 'good' for score >= 0.6 and < 0.8", () => {
+      expect(getScoreLabel(0.6)).toBe("good");
+      expect(getScoreLabel(0.7)).toBe("good");
+      expect(getScoreLabel(0.799)).toBe("good");
+    });
+
+    it("returns 'average' for score >= 0.4 and < 0.6", () => {
+      expect(getScoreLabel(0.4)).toBe("average");
+      expect(getScoreLabel(0.5)).toBe("average");
+      expect(getScoreLabel(0.599)).toBe("average");
+    });
+
+    it("returns 'poor' for score < 0.4", () => {
+      expect(getScoreLabel(0.0)).toBe("poor");
+      expect(getScoreLabel(0.3)).toBe("poor");
+      expect(getScoreLabel(0.399)).toBe("poor");
+    });
+
+    it("handles boundary values exactly", () => {
+      expect(getScoreLabel(0.8)).toBe("excellent");
+      expect(getScoreLabel(0.6)).toBe("good");
+      expect(getScoreLabel(0.4)).toBe("average");
     });
   });
 

@@ -88,11 +88,71 @@ describe("computePredictionStats", () => {
     expect(stats.totalPredictions).toBe(0);
     expect(stats.correctPredictions).toBe(0);
     expect(stats.calibrationScore).toBe(0);
+    expect(stats.winRate).toBe(0);
+    expect(stats.avgScore).toBe(0);
+    expect(stats.streakInfo).toEqual({ type: "none", count: 0 });
   });
 
   it("totalVotesEarned matches agent totalVotes", () => {
     const stats = computePredictionStats(mockPredictions, mockAgent);
     expect(stats.totalVotesEarned).toBe(mockAgent.totalVotes);
+  });
+
+  it("computes winRate as correct/total", () => {
+    const stats = computePredictionStats(mockPredictions, mockAgent);
+    expect(stats.winRate).toBe(0.5); // 1 correct out of 2
+  });
+
+  it("computes avgScore as average of finalScore values", () => {
+    const stats = computePredictionStats(mockPredictions, mockAgent);
+    expect(stats.avgScore).toBe(50.0); // (85 + 15) / 2 = 50
+  });
+
+  it("computes streakInfo from recent resolved predictions", () => {
+    const stats = computePredictionStats(mockPredictions, mockAgent);
+    // p2 (incorrect) is most recent (2026-03-02) → loss streak of count 1
+    expect(stats.streakInfo.type).toBe("loss");
+    expect(stats.streakInfo.count).toBe(1);
+  });
+
+  it("detects win streak correctly", () => {
+    const allCorrect: typeof mockPredictions = [
+      {
+        id: "p1",
+        tokenSymbol: "SOL",
+        direction: "bullish",
+        confidence: 0.8,
+        priceAtPrediction: 100,
+        priceAtResolution: 110,
+        outcome: "correct",
+        directionScore: 1.0,
+        calibrationScore: 0.8,
+        finalScore: 80,
+        resolvedAt: "2026-03-01T00:00:00Z",
+        txSignature: null,
+        predictedAt: "2026-02-22T00:00:00Z",
+        timeHorizon: "swing",
+      },
+      {
+        id: "p2",
+        tokenSymbol: "JUP",
+        direction: "bullish",
+        confidence: 0.7,
+        priceAtPrediction: 2.0,
+        priceAtResolution: 2.5,
+        outcome: "correct",
+        directionScore: 1.0,
+        calibrationScore: 0.75,
+        finalScore: 90,
+        resolvedAt: "2026-03-02T00:00:00Z",
+        txSignature: null,
+        predictedAt: "2026-02-23T00:00:00Z",
+        timeHorizon: "swing",
+      },
+    ];
+    const stats = computePredictionStats(allCorrect, mockAgent);
+    expect(stats.streakInfo.type).toBe("win");
+    expect(stats.streakInfo.count).toBe(2);
   });
 });
 

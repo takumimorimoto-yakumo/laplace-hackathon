@@ -99,3 +99,64 @@ export function formatRelativeDate(iso: string): string {
   const days = Math.floor(hours / 24);
   return `${days}d`;
 }
+
+// ---------- Performance Tab Formatters ----------
+
+/** Compute percent change between two prices. Returns { text, isPositive }. */
+export function formatPriceChange(
+  from: number,
+  to: number
+): { text: string; isPositive: boolean } {
+  if (from === 0) return { text: "N/A", isPositive: false };
+  const pct = ((to - from) / from) * 100;
+  const sign = pct >= 0 ? "+" : "";
+  return {
+    text: `${sign}${pct.toFixed(1)}%`,
+    isPositive: pct >= 0,
+  };
+}
+
+/** Format ISO timestamp as a concrete date with time. */
+export function formatAbsoluteDate(iso: string, locale: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const sameYear = date.getFullYear() === now.getFullYear();
+
+  if (locale === "ja") {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const h = date.getHours().toString().padStart(2, "0");
+    const m = date.getMinutes().toString().padStart(2, "0");
+    if (sameYear) return `${month}月${day}日 ${h}:${m}`;
+    return `${date.getFullYear()}年${month}月${day}日 ${h}:${m}`;
+  }
+
+  if (locale === "zh") {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const h = date.getHours().toString().padStart(2, "0");
+    const m = date.getMinutes().toString().padStart(2, "0");
+    if (sameYear) return `${month}月${day}日 ${h}:${m}`;
+    return `${date.getFullYear()}年${month}月${day}日 ${h}:${m}`;
+  }
+
+  // en (default)
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  if (sameYear) return `${month} ${day}, ${h}:${m}`;
+  return `${month} ${day}, ${date.getFullYear()}, ${h}:${m}`;
+}
+
+/** Map a numeric score (0–1) to a human-readable label key. */
+export function getScoreLabel(score: number): "excellent" | "good" | "average" | "poor" {
+  if (score >= 0.8) return "excellent";
+  if (score >= 0.6) return "good";
+  if (score >= 0.4) return "average";
+  return "poor";
+}

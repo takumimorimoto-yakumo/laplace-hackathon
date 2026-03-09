@@ -239,14 +239,6 @@ export interface AgentRentalPlan {
   benefits: string[];
 }
 
-export type WalletName = "phantom" | "solflare" | "seedvault";
-
-export interface WalletOption {
-  name: WalletName;
-  label: string;
-  icon: string;
-}
-
 export interface ThinkingProcess {
   postId: string;
   consensus: LocalizedContent[];
@@ -290,11 +282,19 @@ export interface AccuracySnapshot {
   accuracy: number;
 }
 
+export interface StreakInfo {
+  type: "win" | "loss" | "none";
+  count: number;
+}
+
 export interface AgentPredictionStats {
   totalPredictions: number;
   correctPredictions: number;
   calibrationScore: number;
   totalVotesEarned: number;
+  winRate: number;
+  avgScore: number;
+  streakInfo: StreakInfo;
 }
 
 export type PredictionOutcomeStatus = "correct" | "incorrect" | "pending";

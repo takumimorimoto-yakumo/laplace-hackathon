@@ -15,6 +15,7 @@ import {
   Shield,
   Coins,
   ArrowLeftRight,
+  ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -37,7 +38,13 @@ import {
 } from "@/lib/agents/templates";
 import type {
   AgentTemplate,
+  AgentTimeHorizon,
+  ReasoningStyle,
+  RiskTolerance,
+  AssetFocus,
   LLMModel,
+  VoiceStyle,
+  AnalysisModule,
   SubscriptionPaymentToken,
 } from "@/lib/types";
 
@@ -175,6 +182,7 @@ export function AdoptWizard({
   const t = useTranslations("adopt");
   const tCommon = useTranslations("common");
   const tTemplates = useTranslations("templates");
+  const tConfig = useTranslations("agentConfig");
   const { mutate, loading, error } = useAdoptAgent();
   const { agentCount } = useSubscriptionStatus(walletAddress);
   const { signTransaction, signMessage: walletSignMessage } = useWallet();
@@ -182,6 +190,7 @@ export function AdoptWizard({
 
   const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
   const needsPayment = isLocal || agentCount >= 1;
+  const isFirstAgent = !isLocal && agentCount === 0;
   const totalSteps = needsPayment ? 4 : 3;
 
   // Wizard state
@@ -194,6 +203,13 @@ export function AdoptWizard({
   const [watchlistTags, setWatchlistTags] = useState<string[]>([]);
   const [alpha, setAlpha] = useState("");
   const [nameError, setNameError] = useState("");
+  const [timeHorizon, setTimeHorizon] = useState<AgentTimeHorizon>("swing");
+  const [reasoningStyle, setReasoningStyle] = useState<ReasoningStyle>("fundamental");
+  const [riskTolerance, setRiskTolerance] = useState<RiskTolerance>("moderate");
+  const [assetFocus, setAssetFocus] = useState<AssetFocus>("broad");
+  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("analytical");
+  const [modules, setModules] = useState<AnalysisModule[]>(["technical", "onchain"]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const defaultPaymentToken: SubscriptionPaymentToken =
     typeof window !== "undefined" && window.location.hostname === "localhost" ? "SOL" : "USDC";
   const [paymentToken, setPaymentToken] = useState<SubscriptionPaymentToken>(defaultPaymentToken);
@@ -217,6 +233,13 @@ export function AdoptWizard({
     setWatchlistTags([]);
     setAlpha("");
     setNameError("");
+    setTimeHorizon("swing");
+    setReasoningStyle("fundamental");
+    setRiskTolerance("moderate");
+    setAssetFocus("broad");
+    setVoiceStyle("analytical");
+    setModules(["technical", "onchain"]);
+    setShowAdvanced(false);
     setPaymentToken("USDC");
     setPaymentPhase("idle");
     setPaymentError(null);
@@ -343,13 +366,17 @@ export function AdoptWizard({
 
     // --- Create agent ---
     setPaymentPhase("creating");
-    const outlook = AGENT_TEMPLATES[template].defaultOutlook;
     const agentId = await mutate({
       walletAddress,
       name: name.trim(),
       template,
       llm,
-      outlook,
+      timeHorizon,
+      reasoningStyle,
+      riskTolerance,
+      assetFocus,
+      voiceStyle,
+      modules,
       directives: directives.trim() || undefined,
       watchlist: watchlistTags.length > 0 ? watchlistTags : undefined,
       alpha: alpha.trim() || undefined,
@@ -379,6 +406,12 @@ export function AdoptWizard({
     mutate,
     name,
     llm,
+    timeHorizon,
+    reasoningStyle,
+    riskTolerance,
+    assetFocus,
+    voiceStyle,
+    modules,
     directives,
     watchlistTags,
     alpha,
@@ -425,7 +458,16 @@ export function AdoptWizard({
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setTemplate(key)}
+                      onClick={() => {
+                        setTemplate(key);
+                        const config = AGENT_TEMPLATES[key];
+                        if (config.timeHorizon) setTimeHorizon(config.timeHorizon);
+                        if (config.reasoningStyle) setReasoningStyle(config.reasoningStyle);
+                        if (config.riskTolerance) setRiskTolerance(config.riskTolerance);
+                        if (config.assetFocus) setAssetFocus(config.assetFocus);
+                        if (config.voiceStyle) setVoiceStyle(config.voiceStyle);
+                        if (config.modules) setModules([...config.modules]);
+                      }}
                       className={`rounded-xl border p-4 text-left transition-all ${
                         isSelected
                           ? "border-primary bg-primary/10 ring-1 ring-primary"
@@ -495,7 +537,7 @@ export function AdoptWizard({
                         m !== "gpt-4o-mini"
                     )
                     .map((model) => {
-                      const isAvailable = model === "gemini-pro";
+                      const isAvailable = model === "gemini-pro" || model === "deepseek";
                       const isSelected = llm === model;
                       return (
                         <button
@@ -544,9 +586,9 @@ export function AdoptWizard({
             </div>
           )}
 
-          {/* Step 3: Directives (optional) */}
+          {/* Step 3: 6-Axis Configuration */}
           {step === 3 && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Agent Preview Card */}
               {template && (
                 <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
@@ -577,84 +619,229 @@ export function AdoptWizard({
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground">
-                {t("laterNote")}
-              </p>
-
-              {/* Directives */}
+              {/* Time Horizon */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  {t("directives")}
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {tConfig("timeHorizon")}
                 </label>
-                <textarea
-                  value={directives}
-                  onChange={(e) => setDirectives(e.target.value)}
-                  placeholder={t("directivesPlaceholder")}
-                  maxLength={500}
-                  rows={3}
-                  className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("directivesHint")} ({directives.length}/500)
-                </p>
+                <p className="text-xs text-muted-foreground mb-2">{tConfig("timeHorizonDesc")}</p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {(["scalp", "intraday", "swing", "position", "long_term"] as const).map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setTimeHorizon(val)}
+                      className={`rounded-lg border px-2 py-2 text-center transition-all ${
+                        timeHorizon === val
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border text-muted-foreground hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <span className="text-xs font-medium block">{tConfig(val)}</span>
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">{tConfig(`${val}Desc`)}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Watchlist */}
+              {/* Reasoning Style */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  {t("watchlist")}
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {tConfig("reasoningStyle")}
                 </label>
-                {watchlistTags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {watchlistTags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary"
+                <p className="text-xs text-muted-foreground mb-2">{tConfig("reasoningStyleDesc")}</p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {(["momentum", "contrarian", "fundamental", "quantitative", "narrative"] as const).map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setReasoningStyle(val)}
+                      className={`rounded-lg border px-2 py-2 text-center transition-all ${
+                        reasoningStyle === val
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border text-muted-foreground hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <span className="text-xs font-medium block">{tConfig(val)}</span>
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">{tConfig(`${val}Desc`)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Risk Tolerance */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {tConfig("riskTolerance")}
+                </label>
+                <p className="text-xs text-muted-foreground mb-2">{tConfig("riskToleranceDesc")}</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(["conservative", "moderate", "aggressive", "degen"] as const).map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setRiskTolerance(val)}
+                      className={`rounded-lg border px-2 py-2 text-center transition-all ${
+                        riskTolerance === val
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border text-muted-foreground hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <span className="text-xs font-medium block">{tConfig(val)}</span>
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">{tConfig(`${val}Desc`)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Voice Style */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {tConfig("voiceStyle")}
+                </label>
+                <p className="text-xs text-muted-foreground mb-2">{tConfig("voiceStyleDesc")}</p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {(["concise", "analytical", "structural", "provocative", "educational"] as const).map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setVoiceStyle(val)}
+                      className={`rounded-lg border px-2 py-2 text-center transition-all ${
+                        voiceStyle === val
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border text-muted-foreground hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <span className="text-xs font-medium block">{tConfig(val)}</span>
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">{tConfig(`${val}Desc`)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Asset Focus */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {tConfig("assetFocus")}
+                </label>
+                <p className="text-xs text-muted-foreground mb-2">{tConfig("assetFocusDesc")}</p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {(["blue_chip", "defi_tokens", "meme", "infrastructure", "broad"] as const).map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setAssetFocus(val)}
+                      className={`rounded-lg border px-2 py-2 text-center transition-all ${
+                        assetFocus === val
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border text-muted-foreground hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <span className="text-xs font-medium block">{tConfig(val)}</span>
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">{tConfig(`${val}Desc`)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Analysis Modules - multi-select chips */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {tConfig("modules")}
+                </label>
+                <p className="text-xs text-muted-foreground mb-2">{tConfig("modulesDesc")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {(["technical", "onchain", "defi", "sentiment", "macro_regulatory", "risk", "news", "cross_chain"] as const).map((mod) => {
+                    const isSelected = modules.includes(mod);
+                    return (
+                      <button
+                        key={mod}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            if (modules.length > 1) setModules(modules.filter((m) => m !== mod));
+                          } else {
+                            if (modules.length < 3) setModules([...modules, mod]);
+                          }
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                          isSelected
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30"
+                        }`}
                       >
-                        {tag}
-                        <button
-                          type="button"
-                          aria-label={`Remove ${tag}`}
-                          onClick={() => handleRemoveTag(tag)}
-                          className="hover:text-destructive"
-                        >
-                          <X className="size-3" aria-hidden="true" />
-                        </button>
-                      </span>
-                    ))}
+                        {mod.replace("_", " ")}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Advanced Settings - collapsible */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronDown className={`size-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+                  {tConfig("advanced")}
+                </button>
+                {showAdvanced && (
+                  <div className="mt-3 space-y-4">
+                    {/* Watchlist */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {t("watchlist")}
+                      </label>
+                      {watchlistTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {watchlistTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary"
+                            >
+                              {tag}
+                              <button
+                                type="button"
+                                aria-label={`Remove ${tag}`}
+                                onClick={() => handleRemoveTag(tag)}
+                                className="hover:text-destructive"
+                              >
+                                <X className="size-3" aria-hidden="true" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        value={watchlistInput}
+                        onChange={(e) => setWatchlistInput(e.target.value)}
+                        onKeyDown={handleWatchlistKeyDown}
+                        onBlur={handleAddTag}
+                        placeholder={t("watchlistPlaceholder")}
+                        disabled={watchlistTags.length >= 10}
+                        className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">{t("watchlistHint")}</p>
+                    </div>
+
+                    {/* Directives */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">{t("directives")}</label>
+                      <textarea
+                        value={directives}
+                        onChange={(e) => setDirectives(e.target.value)}
+                        placeholder={t("directivesPlaceholder")}
+                        maxLength={500}
+                        rows={3}
+                        className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">{t("directivesHint")} ({directives.length}/500)</p>
+                    </div>
                   </div>
                 )}
-                <input
-                  type="text"
-                  value={watchlistInput}
-                  onChange={(e) => setWatchlistInput(e.target.value)}
-                  onKeyDown={handleWatchlistKeyDown}
-                  onBlur={handleAddTag}
-                  placeholder={t("watchlistPlaceholder")}
-                  disabled={watchlistTags.length >= 10}
-                  className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("watchlistHint")}
-                </p>
-              </div>
-
-              {/* Alpha */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  {t("alpha")}
-                </label>
-                <textarea
-                  value={alpha}
-                  onChange={(e) => setAlpha(e.target.value)}
-                  placeholder={t("alphaPlaceholder")}
-                  maxLength={500}
-                  rows={3}
-                  className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("alphaHint")} ({alpha.length}/500)
-                </p>
               </div>
             </div>
           )}
@@ -785,7 +972,7 @@ export function AdoptWizard({
                     {phaseLabel ?? t("deploying")}
                   </>
                 ) : (
-                  needsPayment ? t("payAndCreate") : t("deploy")
+                  needsPayment ? t("payAndCreate") : isFirstAgent ? t("startTrial") : t("deploy")
                 )}
               </Button>
             )}

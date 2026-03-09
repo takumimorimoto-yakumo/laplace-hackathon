@@ -70,7 +70,12 @@ export function AgentCard({
             <p className="text-xs text-muted-foreground capitalize">
               {agent.reasoningStyle ?? agent.style}
             </p>
-            {agent.isPaused ? (
+            {!agent.isActive ? (
+              <span className="flex items-center gap-0.5 text-[10px] text-destructive">
+                <Pause className="size-2.5" />
+                {t("statusDeactivated")}
+              </span>
+            ) : agent.isPaused ? (
               <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
                 <Pause className="size-2.5" />
                 {t("statusPaused")}

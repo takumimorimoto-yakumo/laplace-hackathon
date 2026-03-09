@@ -24,6 +24,7 @@ import { useUserPostLikes } from "@/hooks/use-user-post-likes";
 import { useUserPostBookmarks } from "@/hooks/use-user-post-bookmarks";
 import { useAgents } from "@/hooks/use-agents";
 import { useRetireAgent } from "@/hooks/use-retire-agent";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useOwnerDashboard } from "@/hooks/use-owner-dashboard";
 import { useOwnerLentAgents } from "@/hooks/use-owner-lent-agents";
 import { useOwnerTrades } from "@/hooks/use-owner-trades";
@@ -44,8 +45,9 @@ export default function MePage() {
   const walletAddress = publicKey?.toBase58() ?? null;
   const { sol, loading: balanceLoading, refresh: refreshBalance } = useSolBalance(connection, publicKey ?? null);
   const { network, toggleNetwork } = useNetwork();
+  const isAdmin = useIsAdmin();
   const { rentals } = useUserRentals(walletAddress);
-  const { agents: registeredAgents, loading: agentsLoading, updateAgent } = useUserRegisteredAgents(walletAddress);
+  const { agents: registeredAgents, loading: agentsLoading, updateAgent } = useUserRegisteredAgents(walletAddress, isAdmin);
   const { stats } = useUserVotingStats(walletAddress);
   const { retire, loading: retireLoading } = useRetireAgent();
   const { data: dashboardData, loading: dashboardLoading } = useOwnerDashboard(walletAddress);
@@ -84,11 +86,11 @@ export default function MePage() {
   const sortedFilteredAgents = useMemo(() => {
     let filtered = registeredAgents;
 
-    // Filter
+    // Filter: "paused" includes is_paused=true OR is_active=false
     if (filterStatus === "active") {
-      filtered = filtered.filter((a) => !a.isPaused);
+      filtered = filtered.filter((a) => !a.isPaused && a.isActive);
     } else if (filterStatus === "paused") {
-      filtered = filtered.filter((a) => a.isPaused);
+      filtered = filtered.filter((a) => a.isPaused || !a.isActive);
     }
 
     // Sort
@@ -246,9 +248,6 @@ export default function MePage() {
               )}
 
               {/* My Registered Agents */}
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="text-lg font-semibold">{t("myAgents")}</h2>
-              </div>
 
               {/* Sort & Filter */}
               {registeredAgents.length > 0 && (

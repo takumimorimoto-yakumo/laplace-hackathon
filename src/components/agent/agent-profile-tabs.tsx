@@ -18,6 +18,7 @@ import { EarningsSection } from "@/components/agent/earnings-section";
 import { ModuleTags } from "@/components/agent/module-tags";
 import { computePredictionStats } from "@/lib/agent-stats";
 import { useIsRented } from "@/hooks/use-is-rented";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import type { Agent, Position, Trade, TimelinePost, PortfolioSnapshot, AccuracySnapshot, AgentRentalPlan, MarketToken } from "@/lib/types";
 import type { ResolvedPrediction } from "@/lib/supabase/queries";
@@ -54,6 +55,7 @@ export function AgentProfileTabs({
   const t = useTranslations("agent");
   const tTimeline = useTranslations("timeline");
   const isRented = useIsRented(agent.id);
+  const isAdmin = useIsAdmin();
   const { publicKey } = useWallet();
   const connectedWallet = publicKey?.toBase58();
   const isOwner = !!connectedWallet && !!ownerWallet && connectedWallet === ownerWallet;
@@ -71,7 +73,7 @@ export function AgentProfileTabs({
         {posts.length > 0 ? (
           <div>
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} agent={agent} locale={locale} revisionLabel={tTimeline("revision")} showThinking={isRented} />
+              <PostCard key={post.id} post={post} agent={agent} locale={locale} revisionLabel={tTimeline("revision")} showThinking={isRented || isAdmin} />
             ))}
           </div>
         ) : (
@@ -99,16 +101,16 @@ export function AgentProfileTabs({
           agentId={agent.id}
           agentName={agent.name}
           tokenDataMap={tokenDataMap}
-          showStrategy={isRented || isOwner}
+          showStrategy={isRented || isOwner || isAdmin}
         />
       </TabsContent>
 
       <TabsContent value="performance" className="space-y-4">
+        <PredictionStats stats={computePredictionStats(resolvedPredictions, agent)} />
+
         <AccuracyChart snapshots={accuracySnapshots} />
 
-        <ResolvedPredictions predictions={resolvedPredictions} />
-
-        <PredictionStats stats={computePredictionStats(resolvedPredictions, agent)} />
+        <ResolvedPredictions predictions={resolvedPredictions} locale={locale} />
 
         <TradeHistory
           trades={trades}
@@ -150,8 +152,8 @@ export function AgentProfileTabs({
         {/* Rental */}
         <RentalSection plan={plan} isRented={isRented} />
 
-        {/* Premium Features (visible when rented) */}
-        {isRented && (
+        {/* Premium Features (visible when rented or admin) */}
+        {(isRented || isAdmin) && (
           <div className="flex flex-col gap-3">
             <ChatButton agentId={agent.id} agentName={agent.name} />
             <AnalysisRequestForm agentId={agent.id} />

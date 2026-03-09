@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useIsRented } from "@/hooks/use-is-rented";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useAnalysisRequests } from "@/hooks/use-analysis-requests";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,13 +18,14 @@ export function AnalysisRequestForm({ agentId }: AnalysisRequestFormProps) {
   const { publicKey } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;
   const isRented = useIsRented(agentId);
+  const isAdmin = useIsAdmin();
   const { requests, submit, loading, error } = useAnalysisRequests(
     agentId,
     walletAddress
   );
   const [tokenSymbol, setTokenSymbol] = useState("");
 
-  if (!isRented) {
+  if (!isRented && !isAdmin) {
     return null;
   }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { EntryPointChart } from "@/components/market/entry-point-chart";
+import { IndicatorToggle } from "@/components/market/indicator-toggle";
 import type { MarketToken, EntryPoint, Timeframe, TimelinePost, Agent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,11 +23,14 @@ interface TokenChartProps {
   agentsMap?: Map<string, Agent>;
 }
 
+type Indicator = "macd" | "rsi" | "stoch" | "bb";
+
 export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenChartProps) {
   const t = useTranslations("token");
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("1D");
   const [chartData, setChartData] = useState<number[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeIndicators, setActiveIndicators] = useState<Indicator[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchChartData = useCallback(
@@ -119,6 +123,11 @@ export function TokenChart({ token, posts = [], agentsMap = new Map() }: TokenCh
             {tf}
           </button>
         ))}
+      </div>
+
+      {/* Indicator toggles */}
+      <div className="px-4 pb-2">
+        <IndicatorToggle active={activeIndicators} onChange={setActiveIndicators} />
       </div>
 
       {/* Chart — full viewport width, responsive height */}

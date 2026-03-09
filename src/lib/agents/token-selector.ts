@@ -2,7 +2,7 @@
 // Token Selector — Agent-specific token selection
 // ============================================================
 
-import type { Agent, AnalysisModule, AgentStyle } from "@/lib/types";
+import type { Agent, AnalysisModule, AgentStyle, AgentTimeHorizon, ReasoningStyle, RiskTolerance, AssetFocus } from "@/lib/types";
 import type { RealMarketData } from "./prompt-builder";
 
 // ---------- Module-Based Scoring ----------
@@ -110,6 +110,63 @@ function computeStyleScore(
   return scorer(token);
 }
 
+// ---------- New 7-Axis Scoring ----------
+
+/** Time horizon scoring */
+const TIME_HORIZON_SCORERS: Record<AgentTimeHorizon, (token: RealMarketData) => number> = {
+  scalp: (t) => t.volatility24h * 100 + t.volume24h / 1e9,
+  intraday: (t) => t.volume24h / 1e9 + t.volatility24h * 50,
+  swing: () => 0,
+  position: (t) => (t.marketCap !== null ? t.marketCap / 1e10 : 0),
+  long_term: (t) => (t.marketCap !== null ? t.marketCap / 1e10 : 0),
+};
+
+/** Reasoning style scoring */
+const REASONING_SCORERS: Record<ReasoningStyle, (token: RealMarketData) => number> = {
+  momentum: (t) => t.volume24h / 1e9 + t.volatility24h * 50,
+  contrarian: (t) => Math.abs(t.change24h) / 10,
+  fundamental: (t) => (t.tvl !== null && t.tvl > 0 ? t.tvl / 1e9 : 0),
+  quantitative: (t) => t.volume24h / 1e9,
+  narrative: (t) => t.volatility24h * 100,
+};
+
+/** Risk tolerance scoring */
+const RISK_SCORERS: Record<RiskTolerance, (token: RealMarketData) => number> = {
+  conservative: (t) => (t.marketCap !== null ? t.marketCap / 1e10 : 0),
+  moderate: () => 0,
+  aggressive: (t) => t.volatility24h * 50,
+  degen: (t) => {
+    const volBoost = t.volatility24h * 100;
+    const mcapPenalty = t.marketCap !== null && t.marketCap > 10_000_000_000 ? -1 : 0;
+    return volBoost + mcapPenalty;
+  },
+};
+
+/** Asset focus scoring */
+const ASSET_FOCUS_SCORERS: Record<AssetFocus, (token: RealMarketData) => number> = {
+  blue_chip: (t) => (t.marketCap !== null && t.marketCap > 5_000_000_000 ? 2 : 0),
+  defi_tokens: (t) => (t.tvl !== null && t.tvl > 0 ? t.tvl / 1e9 + 1 : 0),
+  meme: (t) => {
+    const volBoost = t.volatility24h * 100;
+    const mcapPenalty = t.marketCap !== null && t.marketCap > 5_000_000_000 ? -2 : 0;
+    return volBoost + mcapPenalty;
+  },
+  infrastructure: (t) => (t.marketCap !== null ? t.marketCap / 1e10 : 0),
+  broad: () => 0,
+};
+
+/**
+ * Compute a combined score from the new 7-axis configuration.
+ */
+function computeAxisScores(token: RealMarketData, agent: Agent): number {
+  let score = 0;
+  if (agent.timeHorizon) score += TIME_HORIZON_SCORERS[agent.timeHorizon](token);
+  if (agent.reasoningStyle) score += REASONING_SCORERS[agent.reasoningStyle](token);
+  if (agent.riskTolerance) score += RISK_SCORERS[agent.riskTolerance](token);
+  if (agent.assetFocus) score += ASSET_FOCUS_SCORERS[agent.assetFocus](token);
+  return score;
+}
+
 // ---------- Fisher-Yates Shuffle ----------
 
 /**
@@ -180,7 +237,8 @@ export function selectTokensForAgent(
   const scored = allTokens.map((token) => {
     const moduleScore = computeModuleScore(token, agent.modules);
     const styleScore = computeStyleScore(token, agent.style);
-    const baseScore = moduleScore + styleScore;
+    const axisScore = computeAxisScores(token, agent);
+    const baseScore = moduleScore + styleScore + axisScore;
     return { token, baseScore };
   });
 

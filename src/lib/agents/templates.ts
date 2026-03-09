@@ -9,6 +9,10 @@ import type {
   LLMModel,
   VoiceStyle,
   InvestmentOutlook,
+  AgentTimeHorizon,
+  ReasoningStyle,
+  RiskTolerance,
+  AssetFocus,
 } from "@/lib/types";
 
 export interface TemplateConfig {
@@ -20,11 +24,52 @@ export interface TemplateConfig {
   bio: string;
   voiceStyle: VoiceStyle;
   defaultOutlook: InvestmentOutlook;
+  // New 7-axis fields
+  timeHorizon: AgentTimeHorizon;
+  reasoningStyle: ReasoningStyle;
+  riskTolerance: RiskTolerance;
+  assetFocus: AssetFocus;
 }
 
 export const FREE_LLMS: LLMModel[] = ["deepseek", "gemini-pro", "grok"];
 export const PRO_LLMS: LLMModel[] = ["claude-sonnet", "gpt-4o"];
 export const AVAILABLE_LLMS: LLMModel[] = [...FREE_LLMS, ...PRO_LLMS];
+
+// ---------- Derivation Functions ----------
+
+/** Derive LLM temperature from risk tolerance and reasoning style */
+export function deriveTemperature(risk: RiskTolerance, reasoning: ReasoningStyle): number {
+  const matrix: Record<RiskTolerance, Record<ReasoningStyle, number>> = {
+    conservative: { momentum: 0.3, contrarian: 0.4, fundamental: 0.3, quantitative: 0.2, narrative: 0.4 },
+    moderate:     { momentum: 0.5, contrarian: 0.5, fundamental: 0.4, quantitative: 0.3, narrative: 0.5 },
+    aggressive:   { momentum: 0.7, contrarian: 0.6, fundamental: 0.5, quantitative: 0.4, narrative: 0.7 },
+    degen:        { momentum: 0.8, contrarian: 0.7, fundamental: 0.6, quantitative: 0.5, narrative: 0.8 },
+  };
+  return matrix[risk][reasoning];
+}
+
+/** Derive cycle interval from time horizon */
+export function deriveCycleInterval(horizon: AgentTimeHorizon): number {
+  const map: Record<AgentTimeHorizon, number> = {
+    scalp: 15,
+    intraday: 30,
+    swing: 60,
+    position: 120,
+    long_term: 240,
+  };
+  return map[horizon];
+}
+
+/** Convert reasoning style + risk to legacy AgentStyle for backward compat */
+export function reasoningToLegacyStyle(reasoning: ReasoningStyle, risk: RiskTolerance): AgentStyle {
+  if (risk === "degen") return "degen";
+  if (reasoning === "contrarian") return "contrarian";
+  if (reasoning === "momentum") return "daytrader";
+  if (reasoning === "quantitative") return "quant";
+  if (reasoning === "fundamental") return "macro";
+  // narrative
+  return "swing";
+}
 
 export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
   day_trader: {
@@ -37,6 +82,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Intraday momentum hunter. Reads candles and volume like a book. Quick entries, quick exits.",
     voiceStyle: "concise",
     defaultOutlook: "bullish",
+    timeHorizon: "intraday",
+    reasoningStyle: "momentum",
+    riskTolerance: "aggressive",
+    assetFocus: "broad",
   },
   swing_trader: {
     style: "swing",
@@ -48,6 +97,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Swing trader blending technicals with DeFi insights. Patience is profit.",
     voiceStyle: "analytical",
     defaultOutlook: "bullish",
+    timeHorizon: "swing",
+    reasoningStyle: "fundamental",
+    riskTolerance: "moderate",
+    assetFocus: "broad",
   },
   mid_term_investor: {
     style: "macro",
@@ -59,6 +112,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Mid-term DeFi investor. TVL flows, protocol economics, and macro shifts guide my calls.",
     voiceStyle: "structural",
     defaultOutlook: "bullish",
+    timeHorizon: "position",
+    reasoningStyle: "fundamental",
+    riskTolerance: "moderate",
+    assetFocus: "defi_tokens",
   },
   macro_strategist: {
     style: "macro",
@@ -70,6 +127,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Macro strategist. Fed policy, regulatory shifts, and capital flows shape my thesis.",
     voiceStyle: "structural",
     defaultOutlook: "bearish",
+    timeHorizon: "long_term",
+    reasoningStyle: "fundamental",
+    riskTolerance: "conservative",
+    assetFocus: "broad",
   },
   meme_hunter: {
     style: "degen",
@@ -81,6 +142,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Degen meme hunter. If the vibes are right and whales are loading, I'm in.",
     voiceStyle: "provocative",
     defaultOutlook: "ultra_bullish",
+    timeHorizon: "scalp",
+    reasoningStyle: "narrative",
+    riskTolerance: "degen",
+    assetFocus: "meme",
   },
   risk_analyst: {
     style: "macro",
@@ -92,6 +157,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Risk-first analyst. I find the cracks before they break. Capital preservation above all.",
     voiceStyle: "analytical",
     defaultOutlook: "bearish",
+    timeHorizon: "long_term",
+    reasoningStyle: "fundamental",
+    riskTolerance: "conservative",
+    assetFocus: "broad",
   },
   defi_specialist: {
     style: "quant",
@@ -103,6 +172,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Quant DeFi specialist. TVL flows, yield curves, and protocol metrics are my edge.",
     voiceStyle: "analytical",
     defaultOutlook: "bullish",
+    timeHorizon: "swing",
+    reasoningStyle: "quantitative",
+    riskTolerance: "moderate",
+    assetFocus: "defi_tokens",
   },
   contrarian: {
     style: "contrarian",
@@ -114,6 +187,10 @@ export const AGENT_TEMPLATES: Record<AgentTemplate, TemplateConfig> = {
     bio: "Professional contrarian. When everyone agrees, I dig deeper. The crowd is usually wrong.",
     voiceStyle: "provocative",
     defaultOutlook: "bearish",
+    timeHorizon: "swing",
+    reasoningStyle: "contrarian",
+    riskTolerance: "moderate",
+    assetFocus: "broad",
   },
 };
 

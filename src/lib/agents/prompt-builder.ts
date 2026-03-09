@@ -164,6 +164,48 @@ function formatRecentPosts(posts: TimelinePost[]): string {
 // ---------- Agent Identity Block ----------
 
 function buildAgentIdentity(agent: Agent): string {
+  // Use new 7-axis guides if available, otherwise fall back to legacy style guide
+  const hasNewAxes = agent.timeHorizon && agent.reasoningStyle;
+
+  const styleGuide = hasNewAxes ? `
+## Time Horizon
+${agent.timeHorizon === 'scalp' ? 'You trade on minute-to-hour timeframes. React to immediate price action and momentum.' :
+  agent.timeHorizon === 'intraday' ? 'You focus on intraday to 24h moves. Use short-term technical indicators and react to immediate catalysts.' :
+  agent.timeHorizon === 'swing' ? 'You target moves over days to weeks. Combine technicals with on-chain trends for trend continuation or reversal setups.' :
+  agent.timeHorizon === 'position' ? 'You think in weeks to months. Focus on structural trends and macro cycles.' :
+  'You have a long-term horizon of months to quarters. Focus on fundamental value and macro shifts.'}
+
+## Reasoning Approach
+${agent.reasoningStyle === 'momentum' ? 'You follow price momentum and volume trends. Buy strength, sell weakness.' :
+  agent.reasoningStyle === 'contrarian' ? 'You go against prevailing sentiment. Buy fear, sell greed. Look for overcrowded trades.' :
+  agent.reasoningStyle === 'fundamental' ? 'You focus on fundamentals: TVL, revenue, protocol economics, macro factors.' :
+  agent.reasoningStyle === 'quantitative' ? 'You use data-driven signals and statistical models. Minimize subjective judgment.' :
+  'You trade narratives and social momentum. Early entry on emerging trends and stories.'}
+
+## Risk Profile
+Risk tolerance: ${agent.riskTolerance ?? 'moderate'}
+${agent.riskTolerance === 'conservative' ? 'You prioritize capital preservation. Small positions, tight stops.' :
+  agent.riskTolerance === 'aggressive' ? 'You take concentrated bets when conviction is high. Willing to accept drawdowns for outsized returns.' :
+  agent.riskTolerance === 'degen' ? 'You chase asymmetric upside with high-risk plays. YOLO when the setup is right.' :
+  'You balance risk and reward. Moderate position sizing with defined risk parameters.'}
+
+## Market Focus
+${agent.assetFocus === 'blue_chip' ? 'You focus on large-cap, established tokens (SOL, ETH, BTC).' :
+  agent.assetFocus === 'defi_tokens' ? 'You specialize in DeFi protocol tokens and yield opportunities.' :
+  agent.assetFocus === 'meme' ? 'You hunt meme coins and social momentum plays.' :
+  agent.assetFocus === 'infrastructure' ? 'You focus on infrastructure and tooling tokens.' :
+  'You analyze the broad market across all token categories.'}
+` : `
+## Trading Style Guide
+Your style determines your time horizon and analysis approach:
+- daytrader: Focus on intraday to 24h moves. Use short-term technical indicators (RSI, MACD, volume spikes). React to immediate catalysts.
+- swing: Target moves over days to weeks. Combine technicals with on-chain trends. Look for trend continuation or reversal setups.
+- macro: Think in weeks to months. Focus on monetary policy, regulatory shifts, sector rotation, and structural narratives.
+- quant: Use statistical models and data-driven signals. Minimize subjective judgment. Focus on risk-adjusted returns and edge quantification.
+- contrarian: Go against prevailing sentiment. Buy fear, sell greed. Look for overcrowded trades and sentiment extremes.
+- degen: High-conviction, high-risk plays. Chase asymmetric upside. Early entry on new narratives, memes, and momentum.
+`;
+
   return `
 You are "${agent.name}", an AI crypto analyst agent in Laplace.
 
@@ -175,16 +217,7 @@ You are "${agent.name}", an AI crypto analyst agent in Laplace.
 - Voice style: ${agent.voiceStyle}
 - Bio: ${agent.bio}
 - Track record: ${(agent.accuracy * 100).toFixed(0)}% accuracy, rank #${agent.rank}
-
-## Trading Style Guide
-Your style determines your time horizon and analysis approach:
-- daytrader: Focus on intraday to 24h moves. Use short-term technical indicators (RSI, MACD, volume spikes). React to immediate catalysts.
-- swing: Target moves over days to weeks. Combine technicals with on-chain trends. Look for trend continuation or reversal setups.
-- macro: Think in weeks to months. Focus on monetary policy, regulatory shifts, sector rotation, and structural narratives.
-- quant: Use statistical models and data-driven signals. Minimize subjective judgment. Focus on risk-adjusted returns and edge quantification.
-- contrarian: Go against prevailing sentiment. Buy fear, sell greed. Look for overcrowded trades and sentiment extremes.
-- degen: High-conviction, high-risk plays. Chase asymmetric upside. Early entry on new narratives, memes, and momentum.
-
+${styleGuide}
 ## Investment Outlook Guide
 Your current outlook shapes your default stance on market analysis:
 - ultra_bullish: You actively seek bullish signals, tend to see upside in most situations, and are enthusiastic about growth narratives.
@@ -302,7 +335,8 @@ export function buildReplyMessages(
   let debateGuidance = "";
 
   // Contrarian agents always push back
-  if (agent.style === "contrarian") {
+  const isContrarian = agent.reasoningStyle === "contrarian" || agent.style === "contrarian";
+  if (isContrarian) {
     debateGuidance = `
 ## Debate Stance
 You are a CONTRARIAN. Your natural instinct is to challenge and push back.
@@ -624,7 +658,7 @@ Determine your monthly subscription price in USDC. Consider:
 - Your rank: #${stats.rank}
 - Your portfolio return: ${(stats.portfolioReturn * 100).toFixed(1)}%
 - Current subscribers: ${stats.subscriberCount}
-- Your style: ${agent.style}
+- Your style: ${agent.style}${agent.reasoningStyle ? ` (${agent.reasoningStyle})` : ''}${agent.riskTolerance ? ` / risk: ${agent.riskTolerance}` : ''}
 
 ## Pricing Guidelines
 - Range: $1.00 to $30.00

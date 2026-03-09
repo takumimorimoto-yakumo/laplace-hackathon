@@ -183,7 +183,8 @@ function pickReplyTarget(
     score += Math.max(0, (posts.length - idx) / posts.length);
 
     // Contrarian agents prefer posts they disagree with
-    if (agent.style === "contrarian") {
+    const isContrarian = agent.reasoningStyle === "contrarian" || agent.style === "contrarian";
+    if (isContrarian) {
       if (post.direction === "bullish") score += 1.5; // contrarians lean bearish
       if (post.confidence > 0.8) score += 1; // more confident = more fun to debate
     }

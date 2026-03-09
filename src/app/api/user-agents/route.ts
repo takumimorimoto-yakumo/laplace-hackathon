@@ -4,6 +4,14 @@ import { badRequest, conflict, internalError } from "@/lib/api/errors";
 import { verifyWalletForCreation } from "@/lib/api/verify-ownership";
 import { getTemplateConfig, AVAILABLE_LLMS, deriveTemperature, deriveCycleInterval, reasoningToLegacyStyle } from "@/lib/agents/templates";
 import { generateAgentWallet } from "@/lib/solana/agent-wallet";
+import {
+  VALID_TIME_HORIZONS,
+  VALID_REASONING_STYLES,
+  VALID_RISK_TOLERANCES,
+  VALID_ASSET_FOCUSES,
+  VALID_VOICE_STYLES,
+  VALID_MODULES,
+} from "@/lib/agents/validation";
 import type {
   AgentTemplate,
   InvestmentOutlook,
@@ -35,13 +43,6 @@ const VALID_OUTLOOKS: InvestmentOutlook[] = [
   "bearish",
   "ultra_bearish",
 ];
-
-const VALID_TIME_HORIZONS: AgentTimeHorizon[] = ["scalp", "intraday", "swing", "position", "long_term"];
-const VALID_REASONING_STYLES: ReasoningStyle[] = ["momentum", "contrarian", "fundamental", "quantitative", "narrative"];
-const VALID_RISK_TOLERANCES: RiskTolerance[] = ["conservative", "moderate", "aggressive", "degen"];
-const VALID_ASSET_FOCUSES: AssetFocus[] = ["blue_chip", "defi_tokens", "meme", "infrastructure", "broad"];
-const VALID_VOICE_STYLES: VoiceStyle[] = ["concise", "analytical", "structural", "provocative", "educational"];
-const VALID_MODULES: AnalysisModule[] = ["onchain", "technical", "sentiment", "defi", "macro_regulatory", "risk", "news", "cross_chain"];
 
 const VALID_PAYMENT_TOKENS = ["USDC", "SKR", "SOL"] as const;
 

@@ -4,8 +4,13 @@ import { useState, useCallback, useEffect } from "react";
 import type {
   AgentTemplate,
   AgentSubscriptionInfo,
-  InvestmentOutlook,
+  AgentTimeHorizon,
+  ReasoningStyle,
+  RiskTolerance,
+  AssetFocus,
   LLMModel,
+  VoiceStyle,
+  AnalysisModule,
 } from "@/lib/types";
 import { signAction } from "@/lib/solana/sign-action";
 import { useMutation } from "@/hooks/use-mutation";
@@ -21,7 +26,13 @@ interface AdoptAgentData {
   name: string;
   template: AgentTemplate;
   llm: LLMModel;
-  outlook: InvestmentOutlook;
+  // New 6-axis fields (replace outlook)
+  timeHorizon: AgentTimeHorizon;
+  reasoningStyle: ReasoningStyle;
+  riskTolerance: RiskTolerance;
+  assetFocus: AssetFocus;
+  voiceStyle: VoiceStyle;
+  modules: AnalysisModule[];
   directives?: string;
   watchlist?: string[];
   alpha?: string;
@@ -55,7 +66,12 @@ export function useAdoptAgent(): MutationState<AdoptAgentData> {
         template: data.template,
         wallet_address: data.walletAddress,
         llm_model: data.llm,
-        outlook: data.outlook,
+        time_horizon: data.timeHorizon,
+        reasoning_style: data.reasoningStyle,
+        risk_tolerance: data.riskTolerance,
+        asset_focus: data.assetFocus,
+        voice_style: data.voiceStyle,
+        modules: data.modules,
         directives: data.directives,
         watchlist: data.watchlist,
         alpha: data.alpha,

@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { badRequest, conflict, internalError } from "@/lib/api/errors";
 import { verifyWalletForCreation } from "@/lib/api/verify-ownership";
-import { getTemplateConfig, AVAILABLE_LLMS } from "@/lib/agents/templates";
+import { getTemplateConfig, AVAILABLE_LLMS, deriveTemperature, deriveCycleInterval, reasoningToLegacyStyle } from "@/lib/agents/templates";
 import { generateAgentWallet } from "@/lib/solana/agent-wallet";
 import type {
   AgentTemplate,
   InvestmentOutlook,
   LLMModel,
+  AgentTimeHorizon,
+  ReasoningStyle,
+  RiskTolerance,
+  AssetFocus,
+  VoiceStyle,
+  AnalysisModule,
 } from "@/lib/types";
 
 // ---------- Validation Helpers ----------
@@ -30,6 +36,13 @@ const VALID_OUTLOOKS: InvestmentOutlook[] = [
   "ultra_bearish",
 ];
 
+const VALID_TIME_HORIZONS: AgentTimeHorizon[] = ["scalp", "intraday", "swing", "position", "long_term"];
+const VALID_REASONING_STYLES: ReasoningStyle[] = ["momentum", "contrarian", "fundamental", "quantitative", "narrative"];
+const VALID_RISK_TOLERANCES: RiskTolerance[] = ["conservative", "moderate", "aggressive", "degen"];
+const VALID_ASSET_FOCUSES: AssetFocus[] = ["blue_chip", "defi_tokens", "meme", "infrastructure", "broad"];
+const VALID_VOICE_STYLES: VoiceStyle[] = ["concise", "analytical", "structural", "provocative", "educational"];
+const VALID_MODULES: AnalysisModule[] = ["onchain", "technical", "sentiment", "defi", "macro_regulatory", "risk", "news", "cross_chain"];
+
 const VALID_PAYMENT_TOKENS = ["USDC", "SKR", "SOL"] as const;
 
 interface CreateUserAgentBody {
@@ -45,6 +58,12 @@ interface CreateUserAgentBody {
   payment_token?: "USDC" | "SKR" | "SOL";
   message?: string;
   signature?: string;
+  time_horizon?: AgentTimeHorizon;
+  reasoning_style?: ReasoningStyle;
+  risk_tolerance?: RiskTolerance;
+  asset_focus?: AssetFocus;
+  voice_style?: VoiceStyle;
+  modules?: AnalysisModule[];
 }
 
 function validateBody(
@@ -149,6 +168,43 @@ function validateBody(
     errors.push("signature must be a string");
   }
 
+  // time_horizon: optional AgentTimeHorizon
+  if (b.time_horizon !== undefined && (typeof b.time_horizon !== "string" || !VALID_TIME_HORIZONS.includes(b.time_horizon as AgentTimeHorizon))) {
+    errors.push(`time_horizon must be one of: ${VALID_TIME_HORIZONS.join(", ")}`);
+  }
+
+  // reasoning_style: optional ReasoningStyle
+  if (b.reasoning_style !== undefined && (typeof b.reasoning_style !== "string" || !VALID_REASONING_STYLES.includes(b.reasoning_style as ReasoningStyle))) {
+    errors.push(`reasoning_style must be one of: ${VALID_REASONING_STYLES.join(", ")}`);
+  }
+
+  // risk_tolerance: optional RiskTolerance
+  if (b.risk_tolerance !== undefined && (typeof b.risk_tolerance !== "string" || !VALID_RISK_TOLERANCES.includes(b.risk_tolerance as RiskTolerance))) {
+    errors.push(`risk_tolerance must be one of: ${VALID_RISK_TOLERANCES.join(", ")}`);
+  }
+
+  // asset_focus: optional AssetFocus
+  if (b.asset_focus !== undefined && (typeof b.asset_focus !== "string" || !VALID_ASSET_FOCUSES.includes(b.asset_focus as AssetFocus))) {
+    errors.push(`asset_focus must be one of: ${VALID_ASSET_FOCUSES.join(", ")}`);
+  }
+
+  // voice_style: optional VoiceStyle
+  if (b.voice_style !== undefined && (typeof b.voice_style !== "string" || !VALID_VOICE_STYLES.includes(b.voice_style as VoiceStyle))) {
+    errors.push(`voice_style must be one of: ${VALID_VOICE_STYLES.join(", ")}`);
+  }
+
+  // modules: optional AnalysisModule[], 1-3 items
+  if (b.modules !== undefined) {
+    if (
+      !Array.isArray(b.modules) ||
+      b.modules.length < 1 ||
+      b.modules.length > 3 ||
+      !b.modules.every((m: unknown) => typeof m === "string" && VALID_MODULES.includes(m as AnalysisModule))
+    ) {
+      errors.push(`modules must be an array of 1-3 items from: ${VALID_MODULES.join(", ")}`);
+    }
+  }
+
   if (errors.length > 0) {
     return { data: null, errors };
   }
@@ -167,6 +223,12 @@ function validateBody(
       payment_token: b.payment_token as "USDC" | "SKR" | "SOL" | undefined,
       message: b.message as string | undefined,
       signature: b.signature as string | undefined,
+      time_horizon: b.time_horizon as AgentTimeHorizon | undefined,
+      reasoning_style: b.reasoning_style as ReasoningStyle | undefined,
+      risk_tolerance: b.risk_tolerance as RiskTolerance | undefined,
+      asset_focus: b.asset_focus as AssetFocus | undefined,
+      voice_style: b.voice_style as VoiceStyle | undefined,
+      modules: b.modules as AnalysisModule[] | undefined,
     },
     errors: null,
   };
@@ -206,6 +268,12 @@ export async function POST(request: NextRequest) {
     directives,
     watchlist,
     alpha,
+    time_horizon,
+    reasoning_style,
+    risk_tolerance,
+    asset_focus,
+    voice_style,
+    modules,
   } = validation.data;
 
   // Look up template config
@@ -240,9 +308,9 @@ export async function POST(request: NextRequest) {
   }
 
   const isLocal = process.env.NODE_ENV === "development";
-  const isFree = !isLocal && (activeAgentCount ?? 0) === 0;
+  const isFirstAgent = !isLocal && (activeAgentCount ?? 0) === 0;
 
-  if (!isFree) {
+  if (!isFirstAgent) {
     if (!validation.data.payment_token || !validation.data.tx_signature) {
       return badRequest(
         "payment_token and tx_signature are required for additional agents"
@@ -251,7 +319,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Verify tx_signature is not reused (for paid agents)
-  if (!isFree && validation.data.tx_signature) {
+  if (!isFirstAgent && validation.data.tx_signature) {
     const { data: existingTx } = await supabase
       .from("agent_subscriptions")
       .select("id")
@@ -266,12 +334,10 @@ export async function POST(request: NextRequest) {
   // Build insert row
   const insertRow: Record<string, unknown> = {
     name,
-    style: templateConfig.style,
-    modules: templateConfig.modules,
+    modules: modules ?? templateConfig.modules,
     personality: templateConfig.personality,
     bio: templateConfig.bio,
-    voice_style: templateConfig.voiceStyle,
-    temperature: templateConfig.temperature,
+    voice_style: voice_style ?? templateConfig.voiceStyle,
     llm_model: llm_model ?? templateConfig.defaultLlm,
     outlook: outlook ?? templateConfig.defaultOutlook,
     tier: "user",
@@ -279,6 +345,24 @@ export async function POST(request: NextRequest) {
     owner_wallet: wallet_address,
     template,
   };
+
+  // 7-axis config: use overrides or template defaults
+  const timeHorizon = time_horizon ?? templateConfig.timeHorizon;
+  const reasoningStyle = reasoning_style ?? templateConfig.reasoningStyle;
+  const riskTolerance = risk_tolerance ?? templateConfig.riskTolerance;
+  const assetFocus = asset_focus ?? templateConfig.assetFocus;
+
+  insertRow.time_horizon = timeHorizon;
+  insertRow.reasoning_style = reasoningStyle;
+  insertRow.risk_tolerance = riskTolerance;
+  insertRow.asset_focus = assetFocus;
+
+  // Auto-derive temperature and cycle_interval from axes
+  insertRow.temperature = deriveTemperature(riskTolerance, reasoningStyle);
+  insertRow.cycle_interval_minutes = deriveCycleInterval(timeHorizon);
+
+  // Auto-derive legacy style from new axes
+  insertRow.style = reasoningToLegacyStyle(reasoningStyle, riskTolerance);
 
   if (directives !== undefined) {
     insertRow.user_directives = directives;
@@ -330,13 +414,31 @@ export async function POST(request: NextRequest) {
     return internalError("Failed to create virtual portfolio");
   }
 
-  // Create subscription record for non-free agents
-  if (!isFree && validation.data.payment_token && validation.data.tx_signature) {
-    const paymentAmount = validation.data.payment_token === "SKR" ? 9.0 : 10.0;
-    const expiresAt = new Date(
-      Date.now() + 30 * 24 * 60 * 60 * 1000
-    ).toISOString();
+  // Create subscription record
+  const expiresAt = new Date(
+    Date.now() + 30 * 24 * 60 * 60 * 1000
+  ).toISOString();
 
+  if (isFirstAgent) {
+    // First agent: create trial subscription (free, 30 days)
+    const { error: subError } = await supabase
+      .from("agent_subscriptions")
+      .insert({
+        agent_id: agent.id,
+        owner_wallet: wallet_address,
+        payment_token: "USDC",
+        payment_amount: 0,
+        expires_at: expiresAt,
+        is_trial: true,
+        tx_signature: null,
+      });
+
+    if (subError) {
+      console.error("Trial subscription creation error:", subError);
+    }
+  } else if (validation.data.payment_token && validation.data.tx_signature) {
+    // Paid agents
+    const paymentAmount = validation.data.payment_token === "SKR" ? 9.0 : 10.0;
     const { error: subError } = await supabase
       .from("agent_subscriptions")
       .insert({
@@ -354,7 +456,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(
-    { id: agent.id, name: agent.name, isFree },
+    { id: agent.id, name: agent.name, isFree: isFirstAgent },
     { status: 201 }
   );
 }

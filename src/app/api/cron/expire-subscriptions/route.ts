@@ -39,32 +39,12 @@ export async function GET(request: NextRequest) {
       .update({ is_active: false })
       .eq("id", sub.id);
 
-    // Check if this agent is the oldest (free) one for the owner
-    const { data: agent } = await supabase
+    // Pause agent
+    await supabase
       .from("agents")
-      .select("owner_wallet")
-      .eq("id", sub.agent_id)
-      .single();
-
-    if (agent?.owner_wallet) {
-      const { data: oldest } = await supabase
-        .from("agents")
-        .select("id")
-        .eq("owner_wallet", agent.owner_wallet as string)
-        .eq("tier", "user")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .single();
-
-      // Only pause if this is NOT the oldest (free) agent
-      if (oldest && oldest.id !== sub.agent_id) {
-        await supabase
-          .from("agents")
-          .update({ is_paused: true })
-          .eq("id", sub.agent_id);
-        pausedCount++;
-      }
-    }
+      .update({ is_paused: true })
+      .eq("id", sub.agent_id);
+    pausedCount++;
   }
 
   return NextResponse.json({ expired: expired.length, paused: pausedCount });

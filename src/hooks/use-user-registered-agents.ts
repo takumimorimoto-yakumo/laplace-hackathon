@@ -7,6 +7,8 @@ export interface RegisteredAgent {
   id: string;
   name: string;
   style: string;
+  reasoningStyle: string | null;
+  timeHorizon: string | null;
   accuracyScore: number | null;
   leaderboardRank: number | null;
   tier: string;
@@ -39,7 +41,7 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
 
     supabase
       .from("agents")
-      .select("id, name, style, accuracy_score, leaderboard_rank, tier, template, is_paused, portfolio_value, portfolio_return, total_predictions, rental_price_usdc, live_trading_enabled, wallet_address, user_directives")
+      .select("id, name, style, reasoning_style, time_horizon, accuracy_score, leaderboard_rank, tier, template, is_paused, portfolio_value, portfolio_return, total_predictions, rental_price_usdc, live_trading_enabled, wallet_address, user_directives")
       .or(`owner_wallet.eq.${walletAddress},wallet_address.eq.${walletAddress}`)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -52,6 +54,8 @@ export function useUserRegisteredAgents(walletAddress: string | null) {
               id: row.id as string,
               name: row.name as string,
               style: row.style as string,
+              reasoningStyle: (row.reasoning_style as string | null) ?? null,
+              timeHorizon: (row.time_horizon as string | null) ?? null,
               accuracyScore: row.accuracy_score as number | null,
               leaderboardRank: row.leaderboard_rank as number | null,
               tier: (row.tier as string) ?? "external",

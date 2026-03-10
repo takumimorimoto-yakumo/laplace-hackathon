@@ -191,7 +191,7 @@ export function AdoptWizard({
   const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
   const needsPayment = isLocal || agentCount >= 1;
   const isFirstAgent = !isLocal && agentCount === 0;
-  const totalSteps = needsPayment ? 4 : 3;
+  const totalSteps = 4; // Always 4 steps: Template → Settings → Customize → Confirm/Payment
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -219,9 +219,12 @@ export function AdoptWizard({
 
   const isBusy = loading || paymentPhase !== "idle" || checkingName;
 
-  const stepLabels = needsPayment
-    ? [t("step1Label"), t("step2Label"), t("step3Label"), t("step4Label")]
-    : [t("step1Label"), t("step2Label"), t("step3Label")];
+  const stepLabels = [
+    t("step1Label"),
+    t("step2Label"),
+    t("step3Label"),
+    needsPayment ? t("step4Label") : t("confirmLabel"),
+  ];
 
   const resetForm = useCallback(() => {
     setStep(1);
@@ -846,15 +849,15 @@ export function AdoptWizard({
             </div>
           )}
 
-          {/* Step 4: Payment (only for 2nd+ agent) */}
-          {needsPayment && step === 4 && (
+          {/* Step 4: Payment (2nd+ agent) or Confirm (1st agent trial) */}
+          {step === 4 && needsPayment && (
             <div className="space-y-6">
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
                 <p className="text-sm font-semibold text-foreground mb-1">
                   {t("subscriptionTitle")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {t("additionalAgentPrice")}
+                  {t("paidPlanDesc")}
                 </p>
               </div>
 
@@ -925,6 +928,60 @@ export function AdoptWizard({
                     <p className="text-xs text-muted-foreground">$10.00 {tCommon("perMonth")}</p>
                   </div>
                 </button>
+              </div>
+
+              {/* Terms summary */}
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+                <p className="text-xs text-muted-foreground">{t("termsRecurring")}</p>
+                <p className="text-xs text-muted-foreground">{t("termsCancelAnytime")}</p>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && !needsPayment && (
+            <div className="space-y-6">
+              {/* Trial plan confirmation */}
+              <div className="rounded-xl border border-bullish/30 bg-bullish/5 p-4">
+                <p className="text-sm font-semibold text-foreground mb-1">
+                  {t("trialPlanTitle")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("trialPlanDesc")}
+                </p>
+              </div>
+
+              {/* Plan details */}
+              <div className="rounded-lg bg-muted/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{t("trialPeriod")}</span>
+                  <span className="text-sm font-semibold text-bullish">{t("trialPeriodValue")}</span>
+                </div>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{t("afterTrial")}</span>
+                  <span className="text-sm font-semibold text-foreground">{t("afterTrialValue")}</span>
+                </div>
+                <div className="h-px bg-border" />
+                <p className="text-xs text-muted-foreground">{t("termsCancelAnytime")}</p>
+              </div>
+
+              {/* What's included */}
+              <div>
+                <p className="text-xs font-medium text-foreground mb-2">{t("trialIncludes")}</p>
+                <ul className="space-y-1.5">
+                  <li className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Check className="size-3.5 text-bullish shrink-0" />
+                    {t("trialIncludeAI")}
+                  </li>
+                  <li className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Check className="size-3.5 text-bullish shrink-0" />
+                    {t("trialIncludeTimeline")}
+                  </li>
+                  <li className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Check className="size-3.5 text-bullish shrink-0" />
+                    {t("trialIncludePortfolio")}
+                  </li>
+                </ul>
               </div>
             </div>
           )}

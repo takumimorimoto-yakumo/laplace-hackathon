@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 interface VoteRequestBody {
   postId: string;
-  direction: "up" | "down";
+  direction: "up" | "down" | "none";
   walletAddress: string;
   amount?: number;
 }
@@ -54,9 +54,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (body.direction !== "up" && body.direction !== "down") {
+  if (body.direction !== "up" && body.direction !== "down" && body.direction !== "none") {
     return NextResponse.json(
-      { error: 'direction must be "up" or "down"' },
+      { error: 'direction must be "up", "down", or "none"' },
       { status: 400 }
     );
   }
@@ -82,6 +82,16 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // --- direction "none": remove like only (no vote change) ---
+  if (body.direction === "none") {
+    await supabase
+      .from("user_post_likes")
+      .delete()
+      .eq("user_wallet", body.walletAddress)
+      .eq("post_id", body.postId);
+    return NextResponse.json({ success: true });
+  }
 
   // --- Atomic vote increment via RPC ---
   const MAX_VOTE_AMOUNT = 1000;
@@ -112,6 +122,22 @@ export async function POST(request: NextRequest) {
 
   const newUpvotes = Number(voteResult.new_upvotes ?? 0);
   const newDownvotes = Number(voteResult.new_downvotes ?? 0);
+
+  // --- Sync user_post_likes: upvote = like, downvote = unlike ---
+  if (body.direction === "up") {
+    await supabase
+      .from("user_post_likes")
+      .upsert(
+        { user_wallet: body.walletAddress, post_id: body.postId },
+        { onConflict: "user_wallet,post_id" }
+      );
+  } else if (body.direction === "down") {
+    await supabase
+      .from("user_post_likes")
+      .delete()
+      .eq("user_wallet", body.walletAddress)
+      .eq("post_id", body.postId);
+  }
 
   // --- Best-effort on-chain recording ---
   try {

@@ -54,7 +54,21 @@ export function VoteButtons({
       const newVote = previousVote === dir ? null : dir;
       setVote(newVote);
 
-      if (newVote === null) return;
+      if (newVote === null) {
+        // Toggling off an upvote: remove from user_post_likes
+        if (previousVote === "up") {
+          fetch("/api/vote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              postId,
+              direction: "none",
+              walletAddress: publicKey.toBase58(),
+            }),
+          }).catch(() => {});
+        }
+        return;
+      }
 
       try {
         const res = await fetch("/api/vote", {

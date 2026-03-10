@@ -300,6 +300,8 @@ export default function MePage() {
                       onRetireConfirm={() => handleRetire(agent.id)}
                       onRetireCancel={() => setRetiringId(null)}
                       onLiveTradingToggle={(id, enabled) => updateAgent(id, { liveTradingEnabled: enabled })}
+                      onPauseToggle={(id, paused) => updateAgent(id, { isPaused: paused })}
+                      onConfigUpdated={() => window.location.reload()}
                     />
                   ))}
                   {hasMore && (

@@ -2,12 +2,24 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Bot, Pause, TrendingUp, TrendingDown, Trash2, Zap } from "lucide-react";
+import { Bot, Pause, Play, Pencil, TrendingUp, TrendingDown, Trash2, Zap, Loader2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { getAgentAvatarUrl } from "@/lib/avatar";
 import { Link } from "@/i18n/navigation";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { useUpdateUserAgent, usePauseUserAgent } from "@/hooks/use-user-agents";
+import { AgentConfigSheet } from "@/components/agent/agent-config-sheet";
+import type { AgentConfigValues } from "@/components/agent/agent-config-sheet";
 import type { RegisteredAgent } from "@/hooks/use-user-registered-agents";
+import type {
+  AgentTimeHorizon,
+  ReasoningStyle,
+  RiskTolerance,
+  AssetFocus,
+  VoiceStyle,
+  AnalysisModule,
+} from "@/lib/types";
 
 interface AgentCardProps {
   agent: RegisteredAgent;
@@ -18,6 +30,8 @@ interface AgentCardProps {
   onRetireConfirm: () => void;
   onRetireCancel: () => void;
   onLiveTradingToggle?: (agentId: string, enabled: boolean) => void;
+  onPauseToggle?: (agentId: string, isPaused: boolean) => void;
+  onConfigUpdated?: (agentId: string) => void;
 }
 
 export function AgentCard({
@@ -29,15 +43,72 @@ export function AgentCard({
   onRetireConfirm,
   onRetireCancel,
   onLiveTradingToggle,
+  onPauseToggle,
+  onConfigUpdated,
 }: AgentCardProps) {
   const t = useTranslations("me");
   const tAgent = useTranslations("agent");
   const tLive = useTranslations("liveTrading");
+  const { signMessage: walletSignMessage } = useWallet();
+
+  const { mutate: updateAgent, loading: updating } = useUpdateUserAgent(agent.id);
+  const { mutate: pauseAgent, loading: pausing } = usePauseUserAgent(agent.id);
+
   const [liveToggleLoading, setLiveToggleLoading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [isPaused, setIsPaused] = useState(agent.isPaused);
 
   const returnSign = agent.portfolioReturn >= 0 ? "+" : "";
   const returnPct = (agent.portfolioReturn * 100).toFixed(1);
   const isNegative = agent.portfolioReturn < 0;
+
+  const handleTogglePause = async () => {
+    if (!walletSignMessage || !walletAddress) return;
+    const result = await pauseAgent({
+      isPaused: !isPaused,
+      walletAddress,
+      signMessage: walletSignMessage,
+    });
+    if (result) {
+      const newPaused = !isPaused;
+      setIsPaused(newPaused);
+      onPauseToggle?.(agent.id, newPaused);
+    }
+  };
+
+  const handleSaveConfig = async (values: AgentConfigValues): Promise<boolean> => {
+    if (!walletSignMessage || !walletAddress) return false;
+    const result = await updateAgent({
+      timeHorizon: values.timeHorizon,
+      reasoningStyle: values.reasoningStyle,
+      riskTolerance: values.riskTolerance,
+      assetFocus: values.assetFocus,
+      voiceStyle: values.voiceStyle,
+      modules: values.modules,
+      directives: values.directives || undefined,
+      watchlist: values.watchlist.length > 0 ? values.watchlist : undefined,
+      alpha: values.alpha || undefined,
+      walletAddress,
+      signMessage: walletSignMessage,
+    });
+    if (result) {
+      onConfigUpdated?.(agent.id);
+      return true;
+    }
+    return false;
+  };
+
+  const configValues: AgentConfigValues = {
+    timeHorizon: (agent.timeHorizon as AgentTimeHorizon) ?? "swing",
+    reasoningStyle: (agent.reasoningStyle as ReasoningStyle) ?? "fundamental",
+    riskTolerance: (agent.riskTolerance as RiskTolerance) ?? "moderate",
+    assetFocus: (agent.assetFocus as AssetFocus) ?? "broad",
+    voiceStyle: (agent.voiceStyle as VoiceStyle) ?? "analytical",
+    modules: (agent.modules as AnalysisModule[]) ?? ["technical", "onchain"],
+    directives: agent.userDirectives ?? "",
+    watchlist: agent.customWatchlist ?? [],
+    alpha: agent.userAlpha ?? "",
+  };
 
   return (
     <div className="rounded-lg border border-border p-3 mb-3">
@@ -75,7 +146,7 @@ export function AgentCard({
                 <Pause className="size-2.5" />
                 {t("statusDeactivated")}
               </span>
-            ) : agent.isPaused ? (
+            ) : isPaused ? (
               <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
                 <Pause className="size-2.5" />
                 {t("statusPaused")}
@@ -171,48 +242,84 @@ export function AgentCard({
         </div>
       )}
 
-      {/* Footer row */}
+      {/* Action row: Edit + Pause + Retire */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={(e) => { e.preventDefault(); setEditOpen(true); }}
+          >
+            <Pencil className="size-3" />
+            {tAgent("editConfig")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={(e) => { e.preventDefault(); handleTogglePause(); }}
+            disabled={pausing}
+          >
+            {pausing ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : isPaused ? (
+              <Play className="size-3" />
+            ) : (
+              <Pause className="size-3" />
+            )}
+            {isPaused ? tAgent("resume") : tAgent("pause")}
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
           {agent.rentalPriceUsdc > 0 && (
-            <span>${agent.rentalPriceUsdc.toFixed(2)}/mo</span>
+            <span className="text-xs text-muted-foreground">${agent.rentalPriceUsdc.toFixed(2)}/mo</span>
+          )}
+          {/* Retire button — only for user-tier agents */}
+          {agent.tier === "user" && (
+            <div className="shrink-0">
+              {isConfirmingRetire ? (
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-7 text-xs px-2"
+                    disabled={retireLoading}
+                    onClick={(e) => { e.preventDefault(); onRetireConfirm(); }}
+                  >
+                    {retireLoading ? t("retiring") : t("retireAgent")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs px-2"
+                    onClick={(e) => { e.preventDefault(); onRetireCancel(); }}
+                  >
+                    {t("retireCancel")}
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => { e.preventDefault(); onRetireClick(); }}
+                  className="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label={t("retireAgent")}
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              )}
+            </div>
           )}
         </div>
-        {/* Retire button — only for user-tier agents */}
-        {agent.tier === "user" && (
-          <div className="shrink-0">
-            {isConfirmingRetire ? (
-              <div className="flex items-center gap-1">
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="h-7 text-xs px-2"
-                  disabled={retireLoading}
-                  onClick={(e) => { e.preventDefault(); onRetireConfirm(); }}
-                >
-                  {retireLoading ? t("retiring") : t("retireAgent")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs px-2"
-                  onClick={(e) => { e.preventDefault(); onRetireCancel(); }}
-                >
-                  {t("retireCancel")}
-                </Button>
-              </div>
-            ) : (
-              <button
-                onClick={(e) => { e.preventDefault(); onRetireClick(); }}
-                className="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                aria-label={t("retireAgent")}
-              >
-                <Trash2 className="size-4" />
-              </button>
-            )}
-          </div>
-        )}
       </div>
+
+      {/* Edit Config Sheet */}
+      <AgentConfigSheet
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        initialValues={configValues}
+        onSave={handleSaveConfig}
+        saving={updating}
+      />
     </div>
   );
 }

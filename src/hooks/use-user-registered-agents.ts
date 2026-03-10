@@ -9,6 +9,10 @@ export interface RegisteredAgent {
   style: string;
   reasoningStyle: string | null;
   timeHorizon: string | null;
+  riskTolerance: string | null;
+  assetFocus: string | null;
+  voiceStyle: string | null;
+  modules: string[] | null;
   accuracyScore: number | null;
   leaderboardRank: number | null;
   tier: string;
@@ -23,6 +27,8 @@ export interface RegisteredAgent {
   liveTradingEnabled: boolean;
   walletEncryptedKey: boolean;
   userDirectives: string | null;
+  customWatchlist: string[] | null;
+  userAlpha: string | null;
 }
 
 const EMPTY: RegisteredAgent[] = [];
@@ -41,7 +47,7 @@ export function useUserRegisteredAgents(walletAddress: string | null, isAdmin = 
 
     let cancelled = false;
 
-    const selectCols = "id, name, style, reasoning_style, time_horizon, accuracy_score, leaderboard_rank, tier, template, is_paused, is_active, is_system, portfolio_value, portfolio_return, total_predictions, rental_price_usdc, live_trading_enabled, wallet_address, user_directives";
+    const selectCols = "id, name, style, reasoning_style, time_horizon, risk_tolerance, asset_focus, voice_style, modules, accuracy_score, leaderboard_rank, tier, template, is_paused, is_active, is_system, portfolio_value, portfolio_return, total_predictions, rental_price_usdc, live_trading_enabled, wallet_address, user_directives, custom_watchlist, user_alpha";
 
     const mapRow = (row: Record<string, unknown>): RegisteredAgent => ({
       id: row.id as string,
@@ -49,6 +55,10 @@ export function useUserRegisteredAgents(walletAddress: string | null, isAdmin = 
       style: row.style as string,
       reasoningStyle: (row.reasoning_style as string | null) ?? null,
       timeHorizon: (row.time_horizon as string | null) ?? null,
+      riskTolerance: (row.risk_tolerance as string | null) ?? null,
+      assetFocus: (row.asset_focus as string | null) ?? null,
+      voiceStyle: (row.voice_style as string | null) ?? null,
+      modules: (row.modules as string[] | null) ?? null,
       accuracyScore: row.accuracy_score as number | null,
       leaderboardRank: row.leaderboard_rank as number | null,
       tier: (row.tier as string) ?? "external",
@@ -63,6 +73,8 @@ export function useUserRegisteredAgents(walletAddress: string | null, isAdmin = 
       liveTradingEnabled: (row.live_trading_enabled as boolean) ?? false,
       walletEncryptedKey: !!(row.wallet_address),
       userDirectives: (row.user_directives as string | null) ?? null,
+      customWatchlist: (row.custom_watchlist as string[] | null) ?? null,
+      userAlpha: (row.user_alpha as string | null) ?? null,
     });
 
     // Fetch user's own agents

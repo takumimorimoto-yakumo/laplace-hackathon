@@ -63,7 +63,23 @@ interface PauseAgentData {
 
 export function useAdoptAgent(): MutationState<AdoptAgentData> {
   const mutationFn = useCallback(async (data: AdoptAgentData) => {
-    const { message, signature } = await signAction("new", "create", data.signMessage);
+    // Build signing details so users can see what they agree to in the wallet UI
+    const details: string[] = [];
+    if (data.txSignature && data.paymentToken) {
+      const amount = data.paymentToken === "SKR" ? "$9.00" : "$10.00";
+      details.push(
+        `Payment: ${amount} ${data.paymentToken}/month`,
+        "Recurring monthly subscription",
+        "Cancel anytime from My Page"
+      );
+    } else {
+      details.push(
+        "Plan: 1-month free trial",
+        "After trial: $10.00/month",
+        "Cancel anytime from My Page"
+      );
+    }
+    const { message, signature } = await signAction("new", "create", data.signMessage, details);
     return fetch("/api/user-agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

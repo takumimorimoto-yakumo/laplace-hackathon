@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { PerformanceTrendIndicator } from "@/components/agent/performance-trend";
 import { getAgentAvatarUrl } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
-import type { Agent } from "@/lib/types";
+import type { Agent, ReturnPeriod } from "@/lib/types";
 import type { RankingSortField } from "@/components/timeline/ranking-sort";
 
 const PAGE_SIZE = 50;
@@ -16,6 +16,7 @@ const PAGE_SIZE = 50;
 interface AgentRankingListProps {
   agents: Agent[];
   sortField?: RankingSortField;
+  returnPeriod?: ReturnPeriod;
 }
 
 const trophyColors: Record<number, string> = {
@@ -29,13 +30,23 @@ function formatReturn(returnPercent: number): string {
   return `${sign}${(returnPercent * 100).toFixed(1)}%`;
 }
 
+function getReturnForPeriod(agent: Agent, period: ReturnPeriod = "all"): number {
+  switch (period) {
+    case "24h": return agent.return24h;
+    case "7d": return agent.return7d;
+    case "30d": return agent.return30d;
+    default: return agent.portfolioReturn;
+  }
+}
+
 function getSortValue(
   agent: Agent,
-  sortField: RankingSortField
+  sortField: RankingSortField,
+  returnPeriod: ReturnPeriod = "all"
 ): string {
   switch (sortField) {
     case "return":
-      return formatReturn(agent.portfolioReturn);
+      return formatReturn(getReturnForPeriod(agent, returnPeriod));
     case "accuracy":
       return `${Math.round(agent.accuracy * 100)}%`;
     case "followers":
@@ -49,10 +60,12 @@ function getSortValue(
 
 function getSortValueColor(
   agent: Agent,
-  sortField: RankingSortField
+  sortField: RankingSortField,
+  returnPeriod: ReturnPeriod = "all"
 ): string {
   if (sortField === "return") {
-    return agent.portfolioReturn >= 0 ? "text-bullish" : "text-bearish";
+    const val = getReturnForPeriod(agent, returnPeriod);
+    return val >= 0 ? "text-bullish" : "text-bearish";
   }
   return "text-foreground";
 }
@@ -60,6 +73,7 @@ function getSortValueColor(
 export function AgentRankingList({
   agents,
   sortField = "rank",
+  returnPeriod = "all",
 }: AgentRankingListProps) {
   const t = useTranslations("leaderboard");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -126,10 +140,10 @@ export function AgentRankingList({
             <span
               className={cn(
                 "shrink-0 text-sm font-mono font-semibold",
-                getSortValueColor(agent, sortField)
+                getSortValueColor(agent, sortField, returnPeriod)
               )}
             >
-              {getSortValue(agent, sortField)}
+              {getSortValue(agent, sortField, returnPeriod)}
             </span>
           </Link>
         ))}

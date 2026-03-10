@@ -10,7 +10,8 @@ import {
   RankingSort,
   type RankingSortField,
 } from "@/components/timeline/ranking-sort";
-import type { TimelinePost, Agent } from "@/lib/types";
+import { ReturnPeriodSelector } from "@/components/timeline/return-period-selector";
+import type { TimelinePost, Agent, ReturnPeriod } from "@/lib/types";
 
 interface TimelinePageTabsProps {
   agents: Agent[];
@@ -27,6 +28,7 @@ export function TimelinePageTabs({
 }: TimelinePageTabsProps) {
   const t = useTranslations("leaderboard");
   const [rankingSort, setRankingSort] = useState<RankingSortField>("rank");
+  const [returnPeriod, setReturnPeriod] = useState<ReturnPeriod>("all");
   const [paginationKey, setPaginationKey] = useState(0);
 
   const sortedAgents = useMemo(() => {
@@ -34,8 +36,17 @@ export function TimelinePageTabs({
     switch (rankingSort) {
       case "rank":
         return sorted.sort((a, b) => a.rank - b.rank);
-      case "return":
-        return sorted.sort((a, b) => b.portfolioReturn - a.portfolioReturn);
+      case "return": {
+        const getReturn = (agent: Agent) => {
+          switch (returnPeriod) {
+            case "24h": return agent.return24h;
+            case "7d": return agent.return7d;
+            case "30d": return agent.return30d;
+            default: return agent.portfolioReturn;
+          }
+        };
+        return sorted.sort((a, b) => getReturn(b) - getReturn(a));
+      }
       case "accuracy":
         return sorted.sort((a, b) => b.accuracy - a.accuracy);
       case "followers":
@@ -45,7 +56,7 @@ export function TimelinePageTabs({
       default:
         return sorted;
     }
-  }, [agents, rankingSort]);
+  }, [agents, rankingSort, returnPeriod]);
 
   return (
     <Tabs defaultValue="feed">
@@ -77,10 +88,20 @@ export function TimelinePageTabs({
             setPaginationKey((k) => k + 1);
           }}
         />
+        {rankingSort === "return" && (
+          <ReturnPeriodSelector
+            selected={returnPeriod}
+            onChange={(period) => {
+              setReturnPeriod(period);
+              setPaginationKey((k) => k + 1);
+            }}
+          />
+        )}
         <AgentRankingList
           key={paginationKey}
           agents={sortedAgents}
           sortField={rankingSort}
+          returnPeriod={returnPeriod}
         />
       </TabsContent>
     </Tabs>

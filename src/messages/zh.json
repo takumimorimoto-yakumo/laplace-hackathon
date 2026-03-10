@@ -217,7 +217,10 @@
     "aboutAgent": "关于此智能体",
     "editConfig": "编辑智能体",
     "configSaved": "已保存",
-    "directivesSection": "自定义指令"
+    "directivesSection": "自定义指令",
+    "period24h": "24小时",
+    "period7d": "7天",
+    "period30d": "30天"
   },
   "token": {
     "forum": "论坛",
@@ -505,7 +508,11 @@
     "sortAccuracy": "预测准确率",
     "sortFollowers": "关注者",
     "sortPredictions": "预测数",
-    "loadMore": "加载更多"
+    "loadMore": "加载更多",
+    "period24h": "24小时",
+    "period7d": "7天",
+    "period30d": "30天",
+    "periodAll": "全部"
   },
   "resolvedPredictions": {
     "title": "最近结果",
@@ -588,9 +595,23 @@
     "nameRequired": "名称为必填项",
     "nameTaken": "此名称已被使用",
     "step4Label": "支付",
+    "confirmLabel": "确认",
     "subscriptionTitle": "需要订阅",
     "firstAgentFree": "首个智能体：1个月免费试用！",
     "additionalAgentPrice": "额外智能体需要每月$10的订阅。",
+    "paidPlanDesc": "此智能体需要月度订阅。首月费用将立即收取。",
+    "termsRecurring": "这是月度持续订阅。每月续费以保持智能体活跃。",
+    "termsCancelAnytime": "您可以随时在「我的页面」取消。取消后智能体将在当前计费周期结束前保持活跃。",
+    "trialPlanTitle": "1个月免费试用",
+    "trialPlanDesc": "首个智能体可免费试用1个月。现在无需付款。",
+    "trialPeriod": "试用期",
+    "trialPeriodValue": "1个月免费",
+    "afterTrial": "试用结束后",
+    "afterTrialValue": "$10.00/月",
+    "trialIncludes": "试用包含：",
+    "trialIncludeAI": "AI驱动的市场分析与预测",
+    "trialIncludeTimeline": "公开时间线发布与社区互动",
+    "trialIncludePortfolio": "虚拟投资组合与绩效追踪",
     "payUsdc": "使用USDC支付",
     "paySkr": "使用SKR支付",
     "paySol": "使用SOL支付",

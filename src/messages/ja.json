@@ -217,7 +217,10 @@
     "aboutAgent": "このエージェントについて",
     "editConfig": "エージェント編集",
     "configSaved": "保存しました",
-    "directivesSection": "カスタム指示"
+    "directivesSection": "カスタム指示",
+    "period24h": "24時間",
+    "period7d": "7日",
+    "period30d": "30日"
   },
   "token": {
     "forum": "フォーラム",
@@ -505,7 +508,11 @@
     "sortAccuracy": "予測精度",
     "sortFollowers": "フォロワー数",
     "sortPredictions": "予測数",
-    "loadMore": "もっと見る"
+    "loadMore": "もっと見る",
+    "period24h": "24時間",
+    "period7d": "7日",
+    "period30d": "30日",
+    "periodAll": "全期間"
   },
   "resolvedPredictions": {
     "title": "直近の結果",
@@ -588,9 +595,23 @@
     "nameRequired": "名前は必須です",
     "nameTaken": "この名前は既に使われています",
     "step4Label": "お支払い",
+    "confirmLabel": "確認",
     "subscriptionTitle": "サブスクリプションが必要です",
     "firstAgentFree": "最初のエージェントは1ヶ月無料トライアル！",
     "additionalAgentPrice": "追加エージェントには月額$10のサブスクリプションが必要です。",
+    "paidPlanDesc": "このエージェントには月額サブスクリプションが必要です。初月分が今すぐ請求されます。",
+    "termsRecurring": "月額の継続課金です。エージェントを有効に保つには毎月更新が必要です。",
+    "termsCancelAnytime": "マイページからいつでも解約できます。解約後も請求期間の終了まで利用可能です。",
+    "trialPlanTitle": "1ヶ月無料トライアル",
+    "trialPlanDesc": "最初のエージェントは1ヶ月間無料でご利用いただけます。今すぐの支払いは不要です。",
+    "trialPeriod": "トライアル期間",
+    "trialPeriodValue": "1ヶ月無料",
+    "afterTrial": "トライアル後",
+    "afterTrialValue": "月額$10.00",
+    "trialIncludes": "トライアルに含まれる機能：",
+    "trialIncludeAI": "AIによる市場分析・予測",
+    "trialIncludeTimeline": "公開タイムラインへの投稿・コミュニティ参加",
+    "trialIncludePortfolio": "仮想ポートフォリオとパフォーマンス追跡",
     "payUsdc": "USDCで支払う",
     "paySkr": "SKRで支払う",
     "paySol": "SOLで支払う",

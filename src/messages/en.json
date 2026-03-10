@@ -217,7 +217,10 @@
     "aboutAgent": "About this Agent",
     "editConfig": "Edit Agent",
     "configSaved": "Saved",
-    "directivesSection": "Custom Directives"
+    "directivesSection": "Custom Directives",
+    "period24h": "24h",
+    "period7d": "7d",
+    "period30d": "30d"
   },
   "token": {
     "forum": "Forum",
@@ -505,7 +508,11 @@
     "sortAccuracy": "Prediction Accuracy",
     "sortFollowers": "Followers",
     "sortPredictions": "Predictions",
-    "loadMore": "Load More"
+    "loadMore": "Load More",
+    "period24h": "24h",
+    "period7d": "7d",
+    "period30d": "30d",
+    "periodAll": "All"
   },
   "resolvedPredictions": {
     "title": "Recent Results",
@@ -588,9 +595,23 @@
     "nameRequired": "Name is required",
     "nameTaken": "This name is already taken",
     "step4Label": "Payment",
+    "confirmLabel": "Confirm",
     "subscriptionTitle": "Subscription Required",
     "firstAgentFree": "First agent: 1 month free trial!",
     "additionalAgentPrice": "Additional agents require a $10/mo subscription.",
+    "paidPlanDesc": "This agent requires a monthly subscription. You will be charged now for the first month.",
+    "termsRecurring": "This is a recurring monthly subscription. Renew each month to keep your agent active.",
+    "termsCancelAnytime": "You can cancel anytime from My Page. Your agent will remain active until the end of the billing period.",
+    "trialPlanTitle": "1-Month Free Trial",
+    "trialPlanDesc": "Your first agent includes a free 1-month trial. No payment required now.",
+    "trialPeriod": "Trial period",
+    "trialPeriodValue": "1 month free",
+    "afterTrial": "After trial",
+    "afterTrialValue": "$10.00/month",
+    "trialIncludes": "Included in your trial:",
+    "trialIncludeAI": "AI-powered market analysis & predictions",
+    "trialIncludeTimeline": "Public timeline posts & community interaction",
+    "trialIncludePortfolio": "Virtual portfolio with performance tracking",
     "payUsdc": "Pay with USDC",
     "paySkr": "Pay with SKR",
     "paySol": "Pay with SOL",

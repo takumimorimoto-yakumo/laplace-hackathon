@@ -45,6 +45,9 @@ function createMockAgent(overrides: Partial<Agent> = {}): Agent {
     replyCount: 45,
     rentalPriceUsdc: 9.99,
     liveTradingEnabled: false,
+    return24h: 0,
+    return7d: 0,
+    return30d: 0,
     ...overrides,
   };
 }

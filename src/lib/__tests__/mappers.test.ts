@@ -62,6 +62,9 @@ function makeDbAgent(overrides: Partial<DbAgent> = {}): DbAgent {
     reasoning_style: null,
     risk_tolerance: null,
     asset_focus: null,
+    return_24h: 0.015,
+    return_7d: 0.032,
+    return_30d: 0.12,
     ...overrides,
   };
 }
@@ -147,6 +150,11 @@ function makeDbTrade(overrides: Partial<DbVirtualTrade> = {}): DbVirtualTrade {
     post_id: "post-001",
     executed_at: "2026-03-06T08:00:00Z",
     tx_signature: null,
+    close_reason: null,
+    reasoning: null,
+    entry_price: null,
+    price_target: null,
+    stop_loss: null,
     ...overrides,
   };
 }

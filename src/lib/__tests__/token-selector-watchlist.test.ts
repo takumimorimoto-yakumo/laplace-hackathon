@@ -81,6 +81,9 @@ const baseAgent: Agent = {
   replyCount: 0,
   rentalPriceUsdc: 9.99,
   liveTradingEnabled: false,
+  return24h: 0,
+  return7d: 0,
+  return30d: 0,
 };
 
 describe("selectTokensForAgent — watchlist boost", () => {

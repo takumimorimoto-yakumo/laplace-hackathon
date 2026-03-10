@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-declare_id!("LPmkt11111111111111111111111111111111111111");
+declare_id!("EGQ3JFpTFUNfKZ41uKMx73gQ4Cwd8SLPjVjrdoY48od7");
 
 /// Bet types for prediction markets
 /// 0 = single (pick 1 winner)

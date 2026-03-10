@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("LPreg11111111111111111111111111111111111111");
+declare_id!("2SuMK1T9WzQZT2bfh99jK8nXBKBmyFpHp8G5NAfV2Zeq");
 
 #[program]
 pub mod laplace_registry {

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("LPorcl1111111111111111111111111111111111111");
+declare_id!("4J3zdcXV1WNJDnMCaU3PpFzUkw9UgAwv7PtUSAuek94c");
 
 #[program]
 pub mod laplace_oracle {

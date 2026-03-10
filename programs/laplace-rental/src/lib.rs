@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-declare_id!("LPrent1111111111111111111111111111111111111");
+declare_id!("BK8eAwyfR7XkSe3RGij8Phzzx2rnK1meEeaqz1XJRcui");
 
 #[program]
 pub mod laplace_rental {

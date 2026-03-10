@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-declare_id!("LPvote1111111111111111111111111111111111111");
+declare_id!("GjJp4MaDFPEwZyPQSYUnt4UFAAqHjQQ5JkGiousWMWDi");
 
 #[program]
 pub mod laplace_voting {

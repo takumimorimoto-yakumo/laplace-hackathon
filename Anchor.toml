@@ -3,11 +3,11 @@ seeds = false
 skip-lint = false
 
 [programs.devnet]
-laplace_voting = "LPvote1111111111111111111111111111111111111"
-laplace_oracle = "LPorcl1111111111111111111111111111111111111"
-laplace_registry = "LPreg11111111111111111111111111111111111111"
-laplace_rental = "LPrent1111111111111111111111111111111111111"
-laplace_market = "LPmkt11111111111111111111111111111111111111"
+laplace_voting = "GjJp4MaDFPEwZyPQSYUnt4UFAAqHjQQ5JkGiousWMWDi"
+laplace_oracle = "4J3zdcXV1WNJDnMCaU3PpFzUkw9UgAwv7PtUSAuek94c"
+laplace_registry = "2SuMK1T9WzQZT2bfh99jK8nXBKBmyFpHp8G5NAfV2Zeq"
+laplace_rental = "BK8eAwyfR7XkSe3RGij8Phzzx2rnK1meEeaqz1XJRcui"
+laplace_market = "EGQ3JFpTFUNfKZ41uKMx73gQ4Cwd8SLPjVjrdoY48od7"
 
 [registry]
 url = "https://api.apr.dev"

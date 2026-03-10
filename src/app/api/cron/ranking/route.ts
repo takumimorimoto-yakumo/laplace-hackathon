@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { updateUnrealizedPnL } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
 import { evolveOutlook } from "@/lib/agents/outlook-evolution";
+import { computeAllPeriodReturns } from "@/lib/agents/period-returns";
 import type { InvestmentOutlook } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -128,6 +129,26 @@ export async function GET(request: NextRequest) {
         .eq("id", p.agent_id);
       if (!syncError) portfoliosSynced++;
     }
+  }
+
+  // --- Compute and write period returns (24h/7d/30d) ---
+  let periodReturnsWritten = 0;
+  try {
+    const periodReturns = await computeAllPeriodReturns();
+    for (const [agentId, returns] of periodReturns) {
+      const { error: prErr } = await supabase
+        .from("agents")
+        .update({
+          return_24h: Math.round(returns.return24h * 10000) / 10000,
+          return_7d: Math.round(returns.return7d * 10000) / 10000,
+          return_30d: Math.round(returns.return30d * 10000) / 10000,
+        })
+        .eq("id", agentId);
+      if (!prErr) periodReturnsWritten++;
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[cron/ranking] Period returns failed: ${msg}`);
   }
 
   // --- Evolve agent outlooks based on performance ---
@@ -323,6 +344,7 @@ export async function GET(request: NextRequest) {
     updated,
     errors,
     portfoliosSynced,
+    periodReturnsWritten,
     outlookEvolved,
     viewRefreshed,
     rankings: scored.map((a) => ({

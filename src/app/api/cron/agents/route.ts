@@ -13,6 +13,7 @@ import {
   runPricing,
   runCustomAnalysis,
 } from "@/lib/agents/runner";
+import { maybeGenerateTradeReview } from "@/lib/agents/trade-review";
 import type { RunResult, BrowseResult } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
 import type { RealMarketData } from "@/lib/agents/prompt-builder";
@@ -176,6 +177,14 @@ async function processAgent(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[cron] closeExpiredPositions failed for ${agent.name}: ${msg}`);
+  }
+
+  // 8c. Maybe generate trade review (1 LLM call, rate-limited)
+  try {
+    await maybeGenerateTradeReview(agent.id);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] maybeGenerateTradeReview failed for ${agent.name}: ${msg}`);
   }
 
   // 9. Record portfolio snapshot (no LLM)

@@ -73,13 +73,19 @@ export function buildActionMessage(params: {
   agentId: string;
   action: string;
   nonce: string;
+  /** Optional detail lines appended to the message (shown in wallet signing UI) */
+  details?: string[];
 }): string {
-  return [
+  const lines = [
     "Laplace Action Authorization",
     `Agent: ${params.agentId}`,
     `Action: ${params.action}`,
     `Nonce: ${params.nonce}`,
-  ].join("\n");
+  ];
+  if (params.details?.length) {
+    lines.push("", ...params.details);
+  }
+  return lines.join("\n");
 }
 
 /** Parse fields from an action authorization message. Returns null if invalid. */

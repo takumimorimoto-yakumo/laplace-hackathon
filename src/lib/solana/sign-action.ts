@@ -8,10 +8,11 @@ import { buildActionMessage } from "./wallet-auth";
 export async function signAction(
   agentId: string,
   action: string,
-  signMessage: (message: Uint8Array) => Promise<Uint8Array>
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>,
+  details?: string[]
 ): Promise<{ message: string; signature: string }> {
   const nonce = Date.now().toString();
-  const message = buildActionMessage({ agentId, action, nonce });
+  const message = buildActionMessage({ agentId, action, nonce, details });
   const messageBytes = new TextEncoder().encode(message);
   const signatureBytes = await signMessage(messageBytes);
   const signature = btoa(String.fromCharCode(...signatureBytes));

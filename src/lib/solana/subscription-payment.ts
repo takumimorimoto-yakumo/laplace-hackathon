@@ -25,7 +25,14 @@ const USDC_MINTS: Record<string, string> = {
   devnet: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
 };
 
-const USDC_DECIMALS = 6;
+/** SKR mint addresses by network */
+const SKR_MINTS: Record<string, string> = {
+  "mainnet-beta": "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3",
+  devnet: "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3", // same as mainnet (no devnet SKR)
+};
+
+/** Both USDC and SKR use 6 decimals */
+const SPL_DECIMALS = 6;
 
 /** SOL amount per $1 on devnet (symbolic, for testing) */
 const DEVNET_SOL_PER_USD = 0.001;
@@ -41,6 +48,11 @@ function getNetwork(): "devnet" | "mainnet-beta" {
 
 function getUsdcMint(): PublicKey {
   const mint = USDC_MINTS[getNetwork()] ?? USDC_MINTS["devnet"];
+  return new PublicKey(mint);
+}
+
+function getSkrMint(): PublicKey {
+  const mint = SKR_MINTS[getNetwork()] ?? SKR_MINTS["mainnet-beta"];
   return new PublicKey(mint);
 }
 
@@ -81,7 +93,7 @@ export async function buildSubscriptionPaymentTx({
   if (paymentToken === "SOL") {
     return buildSolPayment({ connection, payer, treasury, amountUsd });
   }
-  return buildSplPayment({ connection, payer, treasury, amountUsd });
+  return buildSplPayment({ connection, payer, treasury, amountUsd, paymentToken });
 }
 
 // ---- SOL Transfer ----
@@ -137,37 +149,40 @@ async function buildSplPayment({
   payer,
   treasury,
   amountUsd,
+  paymentToken,
 }: {
   connection: Connection;
   payer: PublicKey;
   treasury: PublicKey;
   amountUsd: number;
+  paymentToken: "USDC" | "SKR";
 }): Promise<BuildPaymentTxResult> {
-  const usdcMint = getUsdcMint();
-  const amountBaseUnits = BigInt(Math.round(amountUsd * 10 ** USDC_DECIMALS));
+  const tokenMint = paymentToken === "SKR" ? getSkrMint() : getUsdcMint();
+  const tokenName = paymentToken;
+  const amountBaseUnits = BigInt(Math.round(amountUsd * 10 ** SPL_DECIMALS));
 
-  // Get payer's USDC ATA
-  const payerAta = await getAssociatedTokenAddress(usdcMint, payer);
+  // Get payer's token ATA
+  const payerAta = await getAssociatedTokenAddress(tokenMint, payer);
 
   // Verify payer has sufficient balance
   try {
     const payerAccount = await getAccount(connection, payerAta);
     if (payerAccount.amount < amountBaseUnits) {
       throw new Error(
-        `Insufficient USDC balance. Need ${amountUsd} USDC, have ${Number(payerAccount.amount) / 10 ** USDC_DECIMALS} USDC`
+        `Insufficient ${tokenName} balance. Need ${amountUsd} ${tokenName}, have ${Number(payerAccount.amount) / 10 ** SPL_DECIMALS} ${tokenName}`
       );
     }
   } catch (err) {
     if (err instanceof TokenAccountNotFoundError) {
       throw new Error(
-        `No USDC token account found. Please add USDC to your wallet first.`
+        `No ${tokenName} token account found. Please add ${tokenName} to your wallet first.`
       );
     }
     throw err;
   }
 
-  // Get treasury's USDC ATA
-  const treasuryAta = await getAssociatedTokenAddress(usdcMint, treasury);
+  // Get treasury's token ATA
+  const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury);
 
   const tx = new Transaction();
 
@@ -181,7 +196,7 @@ async function buildSplPayment({
           payer,
           treasuryAta,
           treasury,
-          usdcMint
+          tokenMint
         )
       );
     } else {
@@ -189,7 +204,7 @@ async function buildSplPayment({
     }
   }
 
-  // Add USDC transfer instruction
+  // Add token transfer instruction
   tx.add(
     createTransferInstruction(payerAta, treasuryAta, payer, amountBaseUnits)
   );
@@ -203,6 +218,6 @@ async function buildSplPayment({
   return {
     transaction: tx,
     treasury,
-    amountLabel: `${amountUsd} USDC`,
+    amountLabel: `${amountUsd} ${tokenName}`,
   };
 }

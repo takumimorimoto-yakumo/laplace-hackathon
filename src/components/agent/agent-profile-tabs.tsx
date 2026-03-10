@@ -86,10 +86,18 @@ export function AgentProfileTabs({
           initialValue={initialValue}
           currentValue={agent.portfolioValue}
           returnPercent={agent.portfolioReturn}
+          return24h={agent.return24h}
+          return7d={agent.return7d}
+          return30d={agent.return30d}
           labels={{
             title: t("virtualPortfolio"),
             initial: t("initial"),
             current: t("current"),
+            periodReturns: {
+              period24h: t("period24h"),
+              period7d: t("period7d"),
+              period30d: t("period30d"),
+            },
           }}
         />
 

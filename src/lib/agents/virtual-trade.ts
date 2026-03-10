@@ -293,6 +293,11 @@ export async function closePositionsByTpSl(
           realized_pnl_pct: realizedPnlPct,
           post_id: pos.post_id,
           executed_at: now,
+          close_reason: trigger,
+          reasoning: pos.reasoning ?? null,
+          entry_price: entryPrice,
+          price_target: priceTarget,
+          stop_loss: stopLoss,
         })
         .select("id")
         .single();
@@ -450,6 +455,11 @@ export async function closeExpiredPositions(
           realized_pnl_pct: realizedPnlPct,
           post_id: pos.post_id,
           executed_at: now,
+          close_reason: "expired",
+          reasoning: pos.reasoning ?? null,
+          entry_price: entryPrice,
+          price_target: pos.price_target != null ? Number(pos.price_target) : null,
+          stop_loss: pos.stop_loss != null ? Number(pos.stop_loss) : null,
         })
         .select("id")
         .single();

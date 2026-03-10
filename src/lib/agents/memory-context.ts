@@ -8,8 +8,9 @@ import {
   fetchTrades,
   fetchAgentBookmarks,
   fetchAgentFollowing,
+  fetchRecentLessons,
 } from "@/lib/supabase/queries";
-import type { ResolvedPrediction, AgentBookmark, AgentFollowInfo } from "@/lib/supabase/queries";
+import type { ResolvedPrediction, AgentBookmark, AgentFollowInfo, TradeLesson } from "@/lib/supabase/queries";
 import type { Position, Trade } from "@/lib/types";
 import { getOrCreatePortfolio } from "./trade-helpers";
 import type { VirtualPortfolio } from "./trade-helpers";
@@ -24,6 +25,7 @@ export interface AgentMemory {
   bookmarks: AgentBookmark[];
   following: AgentFollowInfo[];
   portfolio: VirtualPortfolio | null;
+  tradeLessons: TradeLesson[];
 }
 
 // ---------- Fetch All Memory ----------
@@ -38,16 +40,17 @@ export async function fetchAgentMemory(
 ): Promise<AgentMemory> {
   const limits = memoryLimits(timeHorizon);
 
-  const [predictions, positions, trades, bookmarks, following, portfolio] = await Promise.all([
+  const [predictions, positions, trades, bookmarks, following, portfolio, tradeLessons] = await Promise.all([
     fetchResolvedPredictions(agentId, limits.predictions),
     fetchPositions(agentId),
     fetchTrades(agentId).then((t) => t.slice(0, limits.trades)),
     fetchAgentBookmarks(agentId, limits.bookmarks),
     fetchAgentFollowing(agentId, 10),
     getOrCreatePortfolio(agentId).catch(() => null),
+    fetchRecentLessons(agentId),
   ]);
 
-  return { predictions, positions, trades, bookmarks, following, portfolio };
+  return { predictions, positions, trades, bookmarks, following, portfolio, tradeLessons };
 }
 
 // ---------- Format Memory Block ----------
@@ -101,11 +104,15 @@ export function formatMemoryBlock(memory: AgentMemory): string | null {
     sections.push(`## Your Active Positions\n${lines.join("\n")}`);
   }
 
-  // Recent trades
+  // Recent trades (with close context)
   if (memory.trades.length > 0) {
     const lines = memory.trades.map((t) => {
       const pnlStr = t.pnl !== null ? ` P&L: $${t.pnl.toFixed(2)}` : "";
-      return `- ${t.action.toUpperCase()} ${t.tokenSymbol} $${t.size.toFixed(0)} @$${t.price.toFixed(4)}${pnlStr}`;
+      const reasonStr = t.closeReason ? ` (${t.closeReason.toUpperCase()})` : "";
+      const entryStr = t.entryPrice ? ` [entry $${t.entryPrice.toFixed(2)}` : "";
+      const targetStr = t.entryPrice && t.priceTarget ? `, target $${t.priceTarget.toFixed(2)}` : "";
+      const closeEntry = entryStr ? `${entryStr}${targetStr}]` : "";
+      return `- ${t.action.toUpperCase()} ${t.tokenSymbol} $${t.size.toFixed(0)} @$${t.price.toFixed(4)}${pnlStr}${reasonStr}${closeEntry}`;
     });
     sections.push(`## Recent Trades\n${lines.join("\n")}`);
   }
@@ -119,6 +126,19 @@ export function formatMemoryBlock(memory: AgentMemory): string | null {
       return `- ${token} ${snippet}${note}`;
     });
     sections.push(`## Bookmarked References\n${lines.join("\n")}`);
+  }
+
+  // Trade lessons from reviews
+  if (memory.tradeLessons.length > 0) {
+    const lines = memory.tradeLessons.map((l) => {
+      const age = Math.round(
+        (Date.now() - new Date(l.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const ageStr = age < 1 ? "today" : `${age}d ago`;
+      const pattern = l.patternIdentified ? ` (Pattern: ${l.patternIdentified})` : "";
+      return `- ${l.lessonLearned}${pattern} [${ageStr}]`;
+    });
+    sections.push(`## Lessons from Recent Trades\n${lines.join("\n")}`);
   }
 
   // Agents you follow

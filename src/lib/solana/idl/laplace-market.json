@@ -1,0 +1,375 @@
+{
+  "version": "0.1.0",
+  "name": "laplace_market",
+  "instructions": [
+    {
+      "name": "createContest",
+      "accounts": [
+        {
+          "name": "contest",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "paymentMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "contestId",
+          "type": "string"
+        },
+        {
+          "name": "periodType",
+          "type": "u8"
+        },
+        {
+          "name": "startsAt",
+          "type": "i64"
+        },
+        {
+          "name": "endsAt",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "placePosition",
+      "accounts": [
+        {
+          "name": "contest",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "predictorTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "vault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "predictor",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "contestId",
+          "type": "string"
+        },
+        {
+          "name": "positionType",
+          "type": "u8"
+        },
+        {
+          "name": "agentSelections",
+          "type": {
+            "array": ["publicKey", 3]
+          }
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolveContest",
+      "accounts": [
+        {
+          "name": "contest",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "winners",
+          "type": {
+            "array": ["publicKey", 3]
+          }
+        }
+      ]
+    },
+    {
+      "name": "claimWinnings",
+      "accounts": [
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "contest",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "predictor",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Contest",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "contestId",
+            "type": "string"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "periodType",
+            "type": "u8"
+          },
+          {
+            "name": "startsAt",
+            "type": "i64"
+          },
+          {
+            "name": "endsAt",
+            "type": "i64"
+          },
+          {
+            "name": "totalPool",
+            "type": "u64"
+          },
+          {
+            "name": "totalPositions",
+            "type": "u32"
+          },
+          {
+            "name": "resolved",
+            "type": "bool"
+          },
+          {
+            "name": "winners",
+            "type": {
+              "array": ["publicKey", 3]
+            }
+          },
+          {
+            "name": "paymentMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "predictor",
+            "type": "publicKey"
+          },
+          {
+            "name": "contestId",
+            "type": "string"
+          },
+          {
+            "name": "positionType",
+            "type": "u8"
+          },
+          {
+            "name": "agentSelections",
+            "type": {
+              "array": ["publicKey", 3]
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "placedAt",
+            "type": "i64"
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "ContestCreated",
+      "fields": [
+        {
+          "name": "contestId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "periodType",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "startsAt",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "endsAt",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "PositionPlaced",
+      "fields": [
+        {
+          "name": "predictor",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "contestId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "positionType",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "ContestResolved",
+      "fields": [
+        {
+          "name": "contestId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "winners",
+          "type": {
+            "array": ["publicKey", 3]
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "WinningsClaimed",
+      "fields": [
+        {
+          "name": "predictor",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "contestId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ContestNotActive",
+      "msg": "Contest is not active"
+    },
+    {
+      "code": 6001,
+      "name": "ContestNotResolved",
+      "msg": "Contest is not resolved yet"
+    },
+    {
+      "code": 6002,
+      "name": "AlreadyClaimed",
+      "msg": "Winnings already claimed"
+    },
+    {
+      "code": 6003,
+      "name": "NotAWinner",
+      "msg": "Position is not a winner"
+    },
+    {
+      "code": 6004,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    }
+  ],
+  "metadata": {
+    "address": "EGQ3JFpTFUNfKZ41uKMx73gQ4Cwd8SLPjVjrdoY48od7"
+  }
+}

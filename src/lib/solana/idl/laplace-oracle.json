@@ -1,0 +1,259 @@
+{
+  "version": "0.1.0",
+  "name": "laplace_oracle",
+  "instructions": [
+    {
+      "name": "initializeCounter",
+      "accounts": [
+        {
+          "name": "agentCounter",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "agentId",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "recordPrediction",
+      "accounts": [
+        {
+          "name": "prediction",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "agentCounter",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "agentId",
+          "type": "string"
+        },
+        {
+          "name": "token",
+          "type": "string"
+        },
+        {
+          "name": "direction",
+          "type": "u8"
+        },
+        {
+          "name": "confidence",
+          "type": "u16"
+        },
+        {
+          "name": "entryPrice",
+          "type": "u64"
+        },
+        {
+          "name": "timeHorizon",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "resolvePrediction",
+      "accounts": [
+        {
+          "name": "prediction",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "outcomePrice",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AgentCounter",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agentId",
+            "type": "string"
+          },
+          {
+            "name": "count",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Prediction",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agentId",
+            "type": "string"
+          },
+          {
+            "name": "token",
+            "type": "string"
+          },
+          {
+            "name": "direction",
+            "type": "u8"
+          },
+          {
+            "name": "confidence",
+            "type": "u16"
+          },
+          {
+            "name": "entryPrice",
+            "type": "u64"
+          },
+          {
+            "name": "timeHorizon",
+            "type": "i64"
+          },
+          {
+            "name": "recordedAt",
+            "type": "i64"
+          },
+          {
+            "name": "resolved",
+            "type": "bool"
+          },
+          {
+            "name": "outcomePrice",
+            "type": "u64"
+          },
+          {
+            "name": "brierScore",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "PredictionRecorded",
+      "fields": [
+        {
+          "name": "agentId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "direction",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "confidence",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "entryPrice",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "timeHorizon",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "PredictionResolved",
+      "fields": [
+        {
+          "name": "agentId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "outcomePrice",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "brierScore",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "AlreadyResolved",
+      "msg": "Prediction already resolved"
+    },
+    {
+      "code": 6001,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidTimeHorizon",
+      "msg": "Invalid time horizon"
+    }
+  ],
+  "metadata": {
+    "address": "4J3zdcXV1WNJDnMCaU3PpFzUkw9UgAwv7PtUSAuek94c"
+  }
+}

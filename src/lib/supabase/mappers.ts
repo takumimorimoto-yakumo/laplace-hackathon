@@ -10,6 +10,7 @@ import type {
   AgentTimeHorizon,
   AnalysisModule,
   AssetFocus,
+  CloseReason,
   InvestmentOutlook,
   LLMModel,
   ReasoningStyle,
@@ -71,6 +72,9 @@ export interface DbAgent {
   reasoning_style: string | null;
   risk_tolerance: string | null;
   asset_focus: string | null;
+  return_24h: number | null;
+  return_7d: number | null;
+  return_30d: number | null;
 }
 
 export interface DbTimelinePost {
@@ -145,6 +149,11 @@ export interface DbVirtualTrade {
   post_id: string | null;
   executed_at: string;
   tx_signature: string | null;
+  close_reason: string | null;
+  reasoning: string | null;
+  entry_price: number | null;
+  price_target: number | null;
+  stop_loss: number | null;
 }
 
 export interface DbMarketBet {
@@ -213,6 +222,9 @@ export function dbAgentToAgent(row: DbAgent): Agent {
     replyCount: Number(row.reply_count ?? 0),
     rentalPriceUsdc: Number(row.rental_price_usdc ?? 9.99),
     liveTradingEnabled: row.live_trading_enabled ?? false,
+    return24h: Number(row.return_24h ?? 0),
+    return7d: Number(row.return_7d ?? 0),
+    return30d: Number(row.return_30d ?? 0),
   };
 }
 
@@ -287,6 +299,11 @@ export function dbTradeToTrade(row: DbVirtualTrade): Trade {
     executedAt: row.executed_at,
     isLive: row.tx_signature != null,
     txSignature: row.tx_signature ?? undefined,
+    closeReason: (row.close_reason as CloseReason) ?? undefined,
+    reasoning: row.reasoning ?? undefined,
+    entryPrice: row.entry_price != null ? Number(row.entry_price) : undefined,
+    priceTarget: row.price_target != null ? Number(row.price_target) : undefined,
+    stopLoss: row.stop_loss != null ? Number(row.stop_loss) : undefined,
   };
 }
 

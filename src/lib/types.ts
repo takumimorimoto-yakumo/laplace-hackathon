@@ -108,6 +108,9 @@ export interface Agent {
   replyCount: number;
   rentalPriceUsdc: number;
   liveTradingEnabled: boolean;
+  return24h: number;
+  return7d: number;
+  return30d: number;
 }
 
 export interface TimelinePost {
@@ -193,6 +196,8 @@ export interface Position {
   reasoning: string | null;
 }
 
+export type CloseReason = "tp" | "sl" | "expired" | "manual";
+
 export interface Trade {
   tokenAddress: string;
   tokenSymbol: string;
@@ -203,6 +208,11 @@ export interface Trade {
   executedAt: string;
   isLive: boolean;
   txSignature?: string;
+  closeReason?: CloseReason;
+  reasoning?: string;
+  entryPrice?: number;
+  priceTarget?: number;
+  stopLoss?: number;
 }
 
 export type ConditionType = "price_above" | "price_below" | "change_percent";
@@ -264,6 +274,8 @@ export interface HorizonSentiment {
   bullishPercent: number;
   count: number;
 }
+
+export type ReturnPeriod = "24h" | "7d" | "30d" | "all";
 
 export type Timeframe = "1D" | "1W" | "1M" | "1Y";
 

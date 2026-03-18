@@ -28,6 +28,12 @@ interface EntryPointChartProps {
   heightOverride?: number;
   /** Show entry price label next to marker (full variant only) */
   showEntryLabel?: boolean;
+  /** Position direction — when provided, line color reflects P&L instead of price direction */
+  positionDirection?: "long" | "short";
+  /** Take-profit price — rendered as a green horizontal dashed line */
+  takeProfit?: number | null;
+  /** Stop-loss price — rendered as a red horizontal dashed line */
+  stopLoss?: number | null;
 }
 
 function directionColor(d: Direction): string {
@@ -44,6 +50,9 @@ export function EntryPointChart({
   className,
   heightOverride,
   showEntryLabel,
+  positionDirection,
+  takeProfit,
+  stopLoss,
 }: EntryPointChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(300);
@@ -78,7 +87,19 @@ export function EntryPointChart({
 
   const currentPrice = priceData.length > 0 ? priceData[priceData.length - 1] : 0;
   const firstPrice = priceData.length > 0 ? priceData[0] : 0;
-  const lineColor = currentPrice >= firstPrice ? "#22c55e" : "#ef4444";
+
+  // When position direction is provided, color reflects P&L relative to entry price
+  const entryPrice = entryPoints.length > 0 ? entryPoints[0].priceAtPrediction : null;
+  const lineColor = (() => {
+    if (positionDirection && entryPrice !== null) {
+      const isProfitable =
+        positionDirection === "long"
+          ? currentPrice >= entryPrice
+          : currentPrice <= entryPrice;
+      return isProfitable ? "#22c55e" : "#ef4444";
+    }
+    return currentPrice >= firstPrice ? "#22c55e" : "#ef4444";
+  })();
 
   const priceMin = priceData.length > 0 ? Math.min(...priceData) : 0;
   const priceMax = priceData.length > 0 ? Math.max(...priceData) : 0;
@@ -156,6 +177,7 @@ export function EntryPointChart({
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
+        style={{ overflow: "visible" }}
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -226,6 +248,53 @@ export function EntryPointChart({
             />
           </>
         )}
+
+        {/* Entry / TP / SL horizontal reference lines (full variant only) */}
+        {!isMini && entryPrice !== null && priceData.length > 0 && (() => {
+          const range = priceMax - priceMin || 1;
+          const inner = height - padY * 2;
+          const priceToY = (p: number) =>
+            padY + inner - ((Math.max(priceMin, Math.min(priceMax, p)) - priceMin) / range) * inner;
+          const entryY = priceToY(entryPrice);
+          const tpY = takeProfit != null ? priceToY(takeProfit) : null;
+          const slY = stopLoss != null ? priceToY(stopLoss) : null;
+          return (
+            <>
+              {/* Entry price line */}
+              <line
+                x1={padX} y1={entryY} x2={width - padX} y2={entryY}
+                stroke="#a1a1aa" strokeOpacity={0.5} strokeDasharray="4 3" strokeWidth={1}
+              />
+              <text x={width - padX + 4} y={entryY + 3} fill="#a1a1aa" fontSize={8} fontFamily="monospace">
+                {formatPrice(entryPrice)}
+              </text>
+              {/* Take-profit line */}
+              {tpY !== null && takeProfit != null && (
+                <>
+                  <line
+                    x1={padX} y1={tpY} x2={width - padX} y2={tpY}
+                    stroke="#22c55e" strokeOpacity={0.5} strokeDasharray="4 3" strokeWidth={1}
+                  />
+                  <text x={width - padX + 4} y={tpY + 3} fill="#22c55e" fontSize={8} fontFamily="monospace">
+                    {formatPrice(takeProfit)}
+                  </text>
+                </>
+              )}
+              {/* Stop-loss line */}
+              {slY !== null && stopLoss != null && (
+                <>
+                  <line
+                    x1={padX} y1={slY} x2={width - padX} y2={slY}
+                    stroke="#ef4444" strokeOpacity={0.5} strokeDasharray="4 3" strokeWidth={1}
+                  />
+                  <text x={width - padX + 4} y={slY + 3} fill="#ef4444" fontSize={8} fontFamily="monospace">
+                    {formatPrice(stopLoss)}
+                  </text>
+                </>
+              )}
+            </>
+          );
+        })()}
 
         {/* Entry point markers */}
         {entryMarkers.map(({ ep, coord, color }) => (

@@ -230,6 +230,9 @@ export function PositionList({
                     variant="full"
                     heightOverride={120}
                     showEntryLabel
+                    positionDirection={position.direction}
+                    takeProfit={position.priceTarget}
+                    stopLoss={position.stopLoss}
                   />
                 </div>
               ) : (

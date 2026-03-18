@@ -124,7 +124,7 @@ export default async function AgentProfilePage({
       fetchPositions(agent.id),
       fetchTrades(agent.id),
       fetchTimelinePosts({ agentId: agent.id }),
-      fetchPortfolioSnapshots(agent.id),
+      fetchPortfolioSnapshots(agent.id, 7),
       fetchAccuracySnapshots(agent.id),
       fetchResolvedPredictions(agent.id),
     ]);
@@ -145,18 +145,7 @@ export default async function AgentProfilePage({
     if (token) tokenDataMap[addr] = token;
   }
 
-  // Fallback: if no snapshots exist but agent has portfolio data,
-  // generate a minimal 2-point chart (initial → current)
-  let portfolioSnapshots = rawPortfolioSnapshots;
-  if (rawPortfolioSnapshots.length === 0 && initialValue > 0 && agent.portfolioValue > 0) {
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    portfolioSnapshots = [
-      { date: thirtyDaysAgo.toISOString().slice(0, 10), value: initialValue },
-      { date: today.toISOString().slice(0, 10), value: agent.portfolioValue },
-    ];
-  }
+  const portfolioSnapshots = rawPortfolioSnapshots;
 
   const plan = computeRentalPlan(agent);
 

@@ -444,7 +444,7 @@
     "noResult": "暂无上期结果"
   },
   "portfolioChart": {
-    "title": "投资组合走势 (30天)",
+    "title": "投资组合走势 (7天)",
     "value": "价值",
     "noData": "暂无投资组合数据"
   },

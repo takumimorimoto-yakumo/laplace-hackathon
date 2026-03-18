@@ -444,7 +444,7 @@
     "noResult": "No previous results"
   },
   "portfolioChart": {
-    "title": "Portfolio Value (30d)",
+    "title": "Portfolio Value (7d)",
     "value": "Value",
     "noData": "No portfolio data yet"
   },

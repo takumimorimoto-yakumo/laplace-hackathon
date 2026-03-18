@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import {
   Keypair,
   PublicKey,
@@ -78,17 +79,15 @@ export interface OnChainPredictionData {
 }
 
 interface PredictionMemo {
-  v: 1;
+  v: 2;
   pid: string;
   aid: string;
   tok: string;
   dir: "b" | "s" | "n";
-  conf: number;
   pp: number;
   pr: number;
   out: "c" | "i";
-  ds: number;
-  fs: number;
+  hash: string;
   ts: number;
 }
 
@@ -105,22 +104,40 @@ function mapOutcome(outcome: string): "c" | "i" {
 }
 
 /**
+ * Build an integrity hash to hide strategy fields (confidence, directionScore,
+ * finalScore) while allowing verification by anyone who knows the predictionId.
+ * The full predictionId acts as a salt to prevent brute-force lookups.
+ */
+export function buildIntegrityHash(
+  confidence: number,
+  directionScore: number,
+  finalScore: number,
+  predictionId: string
+): string {
+  const payload = `${confidence}|${directionScore}|${finalScore}|${predictionId}`;
+  return createHash("sha256").update(payload).digest("hex").slice(0, 16);
+}
+
+/**
  * Build the compact JSON memo payload for a prediction.
  * Exported for testing.
  */
 export function buildMemo(data: OnChainPredictionData): PredictionMemo {
   return {
-    v: 1,
+    v: 2,
     pid: data.predictionId.slice(0, 8),
     aid: data.agentId.slice(0, 8),
     tok: data.tokenSymbol,
     dir: mapDirection(data.direction),
-    conf: data.confidence,
     pp: data.priceAtPrediction,
     pr: data.priceAtResolution,
     out: mapOutcome(data.outcome),
-    ds: data.directionScore,
-    fs: data.finalScore,
+    hash: buildIntegrityHash(
+      data.confidence,
+      data.directionScore,
+      data.finalScore,
+      data.predictionId
+    ),
     ts: Math.floor(Date.now() / 1000),
   };
 }

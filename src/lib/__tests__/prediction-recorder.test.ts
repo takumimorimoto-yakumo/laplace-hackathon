@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   buildMemo,
+  buildIntegrityHash,
   serializeMemo,
   getSignerKeypair,
   type OnChainPredictionData,
@@ -23,19 +24,37 @@ describe("buildMemo", () => {
   it("produces correct JSON structure with all required fields", () => {
     const memo = buildMemo(sampleData);
 
-    expect(memo.v).toBe(1);
+    expect(memo.v).toBe(2);
     expect(memo.pid).toBe("abcdef12");
     expect(memo.aid).toBe("agent001");
     expect(memo.tok).toBe("SOL");
     expect(memo.dir).toBe("b");
-    expect(memo.conf).toBe(0.85);
     expect(memo.pp).toBe(142.5);
     expect(memo.pr).toBe(155.0);
     expect(memo.out).toBe("c");
-    expect(memo.ds).toBe(1.0);
-    expect(memo.fs).toBe(95.5);
+    expect(typeof memo.hash).toBe("string");
+    expect(memo.hash).toHaveLength(16);
     expect(typeof memo.ts).toBe("number");
     expect(memo.ts).toBeGreaterThan(0);
+  });
+
+  it("does not expose confidence, directionScore or finalScore", () => {
+    const memo = buildMemo(sampleData);
+    const keys = Object.keys(memo);
+    expect(keys).not.toContain("conf");
+    expect(keys).not.toContain("ds");
+    expect(keys).not.toContain("fs");
+  });
+
+  it("hash matches buildIntegrityHash output for the same inputs", () => {
+    const memo = buildMemo(sampleData);
+    const expected = buildIntegrityHash(
+      sampleData.confidence,
+      sampleData.directionScore,
+      sampleData.finalScore,
+      sampleData.predictionId
+    );
+    expect(memo.hash).toBe(expected);
   });
 
   it("maps bearish direction to 's'", () => {
@@ -68,13 +87,41 @@ describe("buildMemo", () => {
   });
 });
 
+describe("buildIntegrityHash", () => {
+  it("returns a 16-character hex string", () => {
+    const hash = buildIntegrityHash(0.85, 1.0, 95.5, "abcdef12-3456-7890-abcd-ef1234567890");
+    expect(hash).toHaveLength(16);
+    expect(/^[0-9a-f]+$/.test(hash)).toBe(true);
+  });
+
+  it("is deterministic for the same inputs", () => {
+    const args: [number, number, number, string] = [0.85, 1.0, 95.5, "abcdef12-3456-7890-abcd-ef1234567890"];
+    expect(buildIntegrityHash(...args)).toBe(buildIntegrityHash(...args));
+  });
+
+  it("produces different hashes when confidence differs", () => {
+    const id = "abcdef12-3456-7890-abcd-ef1234567890";
+    const h1 = buildIntegrityHash(0.85, 1.0, 95.5, id);
+    const h2 = buildIntegrityHash(0.90, 1.0, 95.5, id);
+    expect(h1).not.toBe(h2);
+  });
+
+  it("produces different hashes when predictionId (salt) differs", () => {
+    const h1 = buildIntegrityHash(0.85, 1.0, 95.5, "aaaaaaaa-0000-0000-0000-000000000001");
+    const h2 = buildIntegrityHash(0.85, 1.0, 95.5, "aaaaaaaa-0000-0000-0000-000000000002");
+    expect(h1).not.toBe(h2);
+  });
+});
+
 describe("serializeMemo", () => {
   it("produces valid JSON", () => {
     const memo = buildMemo(sampleData);
     const json = serializeMemo(memo);
     const parsed = JSON.parse(json);
-    expect(parsed.v).toBe(1);
+    expect(parsed.v).toBe(2);
     expect(parsed.pid).toBe("abcdef12");
+    expect(typeof parsed.hash).toBe("string");
+    expect(parsed.hash).toHaveLength(16);
   });
 
   it("produces output under 566 bytes", () => {

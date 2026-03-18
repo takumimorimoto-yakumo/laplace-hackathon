@@ -1,24 +1,17 @@
 // ============================================================
-// Performance Recorder — Record agent performance on-chain
+// Performance Recorder — DEPRECATED
 // ============================================================
 //
-// Records daily agent performance snapshots to Solana via SPL Memo.
-// Each memo contains a compact JSON payload with trade stats, accuracy,
-// and portfolio metrics. Daily records enable analysis across any timeframe
-// (weekly, monthly, quarterly, semi-annual, annual) by aggregation.
+// On-chain performance recording has been disabled for strategic reasons.
+// Recording agent accuracy, returns, and ranks publicly on-chain allows
+// competitors to freely track and copy the strategies of top-performing agents.
+// DB snapshots (portfolio_snapshots table) are sufficient for internal use.
+//
+// All exported functions are no-ops kept for import compatibility only.
 
-import {
-  Transaction,
-  TransactionInstruction,
-  PublicKey,
-} from "@solana/web3.js";
-import { getConnection } from "./connection";
-import { getSignerKeypair, ensureFunded } from "./prediction-recorder";
-import { createAdminClient } from "@/lib/supabase/admin";
-
-const MEMO_PROGRAM_ID = new PublicKey(
-  "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
-);
+// Solana imports retained to avoid breaking any external consumers that
+// may import only the type definitions from this module.
+// The runtime functions below are all no-ops.
 
 // ---------- Types ----------
 
@@ -70,7 +63,12 @@ interface PerformanceMemo {
 
 // ---------- Memo Builder ----------
 
+/**
+ * @deprecated On-chain performance recording has been disabled for strategic reasons.
+ * Returns a stub memo object without recording anything.
+ */
 export function buildPerformanceMemo(data: AgentPerformanceData): PerformanceMemo {
+  console.warn("[perf] DEPRECATED: On-chain performance recording has been disabled for strategic reasons");
   return {
     v: 1,
     type: "perf",
@@ -92,202 +90,47 @@ export function buildPerformanceMemo(data: AgentPerformanceData): PerformanceMem
   };
 }
 
+/**
+ * @deprecated On-chain performance recording has been disabled for strategic reasons.
+ * Returns the serialized memo string without sending any transaction.
+ */
 export function serializePerformanceMemo(memo: PerformanceMemo): string {
-  const json = JSON.stringify(memo);
-  const byteLength = new TextEncoder().encode(json).length;
-  if (byteLength > 566) {
-    throw new Error(`Performance memo too large: ${byteLength} bytes (max 566)`);
-  }
-  return json;
+  console.warn("[perf] DEPRECATED: On-chain performance recording has been disabled for strategic reasons");
+  return JSON.stringify(memo);
 }
 
 // ---------- Data Fetcher ----------
 
 /**
- * Gather performance data for a single agent from the DB.
- * Queries virtual_trades, predictions, virtual_portfolios, and agents.
+ * @deprecated On-chain performance recording has been disabled for strategic reasons.
+ * Always returns null.
  */
 export async function gatherAgentPerformance(
-  agentId: string,
-  date: string
+  _agentId: string,
+  _date: string
 ): Promise<AgentPerformanceData | null> {
-  const supabase = createAdminClient();
-
-  // Fetch agent info
-  const { data: agent } = await supabase
-    .from("agents")
-    .select("name, accuracy_score, leaderboard_rank, total_predictions")
-    .eq("id", agentId)
-    .single();
-
-  if (!agent) return null;
-
-  // Fetch portfolio
-  const { data: portfolio } = await supabase
-    .from("virtual_portfolios")
-    .select("total_value, total_pnl, total_pnl_pct")
-    .eq("agent_id", agentId)
-    .single();
-
-  // Fetch all closed trades for this agent
-  const { data: trades } = await supabase
-    .from("virtual_trades")
-    .select("realized_pnl")
-    .eq("agent_id", agentId)
-    .eq("action", "close");
-
-  const totalTrades = trades?.length ?? 0;
-  const wins = trades?.filter((t) => Number(t.realized_pnl) > 0).length ?? 0;
-  const losses = trades?.filter((t) => Number(t.realized_pnl) < 0).length ?? 0;
-  const winRate = totalTrades > 0 ? wins / totalTrades : 0;
-
-  // Fetch resolved predictions (direction + outcome to determine correctness)
-  const { data: resolvedPreds } = await supabase
-    .from("predictions")
-    .select("direction, outcome")
-    .eq("agent_id", agentId)
-    .eq("resolved", true);
-
-  const totalPredictions = resolvedPreds?.length ?? 0;
-  const correctCount = resolvedPreds?.filter(
-    (p) => (p.outcome as string) === "correct"
-  ).length ?? 0;
-
-  // Daily P&L: difference between today's snapshot and yesterday's
-  const yesterday = new Date(new Date(date).getTime() - 86400000)
-    .toISOString()
-    .slice(0, 10);
-
-  const { data: todaySnap } = await supabase
-    .from("portfolio_snapshots")
-    .select("total_pnl")
-    .eq("agent_id", agentId)
-    .eq("snapshot_date", date)
-    .single();
-
-  const { data: yesterdaySnap } = await supabase
-    .from("portfolio_snapshots")
-    .select("total_pnl")
-    .eq("agent_id", agentId)
-    .eq("snapshot_date", yesterday)
-    .single();
-
-  const todayPnl = Number(todaySnap?.total_pnl ?? portfolio?.total_pnl ?? 0);
-  const yesterdayPnl = Number(yesterdaySnap?.total_pnl ?? 0);
-  const dailyPnl = todayPnl - yesterdayPnl;
-
-  return {
-    agentId,
-    agentName: agent.name as string,
-    date,
-    totalTrades,
-    wins,
-    losses,
-    winRate,
-    portfolioValue: Number(portfolio?.total_value ?? 10000),
-    returnPct: Number(portfolio?.total_pnl_pct ?? 0),
-    dailyPnl,
-    totalPredictions: Number(agent.total_predictions ?? totalPredictions),
-    correctPredictions: correctCount,
-    accuracy: Number(agent.accuracy_score ?? 0), // DB stores 0-1, memo stores 0-1
-    rank: Number(agent.leaderboard_rank ?? 999),
-  };
+  console.warn("[perf] DEPRECATED: On-chain performance recording has been disabled for strategic reasons");
+  return null;
 }
 
 // ---------- On-Chain Recording ----------
 
 /**
- * Record a single agent's daily performance on-chain via SPL Memo.
- * Returns the transaction signature, or null on failure.
+ * @deprecated On-chain performance recording has been disabled for strategic reasons.
+ * Always returns null without sending any transaction.
  */
 export async function recordPerformanceOnChain(
-  data: AgentPerformanceData
+  _data: AgentPerformanceData
 ): Promise<string | null> {
-  try {
-    const signer = getSignerKeypair();
-    await ensureFunded(signer);
-
-    const memo = buildPerformanceMemo(data);
-    const memoString = serializePerformanceMemo(memo);
-
-    const connection = getConnection();
-    const instruction = new TransactionInstruction({
-      programId: MEMO_PROGRAM_ID,
-      keys: [
-        { pubkey: signer.publicKey, isSigner: true, isWritable: false },
-      ],
-      data: Buffer.from(memoString, "utf-8"),
-    });
-
-    const transaction = new Transaction().add(instruction);
-    const { blockhash, lastValidBlockHeight } =
-      await connection.getLatestBlockhash("confirmed");
-    transaction.recentBlockhash = blockhash;
-    transaction.lastValidBlockHeight = lastValidBlockHeight;
-    transaction.feePayer = signer.publicKey;
-
-    transaction.sign(signer);
-
-    const signature = await connection.sendRawTransaction(
-      transaction.serialize(),
-      { skipPreflight: false }
-    );
-
-    await connection.confirmTransaction(
-      { signature, blockhash, lastValidBlockHeight },
-      "confirmed"
-    );
-
-    console.log(
-      `[perf] Agent ${data.agentName} performance recorded on-chain: ${signature}`
-    );
-    return signature;
-  } catch (err) {
-    console.warn(
-      `[perf] Failed to record performance for ${data.agentId} on-chain:`,
-      err
-    );
-    return null;
-  }
+  console.warn("[perf] DEPRECATED: On-chain performance recording has been disabled for strategic reasons");
+  return null;
 }
 
 /**
- * Record daily performance snapshots for all agents on-chain.
- * Should be called once daily after portfolio snapshots are recorded.
- * Returns a map of agentId -> txSignature for successful recordings.
+ * @deprecated On-chain performance recording has been disabled for strategic reasons.
+ * Always returns an empty map without sending any transactions.
  */
 export async function recordAllPerformanceOnChain(): Promise<Map<string, string>> {
-  const results = new Map<string, string>();
-
-  if (!process.env.SOLANA_SIGNER_PRIVATE_KEY) {
-    console.warn("[perf] SOLANA_SIGNER_PRIVATE_KEY not set, skipping on-chain recording");
-    return results;
-  }
-
-  const supabase = createAdminClient();
-  const today = new Date().toISOString().slice(0, 10);
-
-  // Fetch all agents with portfolios
-  const { data: portfolios, error } = await supabase
-    .from("virtual_portfolios")
-    .select("agent_id");
-
-  if (error || !portfolios) {
-    console.error("[perf] Failed to fetch portfolios:", error?.message);
-    return results;
-  }
-
-  for (const p of portfolios) {
-    const agentId = p.agent_id as string;
-    const data = await gatherAgentPerformance(agentId, today);
-    if (!data) continue;
-
-    const signature = await recordPerformanceOnChain(data);
-    if (signature) {
-      results.set(agentId, signature);
-    }
-  }
-
-  console.log(`[perf] Recorded ${results.size}/${portfolios.length} agent performances on-chain`);
-  return results;
+  console.warn("[perf] DEPRECATED: On-chain performance recording has been disabled for strategic reasons");
+  return new Map<string, string>();
 }

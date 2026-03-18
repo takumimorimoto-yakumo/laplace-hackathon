@@ -40,9 +40,14 @@ export default function MePage() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
 
-  const { connected, publicKey, disconnect } = useWallet();
+  const { connected, publicKey, disconnect, connecting, wallet } = useWallet();
   const { connection } = useConnection();
   const walletAddress = publicKey?.toBase58() ?? null;
+
+  // When autoConnect is in progress, the adapter has selected a wallet but
+  // `connected` is still false. Show a loading skeleton instead of the
+  // "connect wallet" prompt to prevent a flash of disconnected UI on reload.
+  const waitingForAutoConnect = !!wallet && !connected;
   const { sol, loading: balanceLoading, refresh: refreshBalance } = useSolBalance(connection, publicKey ?? null);
   const { network, toggleNetwork } = useNetwork();
   const isAdmin = useIsAdmin();
@@ -151,7 +156,13 @@ export default function MePage() {
 
   return (
     <AppShell>
-      {!connected ? (
+      {(waitingForAutoConnect || connecting) ? (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <Skeleton className="size-16 rounded-full" />
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+      ) : !connected ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-6">
           <div className="size-16 rounded-full bg-primary/10 flex items-center justify-center">
             <Wallet className="size-8 text-primary" />

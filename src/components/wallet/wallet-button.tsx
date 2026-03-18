@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Wallet } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "./wallet-provider";
 import { WalletModal } from "./wallet-modal";
@@ -12,7 +12,7 @@ interface WalletButtonProps {
 }
 
 export function WalletButton({ className }: WalletButtonProps) {
-  const { connected, publicKey, disconnect } = useWallet();
+  const { connected, connecting, publicKey, disconnect } = useWallet();
   const [showModal, setShowModal] = useState(false);
   const t = useTranslations("common");
 
@@ -24,6 +24,15 @@ export function WalletButton({ className }: WalletButtonProps) {
       <Button variant="outline" size="sm" className={className} onClick={() => disconnect()}>
         <Wallet className="size-4 mr-1.5" />
         <span className="font-mono text-xs">{short}</span>
+      </Button>
+    );
+  }
+
+  if (connecting) {
+    return (
+      <Button variant="outline" size="sm" className={className} disabled>
+        <Loader2 className="size-4 mr-1.5 animate-spin" />
+        <span className="text-xs">{t("connectWallet")}</span>
       </Button>
     );
   }

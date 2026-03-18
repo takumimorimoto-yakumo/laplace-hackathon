@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPortfolioSnapshot } from "@/lib/agents/portfolio-snapshot";
 import { updateUnrealizedPnL } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
-import { recordAllPerformanceOnChain } from "@/lib/solana/performance-recorder";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for Vercel
@@ -13,7 +12,6 @@ export const maxDuration = 300; // 5 minutes max for Vercel
  *
  * 1. Mark-to-market all portfolios (update unrealized P&L).
  * 2. Record portfolio snapshots for all agents (DB).
- * 3. Record daily performance on-chain via SPL Memo (Solana).
  *
  * Should be called once daily (e.g. via Vercel cron or external scheduler).
  * Protected by CRON_SECRET bearer token.
@@ -65,20 +63,9 @@ export async function GET(request: NextRequest) {
       dbCount++;
     }
 
-    // 2. On-chain performance recording (fire-and-forget friendly)
-    let onChainCount = 0;
-    try {
-      const onChainResults = await recordAllPerformanceOnChain();
-      onChainCount = onChainResults.size;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[cron/snapshots] On-chain recording failed: ${msg}`);
-    }
-
     return NextResponse.json({
-      message: `Recorded ${dbCount} DB snapshots, ${onChainCount} on-chain`,
+      message: `Recorded ${dbCount} DB snapshots`,
       dbSnapshots: dbCount,
-      onChainRecordings: onChainCount,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

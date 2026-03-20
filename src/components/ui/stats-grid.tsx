@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export interface StatItem {
   icon?: ReactNode;
   value: string;
-  label: string;
+  label: ReactNode;
 }
 
 interface StatsGridProps {
@@ -22,9 +22,9 @@ const colsClass = {
 export function StatsGrid({ items, columns = 3, className }: StatsGridProps) {
   return (
     <div className={cn("grid gap-2", colsClass[columns], className)}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <div
-          key={item.label}
+          key={index}
           className="flex flex-col items-center gap-1 rounded-lg border border-border p-3"
         >
           {item.icon}

@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { DollarSign, TrendingUp, Users } from "lucide-react";
 import { StatsGrid } from "@/components/ui/stats-grid";
 import { AgentCommandCard } from "@/components/me/agent-command-card";
 import { EarningsLendingCard } from "@/components/me/earnings-lending-card";
+import { cn } from "@/lib/utils";
 import type { RegisteredAgent } from "@/hooks/use-user-registered-agents";
 import type { OwnerDashboardSummary, OwnerPosition, OwnerTrade, LentAgent } from "@/lib/types";
+
+type ReturnPeriod = "24h" | "7d" | "30d" | "total";
 
 interface DashboardSummaryProps {
   dashboardData: OwnerDashboardSummary | null;
@@ -35,12 +39,28 @@ export function DashboardSummary({
 }: DashboardSummaryProps) {
   const t = useTranslations("me");
 
+  const [returnPeriod, setReturnPeriod] = useState<ReturnPeriod>("total");
+
   if (loading || !dashboardData) return null;
 
-  const returnSign = dashboardData.averageReturn >= 0 ? "+" : "";
-  const returnPct = (dashboardData.averageReturn * 100).toFixed(1);
+  const periodReturnMap: Record<ReturnPeriod, number> = {
+    "24h": dashboardData.averageReturn24h,
+    "7d": dashboardData.averageReturn7d,
+    "30d": dashboardData.averageReturn30d,
+    total: dashboardData.averageReturn,
+  };
+  const selectedReturn = periodReturnMap[returnPeriod];
+  const returnSign = selectedReturn >= 0 ? "+" : "";
+  const returnPct = (selectedReturn * 100).toFixed(1);
   const totalPnl = dashboardData.totalPnl + dashboardData.livePnl;
   const hasLive = dashboardData.livePortfolioValue > 0;
+
+  const periods: { key: ReturnPeriod; label: string }[] = [
+    { key: "24h", label: "24H" },
+    { key: "7d", label: "7D" },
+    { key: "30d", label: "30D" },
+    { key: "total", label: t("total") },
+  ];
 
   return (
     <div className="space-y-4 mb-4">
@@ -65,9 +85,26 @@ export function DashboardSummary({
               label: t("totalPortfolioValue"),
             },
             {
-              icon: <TrendingUp className="size-4 text-bullish" />,
+              icon: <TrendingUp className={`size-4 ${selectedReturn >= 0 ? "text-bullish" : "text-bearish"}`} />,
               value: `${returnSign}${returnPct}%`,
-              label: t("averageReturn"),
+              label: (
+                <div className="flex items-center gap-1">
+                  {periods.map((p) => (
+                    <button
+                      key={p.key}
+                      onClick={() => setReturnPeriod(p.key)}
+                      className={cn(
+                        "text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors",
+                        returnPeriod === p.key
+                          ? "bg-primary/20 text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              ),
             },
             {
               icon: (

@@ -298,6 +298,7 @@
     "virtualTradingNote": "所有投资组合使用模拟资金，非真实资产。",
     "totalPortfolioValue": "总投资组合",
     "averageReturn": "平均回报",
+    "total": "总计",
     "totalPnl": "总盈亏",
     "totalEarnings": "租赁收益",
     "activeRenters": "租赁中",

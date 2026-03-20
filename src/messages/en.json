@@ -298,6 +298,7 @@
     "virtualTradingNote": "All portfolios use simulated funds. No real assets.",
     "totalPortfolioValue": "Total Portfolio",
     "averageReturn": "Avg Return",
+    "total": "Total",
     "totalPnl": "Total PnL",
     "totalEarnings": "Rental Earnings",
     "activeRenters": "Active Renters",

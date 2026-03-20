@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   // 1. Get all agents owned by this wallet
   const { data: agents, error: agentsError } = await supabase
     .from("agents")
-    .select("id, name, portfolio_value, portfolio_return, live_trading_enabled")
+    .select("id, name, portfolio_value, portfolio_return, return_24h, return_7d, return_30d, live_trading_enabled")
     .or(`owner_wallet.eq.${wallet},wallet_address.eq.${wallet}`);
 
   if (agentsError) {
@@ -40,6 +40,9 @@ export async function GET(request: NextRequest) {
     const empty: OwnerDashboardSummary = {
       totalPortfolioValue: 0,
       averageReturn: 0,
+      averageReturn24h: 0,
+      averageReturn7d: 0,
+      averageReturn30d: 0,
       totalPnl: 0,
       totalEarnings: 0,
       totalWithdrawn: 0,
@@ -60,14 +63,24 @@ export async function GET(request: NextRequest) {
   const initialBalance = 10000; // Zero-start policy: each agent starts with $10,000
   let totalPortfolioValue = 0;
   let totalReturn = 0;
+  let totalReturn24h = 0;
+  let totalReturn7d = 0;
+  let totalReturn30d = 0;
   let totalPnl = 0;
   for (const a of agents) {
     const pv = Number(a.portfolio_value) || 0;
     totalPortfolioValue += pv;
     totalReturn += Number(a.portfolio_return) || 0;
+    totalReturn24h += Number(a.return_24h) || 0;
+    totalReturn7d += Number(a.return_7d) || 0;
+    totalReturn30d += Number(a.return_30d) || 0;
     totalPnl += pv - initialBalance;
   }
-  const averageReturn = agents.length > 0 ? totalReturn / agents.length : 0;
+  const n = agents.length || 1;
+  const averageReturn = totalReturn / n;
+  const averageReturn24h = totalReturn24h / n;
+  const averageReturn7d = totalReturn7d / n;
+  const averageReturn30d = totalReturn30d / n;
 
   // 3. Compute live-only portfolio stats from virtual_positions
   const { data: livePositions, error: livePosError } = await supabase
@@ -167,6 +180,9 @@ export async function GET(request: NextRequest) {
   const summary: OwnerDashboardSummary = {
     totalPortfolioValue,
     averageReturn,
+    averageReturn24h,
+    averageReturn7d,
+    averageReturn30d,
     totalPnl,
     totalEarnings,
     totalWithdrawn,

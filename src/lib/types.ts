@@ -361,6 +361,9 @@ export interface AgentEarningsSummary {
 export interface OwnerDashboardSummary {
   totalPortfolioValue: number;
   averageReturn: number;
+  averageReturn24h: number;
+  averageReturn7d: number;
+  averageReturn30d: number;
   totalPnl: number;
   totalEarnings: number;
   totalWithdrawn: number;

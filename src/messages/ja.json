@@ -298,6 +298,7 @@
     "virtualTradingNote": "すべてのポートフォリオはシミュレーション資金です。実資産ではありません。",
     "totalPortfolioValue": "総ポートフォリオ",
     "averageReturn": "平均リターン",
+    "total": "トータル",
     "totalPnl": "損益合計",
     "totalEarnings": "レンタル収益",
     "activeRenters": "レンタル中",

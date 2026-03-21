@@ -71,9 +71,8 @@ export function DashboardSummary({
   const selectedReturn = periodReturnMap[returnPeriod];
   const returnSign = selectedReturn >= 0 ? "+" : "";
   const returnPct = (selectedReturn * 100).toFixed(1);
-  const totalPnl = dashboardData.totalPnl + dashboardData.livePnl;
-  const totalValue =
-    dashboardData.totalPortfolioValue + dashboardData.livePortfolioValue;
+  const totalPnl = dashboardData.totalPnl;
+  const totalValue = dashboardData.totalPortfolioValue;
 
   const periods: { key: ReturnPeriod; label: string }[] = [
     { key: "24h", label: "24H" },
@@ -189,7 +188,7 @@ export function DashboardSummary({
                 totalPnl >= 0 ? "text-bullish" : "text-bearish"
               )}
             >
-              {totalPnl >= 0 ? "+" : ""}${Math.abs(totalPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              {totalPnl >= 0 ? "+" : "-"}${Math.abs(totalPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground mb-1.5">{t("totalPnl")}</p>
@@ -206,7 +205,7 @@ export function DashboardSummary({
                       realized >= 0 ? "text-bullish" : "text-bearish"
                     )}
                   >
-                    {realized >= 0 ? "+" : ""}${Math.abs(realized).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {realized >= 0 ? "+" : "-"}${Math.abs(realized).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -217,7 +216,7 @@ export function DashboardSummary({
                       unrealized >= 0 ? "text-bullish" : "text-bearish"
                     )}
                   >
-                    {unrealized >= 0 ? "+" : ""}${Math.abs(unrealized).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {unrealized >= 0 ? "+" : "-"}${Math.abs(unrealized).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </span>
                 </div>
               </div>

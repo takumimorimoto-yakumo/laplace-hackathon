@@ -300,6 +300,8 @@
     "averageReturn": "Avg Return",
     "total": "Total",
     "totalPnl": "Total PnL",
+    "realizedPnl": "Realized",
+    "unrealizedPnl": "Unrealized",
     "totalEarnings": "Rental Earnings",
     "activeRenters": "Active Renters",
     "tradingPerformance": "Trading Performance",

@@ -180,9 +180,9 @@ export function DashboardSummary({
           </div>
         </div>
 
-        {/* Total PnL */}
+        {/* PnL Breakdown */}
         <div className="rounded-lg border border-border p-3">
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-1.5 mb-2">
             <span
               className={cn(
                 "text-lg font-mono font-semibold",
@@ -192,7 +192,31 @@ export function DashboardSummary({
               {totalPnl >= 0 ? "+" : ""}${Math.abs(totalPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground">{t("totalPnl")}</p>
+          <p className="text-[10px] text-muted-foreground mb-1.5">{t("totalPnl")}</p>
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">{t("realizedPnl")}</span>
+              <span
+                className={cn(
+                  "text-[10px] font-mono font-medium",
+                  dashboardData.realizedPnl >= 0 ? "text-bullish" : "text-bearish"
+                )}
+              >
+                {dashboardData.realizedPnl >= 0 ? "+" : ""}${Math.abs(dashboardData.realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">{t("unrealizedPnl")}</span>
+              <span
+                className={cn(
+                  "text-[10px] font-mono font-medium",
+                  dashboardData.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish"
+                )}
+              >
+                {dashboardData.unrealizedPnl >= 0 ? "+" : ""}${Math.abs(dashboardData.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

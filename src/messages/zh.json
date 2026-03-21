@@ -300,6 +300,8 @@
     "averageReturn": "平均回报",
     "total": "总计",
     "totalPnl": "总盈亏",
+    "realizedPnl": "已实现",
+    "unrealizedPnl": "未实现",
     "totalEarnings": "租赁收益",
     "activeRenters": "租赁中",
     "tradingPerformance": "交易表现",

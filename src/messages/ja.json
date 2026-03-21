@@ -300,6 +300,8 @@
     "averageReturn": "平均リターン",
     "total": "トータル",
     "totalPnl": "損益合計",
+    "realizedPnl": "確定損益",
+    "unrealizedPnl": "含み損益",
     "totalEarnings": "レンタル収益",
     "activeRenters": "レンタル中",
     "tradingPerformance": "運用成績",

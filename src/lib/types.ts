@@ -372,6 +372,8 @@ export interface OwnerDashboardSummary {
   averageReturn7d: number;
   averageReturn30d: number;
   totalPnl: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
   totalEarnings: number;
   totalWithdrawn: number;
   availableBalance: number;

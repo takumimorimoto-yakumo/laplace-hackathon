@@ -24,7 +24,7 @@ export { runReply } from "./reply";
 export { runNews } from "./news";
 
 // --- Virtual Trade ---
-export { runVirtualTrade, closeExpiredPositions, closePositionsByTpSl, DEFAULT_INITIAL_BALANCE, POSITION_EXPIRY_DAYS } from "./virtual-trade";
+export { runVirtualTrade, closeExpiredPositions, closePositionsByTpSl, forceCloseAllPositions, DEFAULT_INITIAL_BALANCE, POSITION_EXPIRY_DAYS } from "./virtual-trade";
 
 // --- Resolve ---
 export { resolvePredictions } from "./resolve";

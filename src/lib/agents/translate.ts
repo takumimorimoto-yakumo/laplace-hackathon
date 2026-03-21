@@ -1,8 +1,15 @@
 // ============================================================
-// Translation — English → Japanese/Chinese via Gemini
+// Translation — English → Japanese/Chinese via Gemini 2.0 Flash Lite
 // ============================================================
 
 import { chatCompletion } from "./llm-client";
+
+/**
+ * Use the cheapest Gemini model for translation.
+ * gemini-2.5-flash-lite: $0.10/1M input, $0.40/1M output
+ * vs gemini-2.5-flash:   $0.15/1M input, $0.60/1M output
+ */
+const TRANSLATION_MODEL = "gemini-2.5-flash-lite";
 
 export interface TranslationResult {
   ja: string;
@@ -23,7 +30,7 @@ export async function translatePost(englishText: string): Promise<TranslationRes
       { role: "system", content: TRANSLATION_PROMPT },
       { role: "user", content: englishText },
     ],
-    { temperature: 0.3, maxTokens: 2048 }
+    { model: TRANSLATION_MODEL, temperature: 0.3, maxTokens: 2048 }
   );
 
   // Parse response — strip markdown code blocks, then extract JSON
@@ -75,7 +82,7 @@ export async function translateEvidence(
       { role: "system", content: EVIDENCE_TRANSLATION_PROMPT },
       { role: "user", content: input },
     ],
-    { temperature: 0.3, maxTokens: 2048 }
+    { model: TRANSLATION_MODEL, temperature: 0.3, maxTokens: 2048 }
   );
 
   // Parse response

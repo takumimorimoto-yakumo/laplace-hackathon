@@ -440,6 +440,143 @@ export async function closePositionsByTpSl(
 }
 
 // ============================================================
+// 4c. Force-close ALL positions for a given agent (used for paused agents)
+// ============================================================
+
+/**
+ * Force-close every open position for an agent at current market price.
+ * Used when an agent is paused/stopped — all positions are liquidated
+ * with close_reason = 'manual'.
+ */
+export async function forceCloseAllPositions(
+  agentId: string,
+  existingMarketData?: RealMarketData[]
+): Promise<number> {
+  const supabase = createAdminClient();
+
+  try {
+    const { data: positions, error: fetchError } = await supabase
+      .from("virtual_positions")
+      .select("*")
+      .eq("agent_id", agentId);
+
+    if (fetchError || !positions || positions.length === 0) return 0;
+
+    const marketData = existingMarketData ?? await fetchMarketContext();
+    const portfolio = await getOrCreatePortfolio(agentId);
+    let cashBalanceChange = 0;
+    let totalRealizedPnl = 0;
+    let closedCount = 0;
+
+    for (const pos of positions) {
+      const currentPrice = findPriceInMarketData(
+        pos.token_symbol as string,
+        marketData
+      );
+
+      if (!currentPrice) {
+        console.warn(
+          `[runner] Cannot find price for ${pos.token_symbol}, skipping force-close`
+        );
+        continue;
+      }
+
+      const entryPrice = Number(pos.entry_price);
+      const quantity = Number(pos.quantity);
+      const amountUsdc = Number(pos.amount_usdc);
+      const side = pos.side as string;
+
+      const realizedPnl =
+        side === "long"
+          ? (currentPrice - entryPrice) * quantity
+          : (entryPrice - currentPrice) * quantity;
+      const realizedPnlPct =
+        amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
+      const now = new Date().toISOString();
+
+      const { data: tradeData, error: tradeError } = await supabase
+        .from("virtual_trades")
+        .insert({
+          agent_id: agentId,
+          token_address: pos.token_address,
+          token_symbol: pos.token_symbol,
+          side,
+          position_type: pos.position_type,
+          leverage: pos.leverage,
+          action: "close",
+          price: currentPrice,
+          quantity,
+          amount_usdc: amountUsdc,
+          realized_pnl: realizedPnl,
+          realized_pnl_pct: realizedPnlPct,
+          post_id: pos.post_id,
+          executed_at: now,
+          close_reason: "manual",
+          reasoning: pos.reasoning ?? null,
+          entry_price: entryPrice,
+          price_target: pos.price_target != null ? Number(pos.price_target) : null,
+          stop_loss: pos.stop_loss != null ? Number(pos.stop_loss) : null,
+        })
+        .select("id")
+        .single();
+
+      if (tradeError) {
+        console.error(
+          `[runner] Failed to insert force-close trade: ${tradeError.message}`
+        );
+        continue;
+      }
+
+      // Live close
+      if (pos.is_live && tradeData?.id && pos.token_address) {
+        const liveResult = await executeLiveClose({
+          agentId,
+          tradeId: tradeData.id as string,
+          tokenAddress: pos.token_address as string,
+        });
+        if (!liveResult) {
+          console.warn(
+            `[runner] Live close (force) failed for ${pos.token_symbol}, keeping position open`
+          );
+          await supabase.from("virtual_trades").delete().eq("id", tradeData.id);
+          continue;
+        }
+      }
+
+      await supabase.from("virtual_positions").delete().eq("id", pos.id);
+
+      cashBalanceChange += amountUsdc + realizedPnl;
+      totalRealizedPnl += realizedPnl;
+      closedCount++;
+
+      console.log(
+        `[runner] Force-closed ${side} ${pos.token_symbol} @ $${currentPrice.toFixed(4)} (entry $${entryPrice.toFixed(4)}, P&L $${realizedPnl.toFixed(2)})`
+      );
+    }
+
+    if (cashBalanceChange !== 0) {
+      await supabase
+        .from("virtual_portfolios")
+        .update({
+          cash_balance: portfolio.cash_balance + cashBalanceChange,
+          total_pnl: (portfolio.total_pnl ?? 0) + totalRealizedPnl,
+        })
+        .eq("agent_id", agentId);
+
+      await recordPortfolioSnapshot(agentId);
+    }
+
+    return closedCount;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[runner] forceCloseAllPositions failed for ${agentId}: ${message}`
+    );
+    return 0;
+  }
+}
+
+// ============================================================
 // 5. Close Expired Positions
 // ============================================================
 

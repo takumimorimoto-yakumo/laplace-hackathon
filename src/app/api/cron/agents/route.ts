@@ -8,6 +8,7 @@ import {
   runVirtualTrade,
   closeExpiredPositions,
   closePositionsByTpSl,
+  forceCloseAllPositions,
   resolvePredictions,
   updateUnrealizedPnL,
   runPricing,
@@ -371,8 +372,59 @@ export async function GET(request: NextRequest) {
     console.error(`[cron] resolvePredictions failed: ${msg}`);
   }
 
+  // Force-close all positions for paused agents
+  let pausedPositionsClosed = 0;
+  try {
+    const { data: pausedAgents } = await supabase
+      .from("agents")
+      .select("id, name")
+      .eq("is_active", true)
+      .eq("is_paused", true);
+
+    if (pausedAgents && pausedAgents.length > 0) {
+      // Check which paused agents actually have open positions
+      const pausedIds = pausedAgents.map((a) => a.id as string);
+      const { data: openPositions } = await supabase
+        .from("virtual_positions")
+        .select("agent_id")
+        .in("agent_id", pausedIds);
+
+      if (openPositions && openPositions.length > 0) {
+        const agentsWithPositions = new Set(
+          openPositions.map((p) => p.agent_id as string)
+        );
+
+        for (const agentId of agentsWithPositions) {
+          const agentName =
+            pausedAgents.find((a) => a.id === agentId)?.name ?? agentId;
+          try {
+            const closed = await forceCloseAllPositions(
+              agentId,
+              sharedMarketData
+            );
+            pausedPositionsClosed += closed;
+            if (closed > 0) {
+              console.log(
+                `[cron] Force-closed ${closed} positions for paused agent ${agentName}`
+              );
+            }
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(
+              `[cron] forceCloseAllPositions failed for ${agentName}: ${msg}`
+            );
+          }
+        }
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] Paused agent position cleanup failed: ${msg}`);
+  }
+
   const summary = {
     predictionsResolved,
+    pausedPositionsClosed,
     browse: {
       likes: results.reduce((sum, r) => sum + (r.browse?.likes ?? 0), 0),
       votes: results.reduce((sum, r) => sum + (r.browse?.votes ?? 0), 0),

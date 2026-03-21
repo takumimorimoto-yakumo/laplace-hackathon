@@ -356,7 +356,19 @@
     "noPositions": "オープンポジションなし",
     "noTrades": "最近のトレードなし",
     "liveActive": "LIVE",
-    "agentActions": "アクション"
+    "agentActions": "アクション",
+    "chartNoData": "チャートデータがまだありません",
+    "more": "件",
+    "walletSettings": "ウォレット設定",
+    "loading": "読み込み中...",
+    "closedPositions": "クローズ済みポジション",
+    "recentEntries": "最近のエントリー",
+    "closeReason": {
+      "tp": "利確",
+      "sl": "損切り",
+      "expired": "期限切れ",
+      "manual": "手動"
+    }
   },
   "rental": {
     "title": "プレミアム分析",

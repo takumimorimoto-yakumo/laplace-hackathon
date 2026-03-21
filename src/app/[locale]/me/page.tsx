@@ -1,12 +1,32 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useSyncExternalStore } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Activity, Bot, Code, Copy, Check, ChevronDown, Wallet, RefreshCw, ExternalLink, LogOut, Plus, LayoutDashboard } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  Code,
+  Copy,
+  Check,
+  ChevronDown,
+  Wallet,
+  RefreshCw,
+  ExternalLink,
+  LogOut,
+  Plus,
+  LayoutDashboard,
+  Settings,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { VotingScoreCard } from "@/components/me/voting-score-card";
 import { LikedBookmarkedTabs } from "@/components/me/liked-bookmarked-tabs";
 import { DeveloperApiSheet } from "@/components/me/developer-api-sheet";
@@ -28,6 +48,7 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useOwnerDashboard } from "@/hooks/use-owner-dashboard";
 import { useOwnerLentAgents } from "@/hooks/use-owner-lent-agents";
 import { useOwnerTrades } from "@/hooks/use-owner-trades";
+import { useOwnerSnapshots } from "@/hooks/use-owner-snapshots";
 import { AdoptWizard } from "@/components/agent/adopt-wizard";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAgentAvatarUrl } from "@/lib/avatar";
@@ -44,9 +65,14 @@ export default function MePage() {
   const { connection } = useConnection();
   const walletAddress = publicKey?.toBase58() ?? null;
 
-  // When autoConnect is in progress, the adapter has selected a wallet but
-  // `connected` is still false. Show a loading skeleton instead of the
-  // "connect wallet" prompt to prevent a flash of disconnected UI on reload.
+  // Track client mount to avoid SSR/client hydration mismatch —
+  // wallet adapter state is only available client-side.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
   const waitingForAutoConnect = !!wallet && !connected;
   const { sol, loading: balanceLoading, refresh: refreshBalance } = useSolBalance(connection, publicKey ?? null);
   const { network, toggleNetwork } = useNetwork();
@@ -58,12 +84,14 @@ export default function MePage() {
   const { data: dashboardData, loading: dashboardLoading } = useOwnerDashboard(walletAddress);
   const { lentAgents, loading: lentLoading } = useOwnerLentAgents(walletAddress);
   const { positions, trades, loading: tradesLoading } = useOwnerTrades(walletAddress);
+  const { snapshots } = useOwnerSnapshots(walletAddress);
 
   const AGENTS_PER_PAGE = 5;
   const [now] = useState(() => Date.now());
   const [addressCopied, setAddressCopied] = useState(false);
   const [adoptOpen, setAdoptOpen] = useState(false);
   const [apiSheetOpen, setApiSheetOpen] = useState(false);
+  const [walletSheetOpen, setWalletSheetOpen] = useState(false);
   const [retiringId, setRetiringId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>("return");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
@@ -76,7 +104,6 @@ export default function MePage() {
   const address = publicKey?.toBase58() ?? "";
   const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
 
-  // Build earnings map from dashboard data for sorting
   const earningsMap = useMemo(() => {
     const map = new Map<string, number>();
     if (dashboardData?.agentBreakdown) {
@@ -87,18 +114,15 @@ export default function MePage() {
     return map;
   }, [dashboardData]);
 
-  // Sort and filter agents
   const sortedFilteredAgents = useMemo(() => {
     let filtered = registeredAgents;
 
-    // Filter: "paused" includes is_paused=true OR is_active=false
     if (filterStatus === "active") {
       filtered = filtered.filter((a) => !a.isPaused && a.isActive);
     } else if (filterStatus === "paused") {
       filtered = filtered.filter((a) => a.isPaused || !a.isActive);
     }
 
-    // Sort
     const sorted = [...filtered];
     switch (sortBy) {
       case "return":
@@ -156,7 +180,7 @@ export default function MePage() {
 
   return (
     <AppShell>
-      {(waitingForAutoConnect || connecting) ? (
+      {(!mounted || waitingForAutoConnect || connecting) ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
           <Skeleton className="size-16 rounded-full" />
           <Skeleton className="h-5 w-32" />
@@ -209,22 +233,45 @@ export default function MePage() {
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-lg font-semibold font-mono">
-                {balanceLoading ? "..." : sol !== null ? sol.toFixed(4) : "\u2014"} SOL
-              </p>
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <p className="text-lg font-semibold font-mono">
+                  {balanceLoading ? "..." : sol !== null ? sol.toFixed(4) : "\u2014"} SOL
+                </p>
+              </div>
+              <button
+                onClick={() => setWalletSheetOpen(true)}
+                className="rounded-md p-2 hover:bg-muted transition-colors"
+                aria-label={t("walletSettings")}
+              >
+                <Settings className="size-4 text-muted-foreground" />
+              </button>
             </div>
           </div>
 
-          <Tabs defaultValue="agents">
+          <Tabs defaultValue="dashboard">
             <TabsList variant="line" className="w-full justify-start overflow-x-auto scrollbar-hide">
-              <TabsTrigger value="agents" className="flex-none"><Bot className="size-4" /> {t("tabs.agents")}</TabsTrigger>
               <TabsTrigger value="dashboard" className="flex-none"><LayoutDashboard className="size-4" /> {t("tabs.dashboard")}</TabsTrigger>
+              <TabsTrigger value="agents" className="flex-none"><Bot className="size-4" /> {t("tabs.agents")}</TabsTrigger>
               <TabsTrigger value="activity" className="flex-none"><Activity className="size-4" /> {t("tabs.activity")}</TabsTrigger>
-              <TabsTrigger value="wallet" className="flex-none"><Wallet className="size-4" /> {t("tabs.wallet")}</TabsTrigger>
             </TabsList>
 
-            {/* Tab 0: Agents (default) */}
+            {/* Tab 0: Dashboard (default) */}
+            <TabsContent value="dashboard" className="pt-4 pb-20">
+              <DashboardSummary
+                dashboardData={dashboardData}
+                registeredAgents={registeredAgents}
+                positions={positions}
+                trades={trades}
+                lentAgents={lentAgents}
+                snapshots={snapshots}
+                loading={dashboardLoading}
+                tradesLoading={tradesLoading}
+                lentLoading={lentLoading}
+              />
+            </TabsContent>
+
+            {/* Tab 1: Agents */}
             <TabsContent value="agents" className="pt-4 pb-20">
               {/* Create Agent + API link */}
               <div className="mb-4">
@@ -257,8 +304,6 @@ export default function MePage() {
                   />
                 </>
               )}
-
-              {/* My Registered Agents */}
 
               {/* Sort & Filter */}
               {registeredAgents.length > 0 && (
@@ -368,28 +413,9 @@ export default function MePage() {
               )}
             </TabsContent>
 
-            {/* Tab 1: Dashboard */}
-            <TabsContent value="dashboard" className="pt-4 pb-20">
-              <DashboardSummary
-                dashboardData={dashboardData}
-                registeredAgents={registeredAgents}
-                positions={positions}
-                trades={trades}
-                lentAgents={lentAgents}
-                loading={dashboardLoading}
-                tradesLoading={tradesLoading}
-                lentLoading={lentLoading}
-                walletAddress={walletAddress!}
-                onAgentUpdated={() => window.location.reload()}
-              />
-            </TabsContent>
-
             {/* Tab 2: Activity */}
             <TabsContent value="activity" className="pt-4 pb-20">
-              {/* Voting Score */}
               <VotingScoreCard stats={stats} />
-
-              {/* Liked & Bookmarked Posts */}
               <LikedBookmarkedTabs
                 likedPosts={likedPosts}
                 bookmarkedPosts={bookmarkedPosts}
@@ -397,38 +423,41 @@ export default function MePage() {
                 locale={locale}
               />
             </TabsContent>
+          </Tabs>
 
-            {/* Tab 2: Wallet */}
-            <TabsContent value="wallet" className="pt-4 pb-20">
-              {/* Balance Card */}
-              <div className="rounded-lg border border-border bg-card p-5 mb-4">
-                <div className="flex items-center justify-between mb-1">
+          {/* Wallet Settings Sheet */}
+          <Sheet open={walletSheetOpen} onOpenChange={setWalletSheetOpen}>
+            <SheetContent side="bottom" className="max-h-[70vh]">
+              <SheetHeader>
+                <SheetTitle>{t("tabs.wallet")}</SheetTitle>
+              </SheetHeader>
+              <div className="px-4 py-3 space-y-4">
+                {/* Balance */}
+                <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">{t("walletBalance")}</p>
-                  <button
-                    onClick={refreshBalance}
-                    disabled={balanceLoading}
-                    className="rounded-md p-1.5 hover:bg-muted transition-colors disabled:opacity-50"
-                    aria-label={t("refreshBalance")}
-                  >
-                    <RefreshCw className={`size-4 text-muted-foreground ${balanceLoading ? "animate-spin" : ""}`} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-semibold font-mono">
+                      {balanceLoading ? "..." : sol !== null ? sol.toFixed(4) : "\u2014"} SOL
+                    </p>
+                    <button
+                      onClick={refreshBalance}
+                      disabled={balanceLoading}
+                      className="rounded-md p-1.5 hover:bg-muted transition-colors disabled:opacity-50"
+                      aria-label={t("refreshBalance")}
+                    >
+                      <RefreshCw className={`size-4 text-muted-foreground ${balanceLoading ? "animate-spin" : ""}`} />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-3xl font-bold font-mono">
-                  {balanceLoading ? "..." : sol !== null ? sol.toFixed(4) : "\u2014"} <span className="text-lg text-muted-foreground">SOL</span>
-                </p>
-              </div>
 
-              {/* Wallet Details */}
-              <div className="rounded-lg border border-border bg-card divide-y divide-border">
                 {/* Address */}
-                <div className="p-4">
+                <div>
                   <p className="text-xs text-muted-foreground mb-1">{t("walletAddress")}</p>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-mono text-foreground truncate">{address}</p>
                     <button
                       onClick={handleCopyAddress}
                       className="shrink-0 rounded-md p-1 hover:bg-muted transition-colors"
-                      aria-label={addressCopied ? t("addressCopied") : tCommon("copyAddress")}
                     >
                       {addressCopied ? (
                         <Check className="size-3.5 text-bullish" />
@@ -440,8 +469,8 @@ export default function MePage() {
                 </div>
 
                 {/* Network Toggle */}
-                <div className="p-4 flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">{t("network")}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{t("network")}</p>
                   <button
                     onClick={toggleNetwork}
                     className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-foreground hover:bg-muted transition-colors"
@@ -452,30 +481,31 @@ export default function MePage() {
                 </div>
 
                 {/* Explorer Link */}
-                <div className="p-4">
-                  <a
-                    href={solscanAccountUrl(address)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="size-4" />
-                    {t("viewOnExplorer")}
-                  </a>
-                </div>
-              </div>
+                <a
+                  href={solscanAccountUrl(address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink className="size-4" />
+                  {t("viewOnExplorer")}
+                </a>
 
-              {/* Disconnect */}
-              <Button
-                variant="outline"
-                className="w-full mt-4"
-                onClick={() => disconnect()}
-              >
-                <LogOut className="size-4 mr-2" />
-                {t("disconnect")}
-              </Button>
-            </TabsContent>
-          </Tabs>
+                {/* Disconnect */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    disconnect();
+                    setWalletSheetOpen(false);
+                  }}
+                >
+                  <LogOut className="size-4 mr-2" />
+                  {t("disconnect")}
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </>
       )}
     </AppShell>

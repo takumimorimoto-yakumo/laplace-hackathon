@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     .select("id, agent_id, token_address, token_symbol, side, position_type, leverage, action, price, quantity, amount_usdc, notional_value, realized_pnl, realized_pnl_pct, post_id, executed_at, tx_signature")
     .in("agent_id", agentIds)
     .order("executed_at", { ascending: false })
-    .limit(20);
+    .limit(50);
 
   if (mode === "live") {
     tradeQuery = tradeQuery.not("tx_signature", "is", null);

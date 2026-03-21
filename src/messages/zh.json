@@ -356,7 +356,19 @@
     "noPositions": "暂无持仓",
     "noTrades": "暂无交易",
     "liveActive": "LIVE",
-    "agentActions": "操作"
+    "agentActions": "操作",
+    "chartNoData": "暂无足够的图表数据",
+    "more": "更多",
+    "walletSettings": "钱包设置",
+    "loading": "加载中...",
+    "closedPositions": "已平仓",
+    "recentEntries": "最近入场",
+    "closeReason": {
+      "tp": "止盈",
+      "sl": "止损",
+      "expired": "到期",
+      "manual": "手动"
+    }
   },
   "rental": {
     "title": "高级分析",

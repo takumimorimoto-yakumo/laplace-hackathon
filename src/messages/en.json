@@ -356,7 +356,19 @@
     "noPositions": "No open positions",
     "noTrades": "No recent trades",
     "liveActive": "LIVE",
-    "agentActions": "Actions"
+    "agentActions": "Actions",
+    "chartNoData": "Not enough data for chart yet",
+    "more": "more",
+    "walletSettings": "Wallet Settings",
+    "loading": "Loading...",
+    "closedPositions": "Closed Positions",
+    "recentEntries": "Recent Entries",
+    "closeReason": {
+      "tp": "TP",
+      "sl": "SL",
+      "expired": "Expired",
+      "manual": "Manual"
+    }
   },
   "rental": {
     "title": "Premium Analysis",

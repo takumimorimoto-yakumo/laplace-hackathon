@@ -12,12 +12,13 @@ import {
 } from "@/lib/data/coingecko";
 import { fetchAllProtocolTVLs } from "@/lib/data/defillama";
 import { inferTags } from "@/lib/token-utils";
-import type { MarketToken, TimeHorizon, HorizonSentiment } from "@/lib/types";
+import type { Chain, MarketToken, TimeHorizon, HorizonSentiment } from "@/lib/types";
 
 // ---------- DB Row Type ----------
 
 interface TokenCacheRow {
   address: string;
+  chain: Chain;
   coingecko_id: string | null;
   symbol: string;
   name: string;
@@ -52,6 +53,7 @@ function rowToMarketToken(
 
   return {
     address: row.address,
+    chain: row.chain,
     symbol: row.symbol,
     name: row.name,
     logoURI: row.logo_uri,
@@ -203,14 +205,18 @@ export async function fetchCachedTokens(): Promise<MarketToken[]> {
 }
 
 /**
- * Fetch a single cached token by address.
+ * Fetch a single cached token by address and chain.
  */
-export async function fetchCachedToken(address: string): Promise<MarketToken | null> {
+export async function fetchCachedToken(
+  address: string,
+  chain: Chain = "solana",
+): Promise<MarketToken | null> {
   const supabase = createReadOnlyClient();
 
   const { data, error } = await supabase
     .from("token_cache")
     .select("*")
+    .eq("chain", chain)
     .eq("address", address)
     .single();
 
@@ -225,14 +231,18 @@ export async function fetchCachedToken(address: string): Promise<MarketToken | n
 }
 
 /**
- * Fetch a single cached token by symbol (case-insensitive).
+ * Fetch a single cached token by symbol (case-insensitive), optionally filtered by chain.
  */
-export async function fetchCachedTokenBySymbol(symbol: string): Promise<MarketToken | null> {
+export async function fetchCachedTokenBySymbol(
+  symbol: string,
+  chain: Chain = "solana",
+): Promise<MarketToken | null> {
   const supabase = createReadOnlyClient();
 
   const { data, error } = await supabase
     .from("token_cache")
     .select("*")
+    .eq("chain", chain)
     .ilike("symbol", symbol)
     .limit(1)
     .single();
@@ -251,6 +261,7 @@ export async function fetchCachedTokenBySymbol(symbol: string): Promise<MarketTo
 
 export interface TokenCacheInput {
   address: string;
+  chain?: Chain;
   coingeckoId: string | null;
   symbol: string;
   name: string;
@@ -276,6 +287,7 @@ export async function upsertTokenCache(tokens: TokenCacheInput[]): Promise<numbe
 
   const rows = tokens.map((t) => ({
     address: t.address,
+    chain: t.chain ?? "solana",
     coingecko_id: t.coingeckoId,
     symbol: t.symbol,
     name: t.name,
@@ -293,7 +305,7 @@ export async function upsertTokenCache(tokens: TokenCacheInput[]): Promise<numbe
 
   const { error } = await supabase
     .from("token_cache")
-    .upsert(rows, { onConflict: "address" });
+    .upsert(rows, { onConflict: "chain,address" });
 
   if (error) {
     console.error("[token-cache] upsertTokenCache error:", error.message);

@@ -10,6 +10,7 @@ import type {
   AgentTimeHorizon,
   AnalysisModule,
   AssetFocus,
+  Chain,
   CloseReason,
   InvestmentOutlook,
   LLMModel,
@@ -80,6 +81,7 @@ export interface DbAgent {
 export interface DbTimelinePost {
   id: string;
   agent_id: string;
+  chain: Chain;
   post_type: string;
   token_address: string | null;
   token_symbol: string | null;
@@ -109,6 +111,7 @@ export interface DbTimelinePost {
 export interface DbVirtualPosition {
   id: string;
   agent_id: string;
+  chain: Chain;
   token_address: string;
   token_symbol: string;
   side: string;
@@ -134,6 +137,7 @@ export interface DbVirtualPosition {
 export interface DbVirtualTrade {
   id: string;
   agent_id: string;
+  chain: Chain;
   token_address: string;
   token_symbol: string;
   side: string;
@@ -250,6 +254,7 @@ export function dbPostToTimelinePost(
   return {
     id: row.id,
     agentId: row.agent_id,
+    chain: row.chain,
     content,
     direction: (row.direction ?? "neutral") as Direction,
     confidence: Number(row.confidence ?? 0),
@@ -274,11 +279,13 @@ export function dbPositionToPosition(row: DbVirtualPosition): Position {
   return {
     tokenAddress: row.token_address,
     tokenSymbol: row.token_symbol,
+    chain: row.chain,
     direction: row.side as "long" | "short",
     leverage: Number(row.leverage),
     size: Number(row.amount_usdc),
     entryPrice: Number(row.entry_price),
     currentReturn: Number(row.unrealized_pnl_pct),
+    unrealizedPnl: Number(row.unrealized_pnl),
     enteredAt: row.opened_at,
     isLive: row.is_live ?? false,
     txSignature: row.open_tx_signature ?? undefined,
@@ -292,6 +299,7 @@ export function dbTradeToTrade(row: DbVirtualTrade): Trade {
   return {
     tokenAddress: row.token_address,
     tokenSymbol: row.token_symbol,
+    chain: row.chain,
     action: row.action === "open" ? "buy" : "sell",
     size: Number(row.amount_usdc),
     price: Number(row.price),

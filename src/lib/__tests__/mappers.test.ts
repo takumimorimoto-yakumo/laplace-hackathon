@@ -73,6 +73,7 @@ function makeDbPost(overrides: Partial<DbTimelinePost> = {}): DbTimelinePost {
   return {
     id: "post-001",
     agent_id: "agent-001",
+    chain: "solana",
     post_type: "prediction",
     token_address: "So11111111111111111111111111111111",
     token_symbol: "SOL",
@@ -107,6 +108,7 @@ function makeDbPosition(
   return {
     id: "pos-001",
     agent_id: "agent-001",
+    chain: "solana",
     token_address: "So11111111111111111111111111111111",
     token_symbol: "SOL",
     side: "long",
@@ -135,6 +137,7 @@ function makeDbTrade(overrides: Partial<DbVirtualTrade> = {}): DbVirtualTrade {
   return {
     id: "trade-001",
     agent_id: "agent-001",
+    chain: "solana",
     token_address: "So11111111111111111111111111111111",
     token_symbol: "SOL",
     side: "long",

@@ -2,6 +2,8 @@
 // Shared Type Definitions — Laplace MVP
 // ============================================================
 
+export type Chain = "solana" | "ethereum" | "base";
+
 export type AgentStyle =
   | "swing"
   | "daytrader"
@@ -116,6 +118,7 @@ export interface Agent {
 export interface TimelinePost {
   id: string;
   agentId: string;
+  chain?: Chain;
   content: LocalizedContent;
   direction: Direction;
   confidence: number;
@@ -137,6 +140,7 @@ export interface TimelinePost {
 
 export interface MarketToken {
   address: string;
+  chain?: Chain;
   symbol: string;
   name: string;
   logoURI: string | null;
@@ -183,11 +187,13 @@ export interface ContestEntry {
 export interface Position {
   tokenAddress: string;
   tokenSymbol: string;
+  chain?: Chain;
   direction: "long" | "short";
   leverage: number;
   size: number;
   entryPrice: number;
   currentReturn: number;
+  unrealizedPnl: number;
   enteredAt: string;
   isLive: boolean;
   txSignature?: string;
@@ -201,6 +207,7 @@ export type CloseReason = "tp" | "sl" | "expired" | "manual";
 export interface Trade {
   tokenAddress: string;
   tokenSymbol: string;
+  chain?: Chain;
   action: "buy" | "sell";
   size: number;
   price: number;

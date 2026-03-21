@@ -68,15 +68,12 @@ export async function GET(request: NextRequest) {
   let totalReturn24h = 0;
   let totalReturn7d = 0;
   let totalReturn30d = 0;
-  let totalPnl = 0;
   for (const a of agents) {
-    const pv = Number(a.portfolio_value) || 0;
-    totalPortfolioValue += pv;
+    totalPortfolioValue += Number(a.portfolio_value) || 0;
     totalReturn += Number(a.portfolio_return) || 0;
     totalReturn24h += Number(a.return_24h) || 0;
     totalReturn7d += Number(a.return_7d) || 0;
     totalReturn30d += Number(a.return_30d) || 0;
-    totalPnl += pv - initialBalance;
   }
   const n = agents.length || 1;
   const averageReturn = totalReturn / n;
@@ -217,7 +214,7 @@ export async function GET(request: NextRequest) {
     averageReturn24h,
     averageReturn7d,
     averageReturn30d,
-    totalPnl,
+    totalPnl: realizedPnl + unrealizedPnl,
     realizedPnl,
     unrealizedPnl,
     totalEarnings,

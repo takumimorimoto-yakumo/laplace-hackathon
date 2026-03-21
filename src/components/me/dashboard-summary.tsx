@@ -256,15 +256,30 @@ export function DashboardSummary({
                     <span className="text-[10px] text-muted-foreground/70">
                       {pos.agentName?.split(" ")[0]}
                     </span>
-                    <span
-                      className={cn(
-                        "text-sm font-mono font-medium min-w-[52px] text-right",
-                        isPositive ? "text-bullish" : "text-bearish"
-                      )}
-                    >
-                      {isPositive ? "+" : ""}
-                      {pos.currentReturn.toFixed(1)}%
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span
+                        className={cn(
+                          "text-sm font-mono font-medium",
+                          isPositive ? "text-bullish" : "text-bearish"
+                        )}
+                      >
+                        {isPositive ? "+" : ""}
+                        {pos.currentReturn.toFixed(1)}%
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[10px] font-mono",
+                          isPositive
+                            ? "text-bullish/70"
+                            : "text-bearish/70"
+                        )}
+                      >
+                        {isPositive ? "+" : ""}
+                        ${Math.abs(pos.unrealizedPnl) < 0.01
+                          ? "0.00"
+                          : pos.unrealizedPnl.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );

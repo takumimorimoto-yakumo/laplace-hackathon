@@ -193,30 +193,36 @@ export function DashboardSummary({
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground mb-1.5">{t("totalPnl")}</p>
-          <div className="space-y-0.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">{t("realizedPnl")}</span>
-              <span
-                className={cn(
-                  "text-[10px] font-mono font-medium",
-                  dashboardData.realizedPnl >= 0 ? "text-bullish" : "text-bearish"
-                )}
-              >
-                {dashboardData.realizedPnl >= 0 ? "+" : ""}${Math.abs(dashboardData.realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">{t("unrealizedPnl")}</span>
-              <span
-                className={cn(
-                  "text-[10px] font-mono font-medium",
-                  dashboardData.unrealizedPnl >= 0 ? "text-bullish" : "text-bearish"
-                )}
-              >
-                {dashboardData.unrealizedPnl >= 0 ? "+" : ""}${Math.abs(dashboardData.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </span>
-            </div>
-          </div>
+          {(() => {
+            const realized = dashboardData.realizedPnl ?? 0;
+            const unrealized = dashboardData.unrealizedPnl ?? 0;
+            return (
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">{t("realizedPnl")}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-mono font-medium",
+                      realized >= 0 ? "text-bullish" : "text-bearish"
+                    )}
+                  >
+                    {realized >= 0 ? "+" : ""}${Math.abs(realized).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">{t("unrealizedPnl")}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-mono font-medium",
+                      unrealized >= 0 ? "text-bullish" : "text-bearish"
+                    )}
+                  >
+                    {unrealized >= 0 ? "+" : ""}${Math.abs(unrealized).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

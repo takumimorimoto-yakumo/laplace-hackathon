@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowUpRight, ArrowDownRight, Lock } from "lucide-react";
 import { EntryPointChart } from "@/components/market/entry-point-chart";
@@ -45,6 +46,7 @@ export function PositionList({
   showStrategy,
 }: PositionListProps) {
   const t = useTranslations("agent");
+  const [now] = useState(() => Date.now());
 
   if (positions.length === 0) {
     return (
@@ -103,6 +105,14 @@ export function PositionList({
             exitedAt: tr.executedAt,
             pnl: tr.pnl,
           }));
+
+          // Use sparkline7d for positions older than 48h to show full context
+          const positionAgeHours =
+            (now - new Date(position.enteredAt).getTime()) / 3600_000;
+          const chartPriceData =
+            positionAgeHours > 48 && tokenData?.sparkline7d && tokenData.sparkline7d.length > 0
+              ? tokenData.sparkline7d
+              : tokenData?.priceHistory48h ?? [];
 
           const currentPrice = tokenData?.price ?? null;
           const hasStrategy =
@@ -221,10 +231,10 @@ export function PositionList({
               ) : null}
 
               {/* Chart */}
-              {tokenData && entryPoint && tokenData.priceHistory48h.length > 0 ? (
+              {tokenData && entryPoint && chartPriceData.length > 0 ? (
                 <div className="px-1 pb-1">
                   <EntryPointChart
-                    priceData={tokenData.priceHistory48h}
+                    priceData={chartPriceData}
                     entryPoints={[entryPoint]}
                     exitPoints={chartExitPoints}
                     variant="full"

@@ -140,8 +140,18 @@ export function EntryPointChart({
         Math.max(0, Math.min(priceData.length - 1, priceData.length - 1 - hoursAgo))
       );
       const snappedCoord = coords[dataIndex] ?? rawCoord;
-      // Use snapped X (on line) but keep entry price Y for visual reference
-      const coord = { x: snappedCoord.x, y: snappedCoord.y };
+
+      // If the entry is outside the chart's time range (older than the data),
+      // use the entry PRICE for Y position instead of snapping to the price line.
+      // This prevents the marker from appearing at a misleading price level.
+      const isOutsideRange = hoursAgo > priceData.length;
+      let coord: { x: number; y: number };
+      if (isOutsideRange) {
+        // Place at the left edge, at the correct Y for the entry price
+        coord = { x: rawCoord.x, y: rawCoord.y };
+      } else {
+        coord = { x: snappedCoord.x, y: snappedCoord.y };
+      }
       return { ep, coord, color: directionColor(ep.direction) };
     });
   }, [entryPoints, priceData.length, priceMin, priceMax, width, height, padX, padY, referenceTime, coords]);

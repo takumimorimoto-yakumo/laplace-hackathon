@@ -14,6 +14,7 @@ import {
   POSITION_EXPIRY_DAYS,
   getOrCreatePortfolio,
   findPriceInMarketData,
+  isValidSolanaAddress,
 } from "./trade-helpers";
 import { positionExpiryMs } from "./time-horizon";
 
@@ -42,6 +43,13 @@ export async function runVirtualTrade(
     return;
   }
 
+  if (!isValidSolanaAddress(output.token_address)) {
+    console.log(
+      `[runner] Skipping virtual trade: invalid Solana address "${output.token_address}" for ${output.token_symbol}`
+    );
+    return;
+  }
+
   const supabase = createAdminClient();
   const side = output.direction === "bullish" ? "long" : "short";
 
@@ -63,8 +71,31 @@ export async function runVirtualTrade(
       return;
     }
 
+    // 1b. Check position count limit (max 10 open positions per agent)
+    const MAX_POSITIONS = 10;
+    const { count: positionCount } = await supabase
+      .from("virtual_positions")
+      .select("id", { count: "exact", head: true })
+      .eq("agent_id", agentId);
+
+    if (positionCount != null && positionCount >= MAX_POSITIONS) {
+      console.log(
+        `[runner] Agent ${agentId} has ${positionCount} positions (max ${MAX_POSITIONS}), skipping trade`
+      );
+      return;
+    }
+
     // 2. Fetch or initialize portfolio
     const portfolio = await getOrCreatePortfolio(agentId);
+
+    // 2b. Minimum cash reserve guard (5% of portfolio value)
+    const MIN_CASH_RESERVE_PCT = 0.05;
+    if (portfolio.cash_balance < portfolio.total_value * MIN_CASH_RESERVE_PCT) {
+      console.log(
+        `[runner] Cash reserve too low ($${portfolio.cash_balance.toFixed(2)} < ${(MIN_CASH_RESERVE_PCT * 100).toFixed(0)}% of $${portfolio.total_value.toFixed(2)}), skipping trade`
+      );
+      return;
+    }
 
     // 3. Look up current price from market context (reuse if provided)
     const tradeMarketData = existingMarketData ?? await fetchMarketContext();
@@ -94,15 +125,35 @@ export async function runVirtualTrade(
     const quantity = amountUsdc / price;
     const now = new Date().toISOString();
 
-    // 5. Ensure TP/SL are set — fallback to defaults if LLM omitted them
+    // 5. Ensure TP/SL are set — fallback to defaults if LLM omitted or contradicted
     const DEFAULT_TP_PCT = 0.10; // +10%
     const DEFAULT_SL_PCT = 0.05; // -5%
-    const priceTarget =
-      output.price_target ??
-      (side === "long" ? price * (1 + DEFAULT_TP_PCT) : price * (1 - DEFAULT_TP_PCT));
-    const stopLoss =
-      output.stop_loss ??
-      (side === "long" ? price * (1 - DEFAULT_SL_PCT) : price * (1 + DEFAULT_SL_PCT));
+    const defaultTp = side === "long" ? price * (1 + DEFAULT_TP_PCT) : price * (1 - DEFAULT_TP_PCT);
+    const defaultSl = side === "long" ? price * (1 - DEFAULT_SL_PCT) : price * (1 + DEFAULT_SL_PCT);
+
+    // Validate TP/SL direction: long TP must be > entry, short TP must be < entry
+    const isTpValid = output.price_target != null && (
+      (side === "long" && output.price_target > price) ||
+      (side === "short" && output.price_target < price)
+    );
+    const isSlValid = output.stop_loss != null && (
+      (side === "long" && output.stop_loss < price) ||
+      (side === "short" && output.stop_loss > price)
+    );
+
+    const priceTarget = isTpValid ? output.price_target! : defaultTp;
+    const stopLoss = isSlValid ? output.stop_loss! : defaultSl;
+
+    if (output.price_target != null && !isTpValid) {
+      console.warn(
+        `[runner] Invalid TP direction for ${side} ${output.token_symbol}: TP=$${output.price_target} entry=$${price}, using default`
+      );
+    }
+    if (output.stop_loss != null && !isSlValid) {
+      console.warn(
+        `[runner] Invalid SL direction for ${side} ${output.token_symbol}: SL=$${output.stop_loss} entry=$${price}, using default`
+      );
+    }
 
     // 6. Insert into virtual_positions
     const { data: posData, error: posError } = await supabase
@@ -426,6 +477,9 @@ export async function closePositionsByTpSl(
         })
         .eq("agent_id", agentId);
 
+      // Recalculate total_value and total_pnl_pct atomically
+      await supabase.rpc("recalculate_portfolio", { p_agent_id: agentId });
+
       await recordPortfolioSnapshot(agentId);
     }
 
@@ -474,24 +528,34 @@ export async function forceCloseAllPositions(
         marketData
       );
 
-      if (!currentPrice) {
-        console.warn(
-          `[runner] Cannot find price for ${pos.token_symbol}, skipping force-close`
-        );
-        continue;
-      }
-
       const entryPrice = Number(pos.entry_price);
       const quantity = Number(pos.quantity);
       const amountUsdc = Number(pos.amount_usdc);
       const side = pos.side as string;
 
-      const realizedPnl =
-        side === "long"
-          ? (currentPrice - entryPrice) * quantity
-          : (entryPrice - currentPrice) * quantity;
-      const realizedPnlPct =
-        amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
+      // If no market price is available (e.g. invalid/hallucinated token address),
+      // treat as total loss: the invested amount is unrecoverable.
+      let realizedPnl: number;
+      let realizedPnlPct: number;
+      let closePrice: number;
+
+      if (currentPrice) {
+        closePrice = currentPrice;
+        realizedPnl =
+          side === "long"
+            ? (currentPrice - entryPrice) * quantity
+            : (entryPrice - currentPrice) * quantity;
+        realizedPnlPct =
+          amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
+      } else {
+        closePrice = 0;
+        realizedPnl = -amountUsdc;
+        realizedPnlPct = -100;
+        console.warn(
+          `[runner] No price for ${pos.token_symbol} (addr: ${pos.token_address}), closing as total loss (-$${amountUsdc.toFixed(2)})`
+        );
+      }
+
       const now = new Date().toISOString();
 
       const { data: tradeData, error: tradeError } = await supabase
@@ -504,7 +568,7 @@ export async function forceCloseAllPositions(
           position_type: pos.position_type,
           leverage: pos.leverage,
           action: "close",
-          price: currentPrice,
+          price: closePrice,
           quantity,
           amount_usdc: amountUsdc,
           realized_pnl: realizedPnl,
@@ -527,8 +591,8 @@ export async function forceCloseAllPositions(
         continue;
       }
 
-      // Live close
-      if (pos.is_live && tradeData?.id && pos.token_address) {
+      // Live close (only for positions with valid market price)
+      if (currentPrice && pos.is_live && tradeData?.id && pos.token_address) {
         const liveResult = await executeLiveClose({
           agentId,
           tradeId: tradeData.id as string,
@@ -550,7 +614,7 @@ export async function forceCloseAllPositions(
       closedCount++;
 
       console.log(
-        `[runner] Force-closed ${side} ${pos.token_symbol} @ $${currentPrice.toFixed(4)} (entry $${entryPrice.toFixed(4)}, P&L $${realizedPnl.toFixed(2)})`
+        `[runner] Force-closed ${side} ${pos.token_symbol} @ $${closePrice.toFixed(4)} (entry $${entryPrice.toFixed(4)}, P&L $${realizedPnl.toFixed(2)})`
       );
     }
 
@@ -562,6 +626,9 @@ export async function forceCloseAllPositions(
           total_pnl: (portfolio.total_pnl ?? 0) + totalRealizedPnl,
         })
         .eq("agent_id", agentId);
+
+      // Recalculate total_value and total_pnl_pct atomically
+      await supabase.rpc("recalculate_portfolio", { p_agent_id: agentId });
 
       await recordPortfolioSnapshot(agentId);
     }
@@ -627,28 +694,33 @@ export async function closeExpiredPositions(
         marketData
       );
 
-      if (!currentPrice) {
-        console.warn(
-          `[runner] Cannot find price for ${pos.token_symbol}, skipping close`
-        );
-        continue;
-      }
-
       const entryPrice = Number(pos.entry_price);
       const quantity = Number(pos.quantity);
       const amountUsdc = Number(pos.amount_usdc);
       const side = pos.side as string;
 
-      // Calculate P&L
+      // If no market price is available, treat as total loss (same as forceClose)
       let realizedPnl: number;
-      if (side === "long") {
-        realizedPnl = (currentPrice - entryPrice) * quantity;
+      let realizedPnlPct: number;
+      let closePrice: number;
+
+      if (currentPrice) {
+        closePrice = currentPrice;
+        realizedPnl =
+          side === "long"
+            ? (currentPrice - entryPrice) * quantity
+            : (entryPrice - currentPrice) * quantity;
+        realizedPnlPct =
+          amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
       } else {
-        realizedPnl = (entryPrice - currentPrice) * quantity;
+        closePrice = 0;
+        realizedPnl = -amountUsdc;
+        realizedPnlPct = -100;
+        console.warn(
+          `[runner] No price for expired ${pos.token_symbol} (addr: ${pos.token_address}), closing as total loss (-$${amountUsdc.toFixed(2)})`
+        );
       }
 
-      const realizedPnlPct =
-        amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
       const now = new Date().toISOString();
 
       // Insert close trade
@@ -662,7 +734,7 @@ export async function closeExpiredPositions(
           position_type: pos.position_type,
           leverage: pos.leverage,
           action: "close",
-          price: currentPrice,
+          price: closePrice,
           quantity,
           amount_usdc: amountUsdc,
           realized_pnl: realizedPnl,
@@ -685,9 +757,8 @@ export async function closeExpiredPositions(
         continue;
       }
 
-      // Live close — if live position fails to close on-chain, skip virtual close
-      // to prevent divergence between on-chain and virtual state
-      if (pos.is_live && tradeData?.id && pos.token_address) {
+      // Live close — only for positions with valid market price
+      if (currentPrice && pos.is_live && tradeData?.id && pos.token_address) {
         const liveResult = await executeLiveClose({
           agentId,
           tradeId: tradeData.id as string,
@@ -697,7 +768,6 @@ export async function closeExpiredPositions(
           console.warn(
             `[runner] Live close failed for expired ${pos.token_symbol}, keeping position open to prevent divergence`
           );
-          // Rollback the close trade record
           await supabase.from("virtual_trades").delete().eq("id", tradeData.id);
           continue;
         }
@@ -720,7 +790,7 @@ export async function closeExpiredPositions(
       totalRealizedPnl += realizedPnl;
 
       console.log(
-        `[runner] Closed expired ${side} ${pos.token_symbol}: P&L $${realizedPnl.toFixed(2)} (${realizedPnlPct.toFixed(1)}%)`
+        `[runner] Closed expired ${side} ${pos.token_symbol} @ $${closePrice.toFixed(4)}: P&L $${realizedPnl.toFixed(2)} (${realizedPnlPct.toFixed(1)}%)`
       );
     }
 
@@ -739,6 +809,9 @@ export async function closeExpiredPositions(
           `[runner] Failed to update portfolio after close: ${portfolioError.message}`
         );
       }
+
+      // Recalculate total_value and total_pnl_pct atomically
+      await supabase.rpc("recalculate_portfolio", { p_agent_id: agentId });
 
       // Record portfolio snapshot after closing positions
       await recordPortfolioSnapshot(agentId);

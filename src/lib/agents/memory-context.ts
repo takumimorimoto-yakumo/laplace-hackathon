@@ -99,7 +99,9 @@ export function formatMemoryBlock(memory: AgentMemory): string | null {
   if (memory.positions.length > 0) {
     const lines = memory.positions.map((p) => {
       const sign = p.currentReturn >= 0 ? "+" : "";
-      return `- ${p.tokenSymbol} ${p.direction} $${p.size.toFixed(0)} (${sign}${p.currentReturn.toFixed(1)}%)`;
+      const tpStr = p.priceTarget ? ` TP:$${p.priceTarget.toFixed(4)}` : "";
+      const slStr = p.stopLoss ? ` SL:$${p.stopLoss.toFixed(4)}` : "";
+      return `- ${p.tokenSymbol} ${p.direction} $${p.size.toFixed(0)} @$${p.entryPrice.toFixed(4)} (${sign}${p.currentReturn.toFixed(1)}%)${tpStr}${slStr}`;
     });
     sections.push(`## Your Active Positions\n${lines.join("\n")}`);
   }

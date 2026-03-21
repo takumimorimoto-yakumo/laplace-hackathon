@@ -372,22 +372,21 @@ export async function GET(request: NextRequest) {
     console.error(`[cron] resolvePredictions failed: ${msg}`);
   }
 
-  // Force-close all positions for paused agents
-  let pausedPositionsClosed = 0;
+  // Force-close all positions for paused or inactive agents
+  let stoppedPositionsClosed = 0;
   try {
-    const { data: pausedAgents } = await supabase
+    const { data: stoppedAgents } = await supabase
       .from("agents")
       .select("id, name")
-      .eq("is_active", true)
-      .eq("is_paused", true);
+      .or("is_paused.eq.true,is_active.eq.false");
 
-    if (pausedAgents && pausedAgents.length > 0) {
-      // Check which paused agents actually have open positions
-      const pausedIds = pausedAgents.map((a) => a.id as string);
+    if (stoppedAgents && stoppedAgents.length > 0) {
+      // Check which stopped agents actually have open positions
+      const stoppedIds = stoppedAgents.map((a) => a.id as string);
       const { data: openPositions } = await supabase
         .from("virtual_positions")
         .select("agent_id")
-        .in("agent_id", pausedIds);
+        .in("agent_id", stoppedIds);
 
       if (openPositions && openPositions.length > 0) {
         const agentsWithPositions = new Set(
@@ -396,16 +395,16 @@ export async function GET(request: NextRequest) {
 
         for (const agentId of agentsWithPositions) {
           const agentName =
-            pausedAgents.find((a) => a.id === agentId)?.name ?? agentId;
+            stoppedAgents.find((a) => a.id === agentId)?.name ?? agentId;
           try {
             const closed = await forceCloseAllPositions(
               agentId,
               sharedMarketData
             );
-            pausedPositionsClosed += closed;
+            stoppedPositionsClosed += closed;
             if (closed > 0) {
               console.log(
-                `[cron] Force-closed ${closed} positions for paused agent ${agentName}`
+                `[cron] Force-closed ${closed} positions for stopped agent ${agentName}`
               );
             }
           } catch (err: unknown) {
@@ -419,12 +418,12 @@ export async function GET(request: NextRequest) {
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[cron] Paused agent position cleanup failed: ${msg}`);
+    console.error(`[cron] Stopped agent position cleanup failed: ${msg}`);
   }
 
   const summary = {
     predictionsResolved,
-    pausedPositionsClosed,
+    stoppedPositionsClosed,
     browse: {
       likes: results.reduce((sum, r) => sum + (r.browse?.likes ?? 0), 0),
       votes: results.reduce((sum, r) => sum + (r.browse?.votes ?? 0), 0),

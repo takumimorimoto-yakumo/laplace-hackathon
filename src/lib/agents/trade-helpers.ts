@@ -66,6 +66,14 @@ export async function getOrCreatePortfolio(
 }
 
 /**
+ * Validate a Solana address (Base58, 32-44 characters).
+ * Rejects LLM-hallucinated addresses like "unknown", "WAR", emoji strings, etc.
+ */
+export function isValidSolanaAddress(address: string): boolean {
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+}
+
+/**
  * Find a token's price in RealMarketData array by symbol (case-insensitive).
  */
 export function findPriceInMarketData(

@@ -26,11 +26,31 @@ export interface RealMarketData {
 
 // ---------- Three Laws of the Agent World ----------
 
-const THREE_LAWS = `
-## Three Laws
-1. You are an AI agent in Laplace — a city of 100+ agents analyzing Solana crypto markets.
-2. You must always disclose your confidence level honestly. Never be more confident than your analysis supports.
-3. You generate virtual predictions only. No real money is involved. Your goal is accuracy and insight.
+const AGENT_RULES = `
+## Your Rules of Engagement
+
+You are an AI agent in Laplace — a city of 100+ agents analyzing Solana crypto markets.
+You generate virtual predictions only. No real money is involved. Your goal is accuracy and insight.
+
+### MUST (non-negotiable)
+- Always disclose your confidence level honestly. Never inflate confidence beyond what your analysis supports.
+- When taking a bullish or bearish position, always set both price_target (take profit) and stop_loss. Every position needs an exit plan.
+- Provide concrete evidence for every prediction. Cite specific data: prices, percentages, on-chain metrics, or technical levels.
+- Include reasoning and uncertainty in every post. Explain what could go wrong.
+
+### MUST NOT (forbidden)
+- Never post without a clear thesis. "Looks bullish" with no evidence is not acceptable.
+- Never set confidence above 0.90 without extraordinary, multi-source evidence.
+- Never ignore your recent track record. If you have been wrong repeatedly on a token or pattern, acknowledge it.
+- Never copy another agent's call without adding original analysis.
+
+### YOUR CHOICE (full autonomy)
+- Which token to analyze — pick what genuinely interests you based on the data.
+- Your direction (bullish/bearish/neutral) — follow your own analysis, not the crowd.
+- Specific price_target and stop_loss levels — set them where your analysis says they belong.
+- Allocation size — your conviction, your sizing.
+- Whether to post at all — if nothing is worth saying, skip. Quality over quantity.
+- Your analytical approach — use whatever methods suit your style and the situation.
 `.trim();
 
 // ---------- JSON Output Schema ----------
@@ -50,15 +70,19 @@ Respond with a single JSON object (no markdown, no extra text):
   "reasoning": "Brief internal reasoning for this call",
   "uncertainty": "What could invalidate this thesis",
   "confidence_rationale": "Why this specific confidence level",
-  "price_target": 210.50 | null,
-  "stop_loss": 180.00 | null,
+  "price_target": 210.50,
+  "price_target_rationale": "Resistance at 210 from 3-day high, targeting just above",
+  "stop_loss": 180.00,
+  "stop_loss_rationale": "Below support at 182, invalidates the breakout thesis",
   "allocation_pct": 0.10
 }
 
 should_post — Set to false if you decide this is NOT a good time to post. When false, only skip_reason is required.
-price_target — Concrete target price (take profit) if direction is bullish/bearish. null if neutral.
-stop_loss — Price at which to cut losses. null if neutral or no stop planned.
-allocation_pct — What fraction of your portfolio to allocate to this trade (0.01 to 0.50). Decide based on your conviction level, risk assessment, and current market conditions.
+price_target — REQUIRED for bullish/bearish. Your take-profit price. Base it on concrete levels (support/resistance, recent highs/lows, technical targets). null only if direction is neutral.
+price_target_rationale — REQUIRED when price_target is set. Why you chose this level (1 sentence).
+stop_loss — REQUIRED for bullish/bearish. Price at which to cut losses. null only if direction is neutral.
+stop_loss_rationale — REQUIRED when stop_loss is set. Why you chose this level (1 sentence).
+allocation_pct — What fraction of your portfolio to allocate (0.01 to 0.50). Your conviction, your sizing.
 `.trim();
 
 // ---------- Risk Management Guidelines ----------
@@ -278,7 +302,7 @@ export function buildSystemPrompt(
     if (dirParts.length > 0) parts.push(dirParts.join('\n\n'));
   }
 
-  parts.push(THREE_LAWS);
+  parts.push(AGENT_RULES);
   parts.push(`## Available Tokens (Solana)\n${buildTokenList(marketData)}`);
   parts.push(OUTPUT_SCHEMA);
   parts.push(RISK_MANAGEMENT_GUIDELINES);
@@ -377,7 +401,7 @@ You are ${agent.outlook.toUpperCase()} but the post you're replying to is BEARIS
   const systemPrompt = `
 ${buildAgentIdentity(agent)}
 
-${THREE_LAWS}
+${AGENT_RULES}
 
 ## Task
 You are replying to another agent's post. Engage in constructive debate.
@@ -439,7 +463,7 @@ export function buildNewsMessages(
   const systemPrompt = `
 ${buildAgentIdentity(agent)}
 
-${THREE_LAWS}
+${AGENT_RULES}
 
 ## Task
 Write a brief market news update about a notable observation in the Solana ecosystem.
@@ -576,7 +600,7 @@ export function buildBrowseMessages(
   const systemPrompt = `
 ${buildAgentIdentity(agent)}
 
-${THREE_LAWS}
+${AGENT_RULES}
 
 ## Task
 ${taskLines.join("\n")}
@@ -628,7 +652,7 @@ export function buildChatSystemPrompt(
 ): string {
   const parts = [
     buildAgentIdentity(agent),
-    THREE_LAWS,
+    AGENT_RULES,
     `## Chat Instructions
 - You are in a private 1-on-1 conversation with a user who has rented your services.
 - Maintain your personality, voice style, and investment outlook at all times.
@@ -703,7 +727,7 @@ export function buildCustomAnalysisMessages(
   const systemPrompt = `
 ${buildAgentIdentity(agent)}
 
-${THREE_LAWS}
+${AGENT_RULES}
 
 ## Task
 A subscriber has requested your detailed analysis of ${tokenSymbol}.

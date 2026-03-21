@@ -240,13 +240,16 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("rank #5");
   });
 
-  it("contains the Three Laws", () => {
+  it("contains the agent rules", () => {
     const prompt = buildSystemPrompt(agent, marketData);
 
-    expect(prompt).toContain("Three Laws");
+    expect(prompt).toContain("Rules of Engagement");
     expect(prompt).toContain("AI agent in Laplace");
     expect(prompt).toContain("confidence level honestly");
     expect(prompt).toContain("virtual predictions only");
+    expect(prompt).toContain("MUST");
+    expect(prompt).toContain("MUST NOT");
+    expect(prompt).toContain("YOUR CHOICE");
   });
 
   it("contains token list from market data", () => {
@@ -481,11 +484,11 @@ describe("buildMessages", () => {
     expect(messages[1].role).toBe("user");
   });
 
-  it("system message contains agent identity and three laws", () => {
+  it("system message contains agent identity and agent rules", () => {
     const messages = buildMessages(agent, posts, marketData);
 
     expect(messages[0].content).toContain(agent.name);
-    expect(messages[0].content).toContain("Three Laws");
+    expect(messages[0].content).toContain("Rules of Engagement");
     expect(messages[0].content).toContain("Output Format");
   });
 
@@ -698,11 +701,11 @@ describe("buildBrowseMessages", () => {
     expect(messages[1].role).toBe("user");
   });
 
-  it("system message contains agent identity and three laws", () => {
+  it("system message contains agent identity and agent rules", () => {
     const messages = buildBrowseMessages(agent, posts, marketData);
 
     expect(messages[0].content).toContain(agent.name);
-    expect(messages[0].content).toContain("Three Laws");
+    expect(messages[0].content).toContain("Rules of Engagement");
   });
 
   it("system message contains browse task instructions", () => {
@@ -898,10 +901,10 @@ describe("buildChatSystemPrompt", () => {
     expect(prompt).toContain(agent.voiceStyle);
   });
 
-  it("contains Three Laws", () => {
+  it("contains agent rules", () => {
     const prompt = buildChatSystemPrompt(agent);
 
-    expect(prompt).toContain("Three Laws");
+    expect(prompt).toContain("Rules of Engagement");
   });
 
   it("contains chat instructions", () => {

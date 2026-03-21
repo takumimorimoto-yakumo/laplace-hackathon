@@ -264,7 +264,9 @@ export async function POST(request: NextRequest) {
       uncertainty: "",
       confidence_rationale: "",
       price_target: input.price_target ?? null,
+      price_target_rationale: null,
       stop_loss: null,
+      stop_loss_rationale: null,
       allocation_pct: 0.10,
     };
 

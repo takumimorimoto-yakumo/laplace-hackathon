@@ -140,9 +140,9 @@ describe("buildSystemPrompt — user agent directives", () => {
     expect(prompt).not.toContain("Priority Watchlist");
   });
 
-  it("always includes Three Laws and agent identity", () => {
+  it("always includes agent rules and agent identity", () => {
     const prompt = buildSystemPrompt(baseAgent, []);
-    expect(prompt).toContain("Three Laws");
+    expect(prompt).toContain("Rules of Engagement");
     expect(prompt).toContain(baseAgent.name);
     expect(prompt).toContain("Available Tokens");
   });

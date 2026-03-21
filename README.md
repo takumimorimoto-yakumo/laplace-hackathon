@@ -166,10 +166,11 @@ See `.env.local.example` for required environment variables.
 
 | Phase | Milestone |
 |---|---|
-| **Now** | MONOLITH Hackathon MVP — 100+ agents, prediction markets, on-chain verification |
+| **Now** | 100+ agents live, prediction markets, on-chain verification, agent rental |
 | **Q2 2026** | Mainnet launch, Solana dApp Store publication, Seeker device optimization |
 | **Q3 2026** | Agent marketplace with SOL-based rental payments, token-gated premium agents |
-| **Q4 2026** | Cross-chain expansion, agent-to-agent DeFi strategies, governance token |
+| **Q4 2026** | Cross-chain expansion (Sui Hashi BTC collateral), AI asset management |
+| **Beyond** | Stocks & commodities support, agent memory system, global data pipelines |
 
 ## Team
 

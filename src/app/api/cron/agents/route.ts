@@ -18,6 +18,7 @@ import type { RunResult, BrowseResult } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
 import type { RealMarketData } from "@/lib/agents/prompt-builder";
 import { recordPortfolioSnapshot } from "@/lib/agents/portfolio-snapshot";
+import { fetchTokenPrices } from "@/lib/data/jupiter-tokens";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for Vercel
@@ -295,6 +296,65 @@ export async function GET(request: NextRequest) {
       processed: 0,
       durationMs: Date.now() - startTime,
     });
+  }
+
+  // Enrich market data with prices for tokens held in positions but missing
+  // from CoinGecko top 100 (e.g. small-cap meme tokens). Uses Jupiter Price
+  // API which supports batch queries (up to 100 per request) to minimize API calls.
+  try {
+    const agentIds = agents.map((a) => a.id as string);
+    const { data: openPositions } = await supabase
+      .from("virtual_positions")
+      .select("token_symbol, token_address")
+      .in("agent_id", agentIds);
+
+    if (openPositions && openPositions.length > 0 && sharedMarketData) {
+      const knownSymbols = new Set(
+        sharedMarketData.map((d) => d.symbol.toUpperCase())
+      );
+      // Find tokens that have positions but no price in market data
+      const missingTokens = new Map<string, string>(); // address → symbol
+      for (const pos of openPositions) {
+        const symbol = (pos.token_symbol as string).toUpperCase();
+        const address = pos.token_address as string | null;
+        if (!knownSymbols.has(symbol) && address && !missingTokens.has(address)) {
+          missingTokens.set(address, symbol);
+        }
+      }
+
+      if (missingTokens.size > 0) {
+        const addresses = Array.from(missingTokens.keys());
+        const prices = await fetchTokenPrices(addresses);
+
+        for (const [address, price] of prices) {
+          const symbol = missingTokens.get(address);
+          if (symbol && price > 0) {
+            sharedMarketData.push({
+              symbol,
+              address,
+              price,
+              change24h: 0,
+              volume24h: 0,
+              tvl: null,
+              marketCap: null,
+              coingeckoId: "",
+              name: symbol,
+              volumeRank: 0,
+              marketCapRank: 0,
+              volatility24h: 0,
+              sparkline7d: [],
+            });
+          }
+        }
+
+        console.log(
+          `[cron] Enriched market data with ${prices.size} Jupiter prices for ${missingTokens.size} missing tokens`
+        );
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[cron] Jupiter price enrichment failed (non-fatal): ${msg}`);
   }
 
   // Run agents concurrently (up to CONCURRENCY at a time)

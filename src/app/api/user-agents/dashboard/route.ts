@@ -81,23 +81,7 @@ export async function GET(request: NextRequest) {
   const averageReturn7d = totalReturn7d / n;
   const averageReturn30d = totalReturn30d / n;
 
-  // 2b. Fetch realized PnL from virtual_portfolios
-  const { data: portfolioRows, error: portfolioError } = await supabase
-    .from("virtual_portfolios")
-    .select("agent_id, total_pnl")
-    .in("agent_id", agentIds);
-
-  if (portfolioError) {
-    console.error("Failed to fetch portfolios:", portfolioError);
-    return internalError("Failed to fetch portfolios");
-  }
-
-  let realizedPnl = 0;
-  for (const row of portfolioRows ?? []) {
-    realizedPnl += Number(row.total_pnl) || 0;
-  }
-
-  // 2c. Fetch unrealized PnL from all open positions
+  // 2b. Fetch unrealized PnL from all open positions
   const { data: allOpenPositions, error: openPosError } = await supabase
     .from("virtual_positions")
     .select("unrealized_pnl")
@@ -112,6 +96,11 @@ export async function GET(request: NextRequest) {
   for (const pos of allOpenPositions ?? []) {
     unrealizedPnl += Number(pos.unrealized_pnl) || 0;
   }
+
+  // totalPnl derived from portfolio value (source of truth)
+  // realizedPnl = totalPnl - unrealizedPnl (ensures breakdown always sums to total)
+  const totalPnl = totalPortfolioValue - initialBalance * agents.length;
+  const realizedPnl = totalPnl - unrealizedPnl;
 
   // 3. Compute live-only portfolio stats from virtual_positions
   const { data: livePositions, error: livePosError } = await supabase
@@ -214,7 +203,7 @@ export async function GET(request: NextRequest) {
     averageReturn24h,
     averageReturn7d,
     averageReturn30d,
-    totalPnl: realizedPnl + unrealizedPnl,
+    totalPnl,
     realizedPnl,
     unrealizedPnl,
     totalEarnings,

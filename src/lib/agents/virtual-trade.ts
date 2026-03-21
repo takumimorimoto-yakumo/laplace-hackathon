@@ -94,7 +94,17 @@ export async function runVirtualTrade(
     const quantity = amountUsdc / price;
     const now = new Date().toISOString();
 
-    // 5. Insert into virtual_positions
+    // 5. Ensure TP/SL are set — fallback to defaults if LLM omitted them
+    const DEFAULT_TP_PCT = 0.10; // +10%
+    const DEFAULT_SL_PCT = 0.05; // -5%
+    const priceTarget =
+      output.price_target ??
+      (side === "long" ? price * (1 + DEFAULT_TP_PCT) : price * (1 - DEFAULT_TP_PCT));
+    const stopLoss =
+      output.stop_loss ??
+      (side === "long" ? price * (1 - DEFAULT_SL_PCT) : price * (1 + DEFAULT_SL_PCT));
+
+    // 6. Insert into virtual_positions
     const { data: posData, error: posError } = await supabase
       .from("virtual_positions")
       .insert({
@@ -112,8 +122,8 @@ export async function runVirtualTrade(
         unrealized_pnl_pct: 0,
         post_id: postId,
         opened_at: now,
-        price_target: output.price_target ?? null,
-        stop_loss: output.stop_loss ?? null,
+        price_target: priceTarget,
+        stop_loss: stopLoss,
         reasoning: output.reasoning || null,
       })
       .select("id")
@@ -201,25 +211,73 @@ export async function runVirtualTrade(
 // ============================================================
 
 /**
- * Check whether a position's TP or SL has been hit based on current price.
- * - Long: TP hit when currentPrice >= priceTarget; SL hit when currentPrice <= stopLoss
- * - Short: TP hit when currentPrice <= priceTarget; SL hit when currentPrice >= stopLoss
+ * Check whether a position's TP or SL has been hit based on current price
+ * AND historical sparkline data. This catches TP/SL crossings that happened
+ * between cron runs (e.g. price spiked past TP and came back down).
+ *
+ * - Long: TP hit when any price >= priceTarget; SL hit when any price <= stopLoss
+ * - Short: TP hit when any price <= priceTarget; SL hit when any price >= stopLoss
+ *
+ * We also check the sparkline (hourly prices for the last 7 days) to detect
+ * crossings that the cron missed. Only sparkline points AFTER the position was
+ * opened are considered.
  */
 function isTpSlHit(
   side: string,
   currentPrice: number,
   priceTarget: number | null,
-  stopLoss: number | null
+  stopLoss: number | null,
+  sparkline?: number[],
+  openedAt?: string
 ): "tp" | "sl" | null {
+  // First check current price (fast path)
   if (side === "long") {
     if (stopLoss && currentPrice <= stopLoss) return "sl";
     if (priceTarget && currentPrice >= priceTarget) return "tp";
   } else {
-    // short
     if (stopLoss && currentPrice >= stopLoss) return "sl";
     if (priceTarget && currentPrice <= priceTarget) return "tp";
   }
+
+  // Check sparkline for historical crossings the cron missed
+  if (sparkline && sparkline.length > 0) {
+    // Sparkline is 7d hourly (~168 points). If we know when the position
+    // was opened, only check prices after that point.
+    let relevantPrices = sparkline;
+    if (openedAt) {
+      const openedMs = new Date(openedAt).getTime();
+      const nowMs = Date.now();
+      const sparklineStartMs = nowMs - sparkline.length * 3600_000; // hourly interval
+      const openedIndex = Math.max(
+        0,
+        Math.floor((openedMs - sparklineStartMs) / 3600_000)
+      );
+      relevantPrices = sparkline.slice(openedIndex);
+    }
+
+    for (const price of relevantPrices) {
+      if (side === "long") {
+        if (stopLoss && price <= stopLoss) return "sl";
+        if (priceTarget && price >= priceTarget) return "tp";
+      } else {
+        if (stopLoss && price >= stopLoss) return "sl";
+        if (priceTarget && price <= priceTarget) return "tp";
+      }
+    }
+  }
+
   return null;
+}
+
+/**
+ * Find a token's full market data entry by symbol (case-insensitive).
+ */
+function findMarketDataEntry(
+  symbol: string,
+  data: RealMarketData[]
+): RealMarketData | null {
+  const upper = symbol.toUpperCase();
+  return data.find((d) => d.symbol.toUpperCase() === upper) ?? null;
 }
 
 /**
@@ -249,33 +307,52 @@ export async function closePositionsByTpSl(
     let closedCount = 0;
 
     for (const pos of positions) {
-      const currentPrice = findPriceInMarketData(
-        pos.token_symbol as string,
-        marketData
-      );
+      const tokenSymbol = pos.token_symbol as string;
+      const marketEntry = findMarketDataEntry(tokenSymbol, marketData);
+      const currentPrice = marketEntry?.price ?? null;
       if (!currentPrice) continue;
 
       const side = pos.side as string;
       const priceTarget = pos.price_target ? Number(pos.price_target) : null;
       const stopLoss = pos.stop_loss ? Number(pos.stop_loss) : null;
 
-      const trigger = isTpSlHit(side, currentPrice, priceTarget, stopLoss);
+      const trigger = isTpSlHit(
+        side,
+        currentPrice,
+        priceTarget,
+        stopLoss,
+        marketEntry?.sparkline7d,
+        pos.opened_at as string | undefined
+      );
       if (!trigger) continue;
 
       const entryPrice = Number(pos.entry_price);
       const quantity = Number(pos.quantity);
       const amountUsdc = Number(pos.amount_usdc);
 
-      // Calculate realized P&L
+      // Use the TP/SL target price for execution when the trigger was detected
+      // via sparkline (price may have already moved past the target).
+      // TP → fill at target price (limit order simulation)
+      // SL → fill at SL price (stop order simulation; in reality slippage occurs
+      //       but using SL price is fairer than using the current price which may
+      //       have bounced back)
+      const executionPrice =
+        trigger === "tp" && priceTarget
+          ? priceTarget
+          : trigger === "sl" && stopLoss
+            ? stopLoss
+            : currentPrice;
+
+      // Calculate realized P&L at execution price
       const realizedPnl =
         side === "long"
-          ? (currentPrice - entryPrice) * quantity
-          : (entryPrice - currentPrice) * quantity;
+          ? (executionPrice - entryPrice) * quantity
+          : (entryPrice - executionPrice) * quantity;
       const realizedPnlPct =
         amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
       const now = new Date().toISOString();
 
-      // Insert close trade
+      // Insert close trade (use executionPrice, not currentPrice)
       const { data: tradeData, error: tradeError } = await supabase
         .from("virtual_trades")
         .insert({
@@ -286,7 +363,7 @@ export async function closePositionsByTpSl(
           position_type: pos.position_type,
           leverage: pos.leverage,
           action: "close",
-          price: currentPrice,
+          price: executionPrice,
           quantity,
           amount_usdc: amountUsdc,
           realized_pnl: realizedPnl,
@@ -335,7 +412,7 @@ export async function closePositionsByTpSl(
       closedCount++;
 
       console.log(
-        `[runner] ${trigger.toUpperCase()} hit: closed ${side} ${pos.token_symbol} @ $${currentPrice.toFixed(4)} (entry $${entryPrice.toFixed(4)}, P&L $${realizedPnl.toFixed(2)})`
+        `[runner] ${trigger.toUpperCase()} hit: closed ${side} ${pos.token_symbol} @ $${executionPrice.toFixed(4)} (entry $${entryPrice.toFixed(4)}, current $${currentPrice.toFixed(4)}, P&L $${realizedPnl.toFixed(2)})`
       );
     }
 

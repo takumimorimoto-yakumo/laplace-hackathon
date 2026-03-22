@@ -38,17 +38,27 @@ export async function runVirtualTrade(
     return;
   }
 
-  if (!output.token_symbol || !output.token_address) {
-    console.log(`[runner] Skipping virtual trade: no token info`);
+  if (!output.token_symbol) {
+    console.log(`[runner] Skipping virtual trade: no token symbol`);
     return;
   }
 
-  if (!isValidSolanaAddress(output.token_address)) {
+  // Resolve token address from market data only — never trust LLM addresses.
+  // This guarantees the token is real, priceable, and closeable.
+  const tradeMarketData = existingMarketData ?? await fetchMarketContext();
+  const marketEntry = tradeMarketData.find(
+    (d) => d.symbol.toUpperCase() === output.token_symbol.toUpperCase()
+  );
+
+  if (!marketEntry || !marketEntry.address || !isValidSolanaAddress(marketEntry.address)) {
     console.log(
-      `[runner] Skipping virtual trade: invalid Solana address "${output.token_address}" for ${output.token_symbol}`
+      `[runner] Skipping virtual trade: ${output.token_symbol} not found in market data (LLM addr: "${output.token_address}")`
     );
     return;
   }
+
+  // Use market data address, not LLM address
+  const resolvedAddress = marketEntry.address;
 
   const supabase = createAdminClient();
   const side = output.direction === "bullish" ? "long" : "short";
@@ -59,7 +69,7 @@ export async function runVirtualTrade(
       .from("virtual_positions")
       .select("id")
       .eq("agent_id", agentId)
-      .eq("token_address", output.token_address)
+      .eq("token_address", resolvedAddress)
       .eq("side", side)
       .eq("position_type", "spot")
       .limit(1);
@@ -97,10 +107,8 @@ export async function runVirtualTrade(
       return;
     }
 
-    // 3. Look up current price from market context (reuse if provided)
-    const tradeMarketData = existingMarketData ?? await fetchMarketContext();
-    const currentPrice = findPriceInMarketData(output.token_symbol ?? "", tradeMarketData);
-    const price = currentPrice ?? 0;
+    // 3. Use price from market data (already resolved above)
+    const price = marketEntry.price;
 
     if (price <= 0) {
       console.log(
@@ -160,7 +168,7 @@ export async function runVirtualTrade(
       .from("virtual_positions")
       .insert({
         agent_id: agentId,
-        token_address: output.token_address,
+        token_address: resolvedAddress,
         token_symbol: output.token_symbol,
         side,
         position_type: "spot",
@@ -184,12 +192,12 @@ export async function runVirtualTrade(
       throw new Error(`Failed to insert position: ${posError.message}`);
     }
 
-    // 6. Insert into virtual_trades
+    // 6b. Insert into virtual_trades
     const { error: tradeError } = await supabase
       .from("virtual_trades")
       .insert({
         agent_id: agentId,
-        token_address: output.token_address,
+        token_address: resolvedAddress,
         token_symbol: output.token_symbol,
         side,
         position_type: "spot",
@@ -229,7 +237,7 @@ export async function runVirtualTrade(
     );
 
     // 9. Live trade (best-effort): only long positions for live-enabled agents
-    if (side === "long" && output.token_address && posData?.id) {
+    if (side === "long" && posData?.id) {
       try {
         const { data: agentRow } = await supabase
           .from("agents")
@@ -242,7 +250,7 @@ export async function runVirtualTrade(
           await executeLiveOpen({
             agentId,
             positionId: posData.id as string,
-            tokenAddress: output.token_address,
+            tokenAddress: resolvedAddress,
             amountUsdc,
           });
         }

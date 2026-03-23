@@ -82,7 +82,11 @@ export function PositionList({
           const isLong = position.direction === "long";
           const isPositiveReturn = position.currentReturn >= 0;
           const tokenData = tokenDataMap?.[position.tokenAddress];
-          const relatedExits = exitsByToken.get(position.tokenAddress) ?? [];
+          // Only include exits that occurred after this position was opened
+          const enteredAtMs = new Date(position.enteredAt).getTime();
+          const relatedExits = (exitsByToken.get(position.tokenAddress) ?? []).filter(
+            (tr) => new Date(tr.executedAt).getTime() >= enteredAtMs
+          );
 
           // Build entry point for chart
           const entryPoint: EntryPoint | null =
@@ -109,12 +113,19 @@ export function PositionList({
           // Use sparkline7d for positions older than 48h to show full context
           const positionAgeHours =
             (now - new Date(position.enteredAt).getTime()) / 3600_000;
-          const chartPriceData =
+          const rawPriceData =
             positionAgeHours > 48 && tokenData?.sparkline7d && tokenData.sparkline7d.length > 0
               ? tokenData.sparkline7d
               : tokenData?.priceHistory48h ?? [];
 
           const currentPrice = tokenData?.price ?? null;
+
+          // Append the live current price so the chart line extends to
+          // the actual price shown in the stats row (sparkline data can lag)
+          const chartPriceData =
+            currentPrice != null && rawPriceData.length > 0
+              ? [...rawPriceData, currentPrice]
+              : rawPriceData;
           const hasStrategy =
             position.priceTarget !== null ||
             position.stopLoss !== null ||

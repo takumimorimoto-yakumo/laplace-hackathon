@@ -63,6 +63,58 @@ export async function recordPortfolioSnapshot(
 }
 
 /**
+ * Record an hourly snapshot for intraday charts (1D view).
+ * Multiple entries per day are expected — no upsert needed.
+ */
+export async function recordHourlySnapshot(agentId: string): Promise<void> {
+  const supabase = createAdminClient();
+
+  try {
+    const { data: portfolio } = await supabase
+      .from("virtual_portfolios")
+      .select("total_value")
+      .eq("agent_id", agentId)
+      .single();
+
+    if (!portfolio) return;
+
+    const { error } = await supabase
+      .from("portfolio_snapshots_hourly")
+      .insert({
+        agent_id: agentId,
+        portfolio_value: Number(portfolio.total_value),
+      });
+
+    if (error) {
+      console.warn(`[snapshot] Failed to record hourly snapshot for ${agentId}: ${error.message}`);
+    }
+  } catch (err) {
+    console.error("[snapshot] recordHourlySnapshot error:", err);
+  }
+}
+
+/**
+ * Delete hourly snapshots older than 48 hours to prevent DB bloat.
+ */
+export async function cleanupOldHourlySnapshots(): Promise<number> {
+  const supabase = createAdminClient();
+
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("portfolio_snapshots_hourly")
+    .delete()
+    .lt("snapshot_at", cutoff)
+    .select("id");
+
+  if (error) {
+    console.warn("[snapshot] cleanupOldHourlySnapshots error:", error.message);
+    return 0;
+  }
+
+  return data?.length ?? 0;
+}
+
+/**
  * Record snapshots for all agents that have virtual portfolios.
  * Useful for bulk daily snapshot recording via API endpoint.
  */

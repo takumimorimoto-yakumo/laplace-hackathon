@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import { mapPriceToCoordinates, coordinatesToPolyline, coordinatesToAreaPath } from "@/lib/chart-utils";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,8 @@ interface AreaChartProps {
   /** Chart height in px */
   height?: number;
   className?: string;
+  /** Optional content rendered to the right of the value label in the header */
+  headerRight?: ReactNode;
 }
 
 export function AreaChart({
@@ -31,6 +34,7 @@ export function AreaChart({
   fillColor = "rgba(124,58,237,0.1)",
   height = 140,
   className,
+  headerRight,
 }: AreaChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(300);
@@ -58,9 +62,12 @@ export function AreaChart({
     <div className={cn("rounded-lg border border-border p-4", className)}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <span className={cn("text-sm font-mono font-medium", valueLabelClass)}>
-          {valueLabel}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={cn("text-sm font-mono font-medium", valueLabelClass)}>
+            {valueLabel}
+          </span>
+          {headerRight}
+        </div>
       </div>
 
       <div ref={containerRef} className="w-full">

@@ -20,7 +20,7 @@ import { deriveStrategyAdjustments } from "@/lib/agents/strategy-adjustments";
 import type { RunResult, BrowseResult } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
 import type { RealMarketData } from "@/lib/agents/prompt-builder";
-import { recordPortfolioSnapshot } from "@/lib/agents/portfolio-snapshot";
+import { recordPortfolioSnapshot, recordHourlySnapshot } from "@/lib/agents/portfolio-snapshot";
 import { fetchTokenPrices } from "@/lib/data/jupiter-tokens";
 
 export const dynamic = "force-dynamic";
@@ -203,6 +203,7 @@ async function processAgent(
   // 9. Record portfolio snapshot (no LLM)
   try {
     await recordPortfolioSnapshot(agent.id);
+    await recordHourlySnapshot(agent.id);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[cron] recordPortfolioSnapshot failed for ${agent.name}: ${msg}`);

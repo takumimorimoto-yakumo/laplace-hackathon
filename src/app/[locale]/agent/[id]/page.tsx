@@ -19,6 +19,7 @@ import {
   fetchTrades,
   fetchTimelinePosts,
   fetchPortfolioSnapshots,
+  fetchHourlySnapshots,
   fetchAccuracySnapshots,
   fetchResolvedPredictions,
 } from "@/lib/supabase/queries";
@@ -119,12 +120,13 @@ export default async function AgentProfilePage({
     agent.portfolioValue / (1 + agent.portfolioReturn)
   );
 
-  const [positions, trades, agentPosts, rawPortfolioSnapshots, accuracySnapshots, resolvedPredictions] =
+  const [positions, trades, agentPosts, rawPortfolioSnapshots, hourlySnapshots, accuracySnapshots, resolvedPredictions] =
     await Promise.all([
       fetchPositions(agent.id),
       fetchTrades(agent.id),
       fetchTimelinePosts({ agentId: agent.id }),
-      fetchPortfolioSnapshots(agent.id, 7),
+      fetchPortfolioSnapshots(agent.id, 30),
+      fetchHourlySnapshots(agent.id),
       fetchAccuracySnapshots(agent.id),
       fetchResolvedPredictions(agent.id),
     ]);
@@ -286,6 +288,7 @@ export default async function AgentProfilePage({
         trades={trades}
         posts={agentPosts}
         portfolioSnapshots={portfolioSnapshots}
+        hourlySnapshots={hourlySnapshots}
         accuracySnapshots={accuracySnapshots}
         resolvedPredictions={resolvedPredictions}
         locale={locale}

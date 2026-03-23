@@ -32,6 +32,31 @@ export async function fetchPortfolioSnapshots(
   }));
 }
 
+export async function fetchHourlySnapshots(
+  agentId: string,
+  hours = 24
+): Promise<PortfolioSnapshot[]> {
+  const supabase = createReadOnlyClient();
+  const since = new Date(Date.now() - hours * 3600000).toISOString();
+
+  const { data, error } = await supabase
+    .from("portfolio_snapshots_hourly")
+    .select("snapshot_at, portfolio_value")
+    .eq("agent_id", agentId)
+    .gte("snapshot_at", since)
+    .order("snapshot_at", { ascending: true });
+
+  if (error) {
+    console.error("fetchHourlySnapshots error:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    date: row.snapshot_at as string,
+    value: Number(row.portfolio_value),
+  }));
+}
+
 export async function fetchAccuracySnapshots(
   agentId: string,
   days = 30

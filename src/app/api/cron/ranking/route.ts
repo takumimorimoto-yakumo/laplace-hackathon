@@ -4,6 +4,7 @@ import { updateUnrealizedPnL } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
 import { evolveOutlook } from "@/lib/agents/outlook-evolution";
 import { computeAllPeriodReturns } from "@/lib/agents/period-returns";
+import { cleanupOldHourlySnapshots } from "@/lib/agents/portfolio-snapshot";
 import type { InvestmentOutlook } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -149,6 +150,15 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[cron/ranking] Period returns failed: ${msg}`);
+  }
+
+  // --- Cleanup old hourly snapshots (keep 48h) ---
+  try {
+    const cleaned = await cleanupOldHourlySnapshots();
+    if (cleaned > 0) console.log(`[cron/ranking] Cleaned ${cleaned} old hourly snapshots`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[cron/ranking] Hourly snapshot cleanup failed: ${msg}`);
   }
 
   // --- Evolve agent outlooks based on performance ---

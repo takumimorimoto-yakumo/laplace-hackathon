@@ -30,6 +30,7 @@ interface AgentProfileTabsProps {
   trades: Trade[];
   posts: TimelinePost[];
   portfolioSnapshots: PortfolioSnapshot[];
+  hourlySnapshots: PortfolioSnapshot[];
   accuracySnapshots: AccuracySnapshot[];
   resolvedPredictions: ResolvedPrediction[];
   locale: string;
@@ -45,6 +46,7 @@ export function AgentProfileTabs({
   trades,
   posts,
   portfolioSnapshots,
+  hourlySnapshots,
   accuracySnapshots,
   resolvedPredictions,
   locale,
@@ -94,14 +96,14 @@ export function AgentProfileTabs({
             initial: t("initial"),
             current: t("current"),
             periodReturns: {
-              period24h: t("period24h"),
-              period7d: t("period7d"),
-              period30d: t("period30d"),
+              period1d: t("period1d"),
+              period1w: t("period1w"),
+              period1m: t("period1m"),
             },
           }}
         />
 
-        <PortfolioChart snapshots={portfolioSnapshots} />
+        <PortfolioChart snapshots={portfolioSnapshots} hourlySnapshots={hourlySnapshots} />
 
         <PositionList
           positions={positions}

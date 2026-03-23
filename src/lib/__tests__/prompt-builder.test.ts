@@ -235,11 +235,18 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain(`Style: ${agent.style}`);
     expect(prompt).toContain("technical, onchain");
     expect(prompt).toContain(agent.personality);
-    expect(prompt).toContain(agent.outlook);
     expect(prompt).toContain(agent.voiceStyle);
     expect(prompt).toContain(agent.bio);
     expect(prompt).toContain("72% accuracy");
     expect(prompt).toContain("rank #5");
+  });
+
+  it("does not contain outlook directive in identity block", () => {
+    const prompt = buildSystemPrompt(agent, marketData);
+
+    expect(prompt).not.toContain("Investment outlook:");
+    expect(prompt).not.toContain("Investment Outlook Guide");
+    expect(prompt).not.toContain("Stay true to your current outlook");
   });
 
   it("contains the agent rules", () => {

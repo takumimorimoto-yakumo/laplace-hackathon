@@ -76,18 +76,59 @@ function deriveTokenRules(agentId: string, stats: PerformanceStat[], expiresAt: 
     const token = stat.dimension_value;
 
     if (winRate <= AVOID_WIN_RATE) {
-      rules.push({
-        agent_id: agentId,
-        adjustment_type: "token_avoid",
-        target: token,
-        rule_value: winRate,
-        rule_description: `Avoid ${token}: ${stat.wins}/${stat.total_trades} wins (${(winRate * 100).toFixed(0)}%), avg PnL $${stat.avg_pnl.toFixed(0)}`,
-        supporting_evidence: `${stat.total_trades} trades over 30d, ${stat.losses} losses, total PnL $${stat.total_pnl.toFixed(0)}`,
-        source_stat_type: "by_token",
-        confidence: Math.min(0.9, 0.5 + stat.total_trades * 0.05),
-        is_active: true,
-        expires_at: expiresAt,
-      });
+      // Direction-specific avoidance: only avoid the side that's losing
+      const bullishWinRate = stat.bullish_trades > 0 ? stat.bullish_wins / stat.bullish_trades : null;
+      const bearishWinRate = stat.bearish_trades > 0 ? stat.bearish_wins / stat.bearish_trades : null;
+
+      // If one side is clearly bad but the other is decent, only avoid the bad side
+      const bullishBad = bullishWinRate !== null && stat.bullish_trades >= 3 && bullishWinRate <= AVOID_WIN_RATE;
+      const bearishBad = bearishWinRate !== null && stat.bearish_trades >= 3 && bearishWinRate <= AVOID_WIN_RATE;
+      const bullishOk = bullishWinRate !== null && bullishWinRate > AVOID_WIN_RATE;
+      const bearishOk = bearishWinRate !== null && bearishWinRate > AVOID_WIN_RATE;
+
+      if (bullishBad && bearishOk) {
+        // Only avoid long side
+        rules.push({
+          agent_id: agentId,
+          adjustment_type: "token_avoid",
+          target: `${token}:long`,
+          rule_value: bullishWinRate,
+          rule_description: `Avoid long ${token}: ${stat.bullish_wins}/${stat.bullish_trades} bullish wins (${(bullishWinRate * 100).toFixed(0)}%) — bearish calls are fine`,
+          supporting_evidence: `Bullish: ${stat.bullish_wins}/${stat.bullish_trades}, Bearish: ${stat.bearish_wins}/${stat.bearish_trades}, total PnL $${stat.total_pnl.toFixed(0)}`,
+          source_stat_type: "by_token",
+          confidence: Math.min(0.9, 0.5 + stat.total_trades * 0.05),
+          is_active: true,
+          expires_at: expiresAt,
+        });
+      } else if (bearishBad && bullishOk) {
+        // Only avoid short side
+        rules.push({
+          agent_id: agentId,
+          adjustment_type: "token_avoid",
+          target: `${token}:short`,
+          rule_value: bearishWinRate,
+          rule_description: `Avoid short ${token}: ${stat.bearish_wins}/${stat.bearish_trades} bearish wins (${(bearishWinRate * 100).toFixed(0)}%) — bullish calls are fine`,
+          supporting_evidence: `Bullish: ${stat.bullish_wins}/${stat.bullish_trades}, Bearish: ${stat.bearish_wins}/${stat.bearish_trades}, total PnL $${stat.total_pnl.toFixed(0)}`,
+          source_stat_type: "by_token",
+          confidence: Math.min(0.9, 0.5 + stat.total_trades * 0.05),
+          is_active: true,
+          expires_at: expiresAt,
+        });
+      } else {
+        // Both sides bad or insufficient data to split — avoid entirely
+        rules.push({
+          agent_id: agentId,
+          adjustment_type: "token_avoid",
+          target: token,
+          rule_value: winRate,
+          rule_description: `Avoid ${token}: ${stat.wins}/${stat.total_trades} wins (${(winRate * 100).toFixed(0)}%), avg PnL $${stat.avg_pnl.toFixed(0)}`,
+          supporting_evidence: `${stat.total_trades} trades over 30d, ${stat.losses} losses, total PnL $${stat.total_pnl.toFixed(0)}`,
+          source_stat_type: "by_token",
+          confidence: Math.min(0.9, 0.5 + stat.total_trades * 0.05),
+          is_active: true,
+          expires_at: expiresAt,
+        });
+      }
     } else if (winRate >= PREFER_WIN_RATE) {
       // Also note directional strength
       const bullishWinRate = stat.bullish_trades > 0 ? stat.bullish_wins / stat.bullish_trades : 0;

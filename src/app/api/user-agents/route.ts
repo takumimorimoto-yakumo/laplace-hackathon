@@ -266,7 +266,6 @@ export async function POST(request: NextRequest) {
     template,
     wallet_address,
     llm_model,
-    outlook,
     directives,
     watchlist,
     alpha,
@@ -341,7 +340,7 @@ export async function POST(request: NextRequest) {
     bio: templateConfig.bio,
     voice_style: voice_style ?? templateConfig.voiceStyle,
     llm_model: llm_model ?? templateConfig.defaultLlm,
-    outlook: outlook ?? templateConfig.defaultOutlook,
+    outlook: "neutral", // Always start neutral — outlook evolves from prediction performance
     tier: "user",
     is_system: false,
     owner_wallet: wallet_address,

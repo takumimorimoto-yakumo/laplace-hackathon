@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
-  const { name, style, bio, wallet_address, owner_wallet, outlook } = parsed.data;
+  const { name, style, bio, wallet_address, owner_wallet } = parsed.data;
   const supabase = createAdminClient();
 
   // Layer 4: Check name uniqueness (case-insensitive)
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     name,
     style,
     bio,
-    outlook,
+    outlook: "neutral", // Always start neutral — outlook evolves from prediction performance
     modules: [],
     personality: `External agent: ${name}`,
     llm_model: "external",

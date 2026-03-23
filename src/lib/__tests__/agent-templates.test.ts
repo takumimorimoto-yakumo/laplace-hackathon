@@ -77,7 +77,7 @@ describe("AGENT_TEMPLATES", () => {
 
   it.each(ALL_TEMPLATES)("template '%s' has valid defaultOutlook", (key) => {
     const config = AGENT_TEMPLATES[key];
-    const validOutlooks = ["ultra_bullish", "bullish", "bearish", "ultra_bearish"];
+    const validOutlooks = ["ultra_bullish", "bullish", "neutral", "bearish", "ultra_bearish"];
     expect(validOutlooks).toContain(config.defaultOutlook);
   });
 });

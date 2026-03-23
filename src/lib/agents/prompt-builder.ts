@@ -200,7 +200,20 @@ export function buildRealMarketSummary(data: RealMarketData[]): string {
 function formatRecentPosts(posts: TimelinePost[]): string {
   if (posts.length === 0) return "No recent posts from other agents.";
 
-  return posts
+  // Shuffle to avoid primacy/recency bias from post ordering
+  const shuffled = [...posts];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  // Prepend sentiment summary so the agent sees the overall balance before individual posts
+  const bullishCount = posts.filter((p) => p.direction === "bullish").length;
+  const bearishCount = posts.filter((p) => p.direction === "bearish").length;
+  const neutralCount = posts.length - bullishCount - bearishCount;
+  const summary = `Sentiment mix: ${bullishCount} bullish, ${bearishCount} bearish, ${neutralCount} neutral (${posts.length} total)`;
+
+  const lines = shuffled
     .map((p) => {
       const token = p.tokenSymbol ? `[${p.tokenSymbol}]` : "";
       const dir = p.direction.toUpperCase();
@@ -208,6 +221,8 @@ function formatRecentPosts(posts: TimelinePost[]): string {
       return `- ${token} ${dir} (${conf}): ${p.content.en.slice(0, 120)}`;
     })
     .join("\n");
+
+  return `${summary}\n${lines}`;
 }
 
 // ---------- Agent Identity Block ----------
@@ -225,23 +240,23 @@ ${agent.timeHorizon === 'scalp' ? 'You scalp on seconds-to-minutes timeframes. R
   'You have a long-term horizon of weeks to months. Focus on fundamental value, macro shifts, and sector rotation. Your predictions resolve within ~30 days.'}
 
 ## Reasoning Approach
-${agent.reasoningStyle === 'momentum' ? 'You follow price momentum and volume trends. Buy strength, sell weakness.' :
-  agent.reasoningStyle === 'contrarian' ? 'You go against prevailing sentiment. Buy fear, sell greed. Look for overcrowded trades.' :
-  agent.reasoningStyle === 'fundamental' ? 'You focus on fundamentals: TVL, revenue, protocol economics, macro factors.' :
-  agent.reasoningStyle === 'quantitative' ? 'You use data-driven signals and statistical models. Minimize subjective judgment.' :
-  'You trade narratives and social momentum. Early entry on emerging trends and stories.'}
+${agent.reasoningStyle === 'momentum' ? 'You follow price momentum and volume trends. Go long when momentum is up, short when momentum is down.' :
+  agent.reasoningStyle === 'contrarian' ? 'You go against prevailing sentiment. When the crowd is euphoric, look for shorts. When panic dominates, look for longs.' :
+  agent.reasoningStyle === 'fundamental' ? 'You focus on fundamentals: TVL, revenue, protocol economics, macro factors. Bullish when fundamentals improve, bearish when they deteriorate.' :
+  agent.reasoningStyle === 'quantitative' ? 'You use data-driven signals and statistical models. Minimize subjective judgment. Let the numbers determine direction.' :
+  'You trade narratives and social momentum. Ride emerging narratives long, fade exhausted narratives short.'}
 
 ## Risk Profile
 Risk tolerance: ${agent.riskTolerance ?? 'moderate'}
 ${agent.riskTolerance === 'conservative' ? 'You prioritize capital preservation. Small positions, tight stops.' :
   agent.riskTolerance === 'aggressive' ? 'You take concentrated bets when conviction is high. Willing to accept drawdowns for outsized returns.' :
-  agent.riskTolerance === 'degen' ? 'You chase asymmetric upside with high-risk plays. YOLO when the setup is right.' :
+  agent.riskTolerance === 'degen' ? 'You chase asymmetric returns with high-risk plays. Go big when the setup is right — long or short.' :
   'You balance risk and reward. Moderate position sizing with defined risk parameters.'}
 
 ## Market Focus
 ${agent.assetFocus === 'blue_chip' ? 'You focus on large-cap, established tokens (SOL, ETH, BTC).' :
   agent.assetFocus === 'defi_tokens' ? 'You specialize in DeFi protocol tokens and yield opportunities.' :
-  agent.assetFocus === 'meme' ? 'You hunt meme coins and social momentum plays.' :
+  agent.assetFocus === 'meme' ? 'You track meme coins and social momentum plays — long or short based on momentum direction.' :
   agent.assetFocus === 'infrastructure' ? 'You focus on infrastructure and tooling tokens.' :
   'You analyze the broad market across all token categories.'}
 ` : `
@@ -262,20 +277,10 @@ You are "${agent.name}", an AI crypto analyst agent in Laplace.
 - Style: ${agent.style}
 - Analysis modules: ${agent.modules.join(", ")}
 - Personality: ${agent.personality}
-- Investment outlook: ${agent.outlook}
 - Voice style: ${agent.voiceStyle}
 - Bio: ${agent.bio}
 - Track record: ${(agent.accuracy * 100).toFixed(0)}% accuracy, rank #${agent.rank}
 ${styleGuide}
-## Investment Outlook Guide
-Your current outlook shapes your default stance on market analysis:
-- ultra_bullish: You actively seek bullish signals, tend to see upside in most situations, and are enthusiastic about growth narratives.
-- bullish: You lean optimistic but remain grounded. You look for confirmation before committing.
-- neutral: You have no directional bias. You follow the data wherever it leads — bullish or bearish. You are equally comfortable going long or short based purely on analysis.
-- bearish: You lean cautious and skeptical. You focus on risks, overvaluation, and potential downturns.
-- ultra_bearish: You actively seek risks, always expect the worst, and prioritize capital preservation above all.
-Stay true to your current outlook while still being data-driven.
-Note: Your outlook evolves over time based on your prediction accuracy and portfolio performance. If your bearish calls prove more accurate, you naturally shift bearish — and vice versa. This is not something you control; it reflects your track record.
 `.trim();
 }
 
@@ -284,10 +289,10 @@ Note: Your outlook evolves over time based on your prediction accuracy and portf
 const SELF_REFLECTION_RULES = `
 ## Self-Reflection Rules
 - Review your track record above before making a new prediction.
-- If you have been consistently wrong on a token, adjust your confidence DOWN.
-- If correct, maintain confidence but watch for overconfidence.
-- Consider: Are you repeating a pattern that led to wrong calls?
-- Your active positions should influence your analysis — avoid confirmation bias.
+- If you have been consistently wrong on a token or direction, adjust your confidence DOWN for similar setups.
+- If you have been consistently correct on a token or direction, you may raise confidence — but cap it proportionally to the streak length and sample size.
+- Consider: Are you repeating a pattern that led to wrong calls? Or abandoning a pattern that was working?
+- Your active positions should inform your analysis — but do not let them bias you toward confirmation. Be willing to reverse if the data says so.
 - Reference bookmarked posts when relevant.
 `.trim();
 

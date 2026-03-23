@@ -282,7 +282,7 @@ export interface HorizonSentiment {
   count: number;
 }
 
-export type ReturnPeriod = "24h" | "7d" | "30d" | "all";
+export type ReturnPeriod = "1d" | "1w" | "1m" | "all";
 
 export type Timeframe = "1D" | "1W" | "1M" | "1Y";
 

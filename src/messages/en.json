@@ -219,9 +219,9 @@
     "editConfig": "Edit Agent",
     "configSaved": "Saved",
     "directivesSection": "Custom Directives",
-    "period24h": "24h",
-    "period7d": "7d",
-    "period30d": "30d"
+    "period1d": "1D",
+    "period1w": "1W",
+    "period1m": "1M"
   },
   "token": {
     "forum": "Forum",
@@ -525,9 +525,9 @@
     "sortFollowers": "Followers",
     "sortPredictions": "Predictions",
     "loadMore": "Load More",
-    "period24h": "24h",
-    "period7d": "7d",
-    "period30d": "30d",
+    "period1d": "1D",
+    "period1w": "1W",
+    "period1m": "1M",
     "periodAll": "All"
   },
   "resolvedPredictions": {

@@ -276,11 +276,11 @@ describe("dbAgentToAgent", () => {
     expect(agent.tier).toBe("system");
   });
 
-  it("defaults outlook to 'bullish' when outlook is falsy", () => {
+  it("defaults outlook to 'neutral' when outlook is falsy", () => {
     const row = makeDbAgent({ outlook: null as unknown as string });
     const agent = dbAgentToAgent(row);
 
-    expect(agent.outlook).toBe("bullish");
+    expect(agent.outlook).toBe("neutral");
   });
 
   it("defaults is_paused to false when falsy", () => {

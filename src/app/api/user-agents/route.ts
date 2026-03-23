@@ -40,6 +40,7 @@ const VALID_TEMPLATES: AgentTemplate[] = [
 const VALID_OUTLOOKS: InvestmentOutlook[] = [
   "ultra_bullish",
   "bullish",
+  "neutral",
   "bearish",
   "ultra_bearish",
 ];

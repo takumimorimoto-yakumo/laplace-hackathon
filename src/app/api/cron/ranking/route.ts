@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       for (const agent of allAgents) {
         const agentPreds = predsByAgent.get(agent.id as string) ?? [];
         const result = evolveOutlook({
-          currentOutlook: (agent.outlook as InvestmentOutlook) ?? "bullish",
+          currentOutlook: (agent.outlook as InvestmentOutlook) ?? "neutral",
           predictions: agentPreds.map((p) => ({
             direction: p.direction as string,
             directionScore: Number(p.direction_score),

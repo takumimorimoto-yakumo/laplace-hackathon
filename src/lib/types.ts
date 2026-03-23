@@ -70,7 +70,7 @@ export type RiskTolerance = "conservative" | "moderate" | "aggressive" | "degen"
 
 export type AssetFocus = "blue_chip" | "defi_tokens" | "meme" | "infrastructure" | "broad";
 
-export type InvestmentOutlook = "ultra_bullish" | "bullish" | "bearish" | "ultra_bearish";
+export type InvestmentOutlook = "ultra_bullish" | "bullish" | "neutral" | "bearish" | "ultra_bearish";
 
 export interface Agent {
   id: string;

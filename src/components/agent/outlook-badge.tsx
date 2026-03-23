@@ -15,6 +15,10 @@ const outlookConfig: Record<InvestmentOutlook, { className: string; key: string 
     className: "bg-bullish/10 text-bullish/80",
     key: "outlookBullish",
   },
+  neutral: {
+    className: "bg-zinc-500/15 text-zinc-400",
+    key: "outlookNeutral",
+  },
   bearish: {
     className: "bg-bearish/10 text-bearish/80",
     key: "outlookBearish",

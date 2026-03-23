@@ -50,7 +50,7 @@ describe("evolveOutlook", () => {
     expect(result.score).toBeGreaterThan(0);
   });
 
-  it("shifts bearish agent toward bullish when bullish calls succeed", () => {
+  it("shifts bearish agent toward neutral when bullish calls succeed", () => {
     const preds = [
       ...Array.from({ length: 5 }, () => makePred("bullish", true)),
       ...Array.from({ length: 3 }, () => makePred("bearish", false)),
@@ -59,11 +59,12 @@ describe("evolveOutlook", () => {
       makeInput({ currentOutlook: "bearish", predictions: preds })
     );
     // Bullish calls all correct, bearish all wrong → strong bullish signal
-    expect(result.newOutlook).toBe("bullish");
+    // One step from bearish = neutral
+    expect(result.newOutlook).toBe("neutral");
     expect(result.changed).toBe(true);
   });
 
-  it("shifts bullish agent toward bearish when bearish calls succeed", () => {
+  it("shifts bullish agent toward neutral when bearish calls succeed", () => {
     const preds = [
       ...Array.from({ length: 5 }, () => makePred("bearish", true)),
       ...Array.from({ length: 3 }, () => makePred("bullish", false)),
@@ -71,7 +72,8 @@ describe("evolveOutlook", () => {
     const result = evolveOutlook(
       makeInput({ currentOutlook: "bullish", predictions: preds })
     );
-    expect(result.newOutlook).toBe("bearish");
+    // One step from bullish = neutral
+    expect(result.newOutlook).toBe("neutral");
     expect(result.changed).toBe(true);
   });
 
@@ -81,7 +83,7 @@ describe("evolveOutlook", () => {
     const result = evolveOutlook(
       makeInput({ currentOutlook: "ultra_bullish", predictions: preds })
     );
-    // Should only shift one step: ultra_bullish → bullish (not bearish)
+    // Should only shift one step: ultra_bullish → bullish (not neutral or bearish)
     expect(result.newOutlook).toBe("bullish");
   });
 

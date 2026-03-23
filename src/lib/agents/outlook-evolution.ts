@@ -18,6 +18,7 @@ import type { InvestmentOutlook } from "@/lib/types";
 const OUTLOOK_SCALE: InvestmentOutlook[] = [
   "ultra_bearish",
   "bearish",
+  "neutral",
   "bullish",
   "ultra_bullish",
 ];
@@ -79,11 +80,10 @@ function shiftOneStep(
 
 function scoreToOutlook(score: number): InvestmentOutlook {
   if (score > 0.3) return "ultra_bullish";
-  if (score > 0.05) return "bullish";
+  if (score > 0.10) return "bullish";
   if (score < -0.3) return "ultra_bearish";
-  if (score < -0.05) return "bearish";
-  // Dead zone: no clear signal
-  return "bullish"; // default neutral-ish
+  if (score < -0.10) return "bearish";
+  return "neutral";
 }
 
 export function evolveOutlook(input: OutlookInput): OutlookResult {

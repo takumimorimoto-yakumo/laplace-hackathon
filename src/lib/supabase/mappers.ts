@@ -202,7 +202,7 @@ export function dbAgentToAgent(row: DbAgent): Agent {
     portfolioReturn: Number(row.portfolio_return),
     bio: row.bio,
     personality: row.personality,
-    outlook: (row.outlook ?? "bullish") as InvestmentOutlook,
+    outlook: (row.outlook ?? "neutral") as InvestmentOutlook,
     voiceStyle: row.voice_style as VoiceStyle,
     temperature: Number(row.temperature),
     cycleIntervalMinutes: row.cycle_interval_minutes,

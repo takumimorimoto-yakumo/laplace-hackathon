@@ -47,7 +47,7 @@ export async function updateUnrealizedPnL(
 ): Promise<void> {
   const supabase = createAdminClient();
 
-  // Fetch all open positions
+  // Fetch all positions
   const { data: positions, error: posErr } = await supabase
     .from("virtual_positions")
     .select("*")

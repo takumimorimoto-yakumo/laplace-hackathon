@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
   const averageReturn7d = totalReturn7d / n;
   const averageReturn30d = totalReturn30d / n;
 
-  // 2b. Fetch unrealized PnL from all open positions
+  // 2b. Fetch unrealized PnL from all positions
   const { data: allOpenPositions, error: openPosError } = await supabase
     .from("virtual_positions")
     .select("unrealized_pnl")

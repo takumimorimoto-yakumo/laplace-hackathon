@@ -92,7 +92,7 @@ export async function runVirtualTrade(
       return;
     }
 
-    // 1b. Check position count limit (max 10 open positions per agent)
+    // 1b. Check position count limit (max 10 positions per agent)
     const MAX_POSITIONS = 10;
     const { count: positionCount } = await supabase
       .from("virtual_positions")
@@ -476,8 +476,11 @@ export async function closePositionsByTpSl(
         }
       }
 
-      // Delete the position
-      await supabase.from("virtual_positions").delete().eq("id", pos.id);
+      // Delete position (virtual_trades holds the close history)
+      await supabase
+        .from("virtual_positions")
+        .delete()
+        .eq("id", pos.id);
 
       cashBalanceChange += amountUsdc + realizedPnl;
       totalRealizedPnl += realizedPnl;
@@ -628,7 +631,11 @@ export async function forceCloseAllPositions(
         }
       }
 
-      await supabase.from("virtual_positions").delete().eq("id", pos.id);
+      // Delete position (virtual_trades holds the close history)
+      await supabase
+        .from("virtual_positions")
+        .delete()
+        .eq("id", pos.id);
 
       cashBalanceChange += amountUsdc + realizedPnl;
       totalRealizedPnl += realizedPnl;
@@ -794,15 +801,15 @@ export async function closeExpiredPositions(
         }
       }
 
-      // Delete the position
-      const { error: deleteError } = await supabase
+      // Delete position (virtual_trades holds the close history)
+      const { error: closeError } = await supabase
         .from("virtual_positions")
         .delete()
         .eq("id", pos.id);
 
-      if (deleteError) {
+      if (closeError) {
         console.error(
-          `[runner] Failed to delete position: ${deleteError.message}`
+          `[runner] Failed to delete position: ${closeError.message}`
         );
         continue;
       }

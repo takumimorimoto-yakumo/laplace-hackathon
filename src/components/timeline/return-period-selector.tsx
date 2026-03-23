@@ -9,7 +9,7 @@ interface ReturnPeriodSelectorProps {
   onChange: (period: ReturnPeriod) => void;
 }
 
-const periods: ReturnPeriod[] = ["24h", "7d", "30d", "all"];
+const periods: ReturnPeriod[] = ["1d", "1w", "1m", "all"];
 
 export function ReturnPeriodSelector({
   selected,
@@ -18,9 +18,9 @@ export function ReturnPeriodSelector({
   const t = useTranslations("leaderboard");
 
   const labelMap: Record<ReturnPeriod, string> = {
-    "24h": t("period24h"),
-    "7d": t("period7d"),
-    "30d": t("period30d"),
+    "1d": t("period1d"),
+    "1w": t("period1w"),
+    "1m": t("period1m"),
     all: t("periodAll"),
   };
 

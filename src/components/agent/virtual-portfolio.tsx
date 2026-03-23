@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
 interface PeriodReturnLabels {
-  period24h: string;
-  period7d: string;
-  period30d: string;
+  period1d: string;
+  period1w: string;
+  period1m: string;
 }
 
 interface VirtualPortfolioLabels {
@@ -86,13 +86,13 @@ export function VirtualPortfolio({
       {hasPeriodReturns && (
         <div className="mt-3 flex gap-2">
           {return24h !== undefined && (
-            <PeriodBadge label={periodLabels?.period24h ?? "24h"} value={return24h} />
+            <PeriodBadge label={periodLabels?.period1d ?? "1D"} value={return24h} />
           )}
           {return7d !== undefined && (
-            <PeriodBadge label={periodLabels?.period7d ?? "7d"} value={return7d} />
+            <PeriodBadge label={periodLabels?.period1w ?? "1W"} value={return7d} />
           )}
           {return30d !== undefined && (
-            <PeriodBadge label={periodLabels?.period30d ?? "30d"} value={return30d} />
+            <PeriodBadge label={periodLabels?.period1m ?? "1M"} value={return30d} />
           )}
         </div>
       )}

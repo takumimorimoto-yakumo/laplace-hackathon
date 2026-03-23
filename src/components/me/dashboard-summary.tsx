@@ -29,7 +29,25 @@ import type {
   PortfolioSnapshot,
 } from "@/lib/types";
 
-type ReturnPeriod = "24h" | "7d" | "30d" | "total";
+type ReturnPeriod = "1d" | "1w" | "1m" | "total";
+
+/** Number of days to show in the chart per period */
+const periodDaysMap: Record<ReturnPeriod, number | null> = {
+  "1d": 1,
+  "1w": 7,
+  "1m": 30,
+  total: null, // show all
+};
+
+/**
+ * Get the cutoff date string for filtering snapshots.
+ * This is extracted to module level to avoid impure function calls during render.
+ */
+function getCutoffDateString(periodDays: number): string {
+  return new Date(
+    Date.now() - periodDays * 86400000
+  ).toISOString().slice(0, 10);
+}
 
 interface DashboardSummaryProps {
   dashboardData: OwnerDashboardSummary | null;
@@ -63,9 +81,9 @@ export function DashboardSummary({
   if (loading || !dashboardData) return null;
 
   const periodReturnMap: Record<ReturnPeriod, number> = {
-    "24h": dashboardData.averageReturn24h,
-    "7d": dashboardData.averageReturn7d,
-    "30d": dashboardData.averageReturn30d,
+    "1d": dashboardData.averageReturn24h,
+    "1w": dashboardData.averageReturn7d,
+    "1m": dashboardData.averageReturn30d,
     total: dashboardData.averageReturn,
   };
   const selectedReturn = periodReturnMap[returnPeriod];
@@ -75,14 +93,20 @@ export function DashboardSummary({
   const totalValue = dashboardData.totalPortfolioValue;
 
   const periods: { key: ReturnPeriod; label: string }[] = [
-    { key: "24h", label: "24H" },
-    { key: "7d", label: "7D" },
-    { key: "30d", label: "30D" },
+    { key: "1d", label: "1D" },
+    { key: "1w", label: "1W" },
+    { key: "1m", label: "1M" },
     { key: "total", label: t("total") },
   ];
 
-  // Chart data
-  const chartValues = snapshots.map((s) => s.value);
+  // Chart data — filter snapshots based on selected period
+  const periodDays = periodDaysMap[returnPeriod];
+  const filteredSnapshots = (() => {
+    if (periodDays == null) return snapshots;
+    const cutoff = getCutoffDateString(periodDays);
+    return snapshots.filter((s) => s.date >= cutoff);
+  })();
+  const chartValues = filteredSnapshots.map((s) => s.value);
   const isChartPositive =
     chartValues.length >= 2
       ? chartValues[chartValues.length - 1] >= chartValues[0]

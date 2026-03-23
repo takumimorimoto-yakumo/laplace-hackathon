@@ -12,7 +12,7 @@ export interface PeriodReturns {
 
 /**
  * Compute period-based returns for all agents.
- * Uses portfolio_snapshots (historical) + virtual_portfolios (current).
+ * Uses portfolio_snapshots (daily) for 24h / 7d / 30d returns.
  * Return = (currentValue - pastValue) / pastValue
  * If no snapshot exists for a period, return is 0.
  */
@@ -37,8 +37,9 @@ export async function computeAllPeriodReturns(): Promise<
     currentValues.set(p.agent_id as string, Number(p.total_value));
   }
 
-  // Compute target dates for each period
   const now = new Date();
+
+  // --- Daily returns: 24h / 7d / 30d from portfolio_snapshots ---
   const targetDates = {
     d1: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
       .toISOString()
@@ -51,7 +52,7 @@ export async function computeAllPeriodReturns(): Promise<
       .slice(0, 10),
   };
 
-  // Fetch snapshots from the last 30 days (covers all periods)
+  // Fetch snapshots from the last 30 days (covers all daily periods)
   const { data: snapshots, error: sErr } = await supabase
     .from("portfolio_snapshots")
     .select("agent_id, snapshot_date, portfolio_value")
@@ -63,7 +64,7 @@ export async function computeAllPeriodReturns(): Promise<
     return result;
   }
 
-  // Group snapshots by agent, sorted descending by date (already from query)
+  // Group daily snapshots by agent, sorted descending by date (already from query)
   const snapshotsByAgent = new Map<
     string,
     { date: string; value: number }[]
@@ -78,7 +79,7 @@ export async function computeAllPeriodReturns(): Promise<
     snapshotsByAgent.set(agentId, list);
   }
 
-  // For each agent, find the closest snapshot on or before each target date
+  // For each agent, compute all period returns
   for (const [agentId, currentValue] of currentValues) {
     const agentSnapshots = snapshotsByAgent.get(agentId) ?? [];
 
@@ -105,16 +106,15 @@ export async function computeAllPeriodReturns(): Promise<
 }
 
 /**
- * Compute return for a single period.
+ * Compute return for a single daily period.
  * Finds the closest snapshot on or before targetDate.
+ * Snapshots must be sorted descending by date.
  */
 function computePeriodReturn(
   currentValue: number,
   snapshots: { date: string; value: number }[],
   targetDate: string
 ): number {
-  // Find the closest snapshot on or before the target date
-  // Snapshots are sorted descending by date
   let pastValue: number | null = null;
 
   for (const s of snapshots) {

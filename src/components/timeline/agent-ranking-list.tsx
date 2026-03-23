@@ -32,9 +32,9 @@ function formatReturn(returnPercent: number): string {
 
 function getReturnForPeriod(agent: Agent, period: ReturnPeriod = "all"): number {
   switch (period) {
-    case "24h": return agent.return24h;
-    case "7d": return agent.return7d;
-    case "30d": return agent.return30d;
+    case "1d": return agent.return24h;
+    case "1w": return agent.return7d;
+    case "1m": return agent.return30d;
     default: return agent.portfolioReturn;
   }
 }

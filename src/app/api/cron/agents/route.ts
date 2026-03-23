@@ -15,6 +15,8 @@ import {
   runCustomAnalysis,
 } from "@/lib/agents/runner";
 import { maybeGenerateTradeReview } from "@/lib/agents/trade-review";
+import { computeAgentPerformanceStats } from "@/lib/agents/performance-stats";
+import { deriveStrategyAdjustments } from "@/lib/agents/strategy-adjustments";
 import type { RunResult, BrowseResult } from "@/lib/agents/runner";
 import { fetchMarketContext } from "@/lib/agents/market-context";
 import type { RealMarketData } from "@/lib/agents/prompt-builder";
@@ -189,6 +191,15 @@ async function processAgent(
     console.error(`[cron] maybeGenerateTradeReview failed for ${agent.name}: ${msg}`);
   }
 
+  // 8d. Update performance stats & strategy adjustments (no LLM, pure DB)
+  try {
+    await computeAgentPerformanceStats(agent.id);
+    await deriveStrategyAdjustments(agent.id);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron] performance analytics failed for ${agent.name}: ${msg}`);
+  }
+
   // 9. Record portfolio snapshot (no LLM)
   try {
     await recordPortfolioSnapshot(agent.id);
@@ -344,6 +355,8 @@ export async function GET(request: NextRequest) {
               marketCapRank: 0,
               volatility24h: 0,
               sparkline7d: [],
+              perpAvailable: false,
+              perpMaxLeverage: 0,
             });
           }
         }

@@ -10,3 +10,4 @@ export * from "./markets";
 export * from "./snapshots";
 export * from "./social";
 export * from "./reviews";
+export * from "./performance";

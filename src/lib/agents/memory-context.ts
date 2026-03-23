@@ -9,8 +9,17 @@ import {
   fetchAgentBookmarks,
   fetchAgentFollowing,
   fetchRecentLessons,
+  fetchPerformanceStats,
+  fetchActiveAdjustments,
 } from "@/lib/supabase/queries";
-import type { ResolvedPrediction, AgentBookmark, AgentFollowInfo, TradeLesson } from "@/lib/supabase/queries";
+import type {
+  ResolvedPrediction,
+  AgentBookmark,
+  AgentFollowInfo,
+  TradeLesson,
+  PerformanceStatRow,
+  StrategyAdjustmentRow,
+} from "@/lib/supabase/queries";
 import type { Position, Trade } from "@/lib/types";
 import { getOrCreatePortfolio } from "./trade-helpers";
 import type { VirtualPortfolio } from "./trade-helpers";
@@ -26,6 +35,8 @@ export interface AgentMemory {
   following: AgentFollowInfo[];
   portfolio: VirtualPortfolio | null;
   tradeLessons: TradeLesson[];
+  performanceStats: PerformanceStatRow[];
+  strategyAdjustments: StrategyAdjustmentRow[];
 }
 
 // ---------- Fetch All Memory ----------
@@ -40,7 +51,7 @@ export async function fetchAgentMemory(
 ): Promise<AgentMemory> {
   const limits = memoryLimits(timeHorizon);
 
-  const [predictions, positions, trades, bookmarks, following, portfolio, tradeLessons] = await Promise.all([
+  const [predictions, positions, trades, bookmarks, following, portfolio, tradeLessons, performanceStats, strategyAdjustments] = await Promise.all([
     fetchResolvedPredictions(agentId, limits.predictions),
     fetchPositions(agentId),
     fetchTrades(agentId).then((t) => t.slice(0, limits.trades)),
@@ -48,9 +59,11 @@ export async function fetchAgentMemory(
     fetchAgentFollowing(agentId, 10),
     getOrCreatePortfolio(agentId).catch(() => null),
     fetchRecentLessons(agentId),
+    fetchPerformanceStats(agentId),
+    fetchActiveAdjustments(agentId),
   ]);
 
-  return { predictions, positions, trades, bookmarks, following, portfolio, tradeLessons };
+  return { predictions, positions, trades, bookmarks, following, portfolio, tradeLessons, performanceStats, strategyAdjustments };
 }
 
 // ---------- Format Memory Block ----------
@@ -128,6 +141,74 @@ export function formatMemoryBlock(memory: AgentMemory): string | null {
       return `- ${token} ${snippet}${note}`;
     });
     sections.push(`## Bookmarked References\n${lines.join("\n")}`);
+  }
+
+  // Performance insights (data-driven, no LLM)
+  if (memory.performanceStats.length > 0) {
+    const tokenStats = memory.performanceStats.filter((s) => s.statType === "by_token");
+    const sideStats = memory.performanceStats.filter((s) => s.statType === "by_side");
+    const reasonStats = memory.performanceStats.filter((s) => s.statType === "by_close_reason");
+    const durationStats = memory.performanceStats.filter((s) => s.statType === "by_holding_duration");
+
+    const insightLines: string[] = [];
+
+    if (tokenStats.length > 0) {
+      insightLines.push("### Token Track Record");
+      for (const s of tokenStats.slice(0, 8)) {
+        const winRate = s.totalTrades > 0 ? Math.round((s.wins / s.totalTrades) * 100) : 0;
+        const flag = winRate <= 30 ? " ⚠️" : winRate >= 70 ? " ✅" : "";
+        insightLines.push(
+          `- ${s.dimensionValue}: ${s.wins}W/${s.losses}L (${winRate}% win rate), avg PnL $${s.avgPnl.toFixed(0)}${flag}`
+        );
+      }
+    }
+
+    if (sideStats.length > 0) {
+      insightLines.push("### Side Performance");
+      for (const s of sideStats) {
+        const winRate = s.totalTrades > 0 ? Math.round((s.wins / s.totalTrades) * 100) : 0;
+        insightLines.push(
+          `- ${s.dimensionValue}: ${s.wins}W/${s.losses}L (${winRate}%), avg PnL $${s.avgPnl.toFixed(0)}`
+        );
+      }
+    }
+
+    if (reasonStats.length > 0) {
+      insightLines.push("### Close Reason Breakdown");
+      for (const s of reasonStats) {
+        const pct = s.totalTrades > 0 ? Math.round((s.wins / s.totalTrades) * 100) : 0;
+        insightLines.push(
+          `- ${s.dimensionValue.toUpperCase()}: ${s.totalTrades} trades, avg PnL $${s.avgPnl.toFixed(0)} (${pct}% profitable)`
+        );
+      }
+    }
+
+    if (durationStats.length > 0) {
+      insightLines.push("### Holding Duration");
+      for (const s of durationStats) {
+        const winRate = s.totalTrades > 0 ? Math.round((s.wins / s.totalTrades) * 100) : 0;
+        insightLines.push(
+          `- ${s.dimensionValue}: ${s.wins}W/${s.losses}L (${winRate}%), avg PnL $${s.avgPnl.toFixed(0)}`
+        );
+      }
+    }
+
+    if (insightLines.length > 0) {
+      sections.push(`## Performance Insights (30d)\n${insightLines.join("\n")}`);
+    }
+  }
+
+  // Strategy adjustments (data-driven rules)
+  if (memory.strategyAdjustments.length > 0) {
+    const lines = memory.strategyAdjustments.map((a) => {
+      const icon = a.adjustmentType.includes("avoid") || a.adjustmentType.includes("bias")
+        ? "⚠️"
+        : a.adjustmentType.includes("preference")
+          ? "✅"
+          : "📊";
+      return `- ${icon} ${a.ruleDescription}`;
+    });
+    sections.push(`## Active Strategy Adjustments\n${lines.join("\n")}`);
   }
 
   // Trade lessons from reviews

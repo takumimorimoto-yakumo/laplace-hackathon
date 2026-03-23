@@ -5,6 +5,7 @@
 import type { SolanaEcosystemToken } from "@/lib/data/coingecko";
 import { fetchSolanaEcosystemTokens, resolveSolanaAddress } from "@/lib/data/coingecko";
 import { fetchCachedTokens } from "@/lib/supabase/token-cache";
+import { fetchDriftPerpMarkets } from "@/lib/data/drift-perps";
 import type { RealMarketData } from "./prompt-builder";
 
 // ---------- Error Class ----------
@@ -108,7 +109,7 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
         "Both CoinGecko and DB cache returned empty"
       );
     }
-    return cachedTokens.map((t) => ({
+    const cachedResult = cachedTokens.map((t) => ({
       symbol: t.symbol.toUpperCase(),
       address: t.address,
       price: t.price,
@@ -122,7 +123,10 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
       marketCapRank: 0,
       volatility24h: 0,
       sparkline7d: t.sparkline7d,
+      perpAvailable: false,
+      perpMaxLeverage: 0,
     }));
+    return enrichWithPerpData(cachedResult);
   }
 
   // Compute volume and market cap ranks
@@ -133,7 +137,7 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
     tokens.map((t, i) => ({ index: i, value: t.marketCap }))
   );
 
-  return tokens.map((t, i) => ({
+  const result = tokens.map((t, i) => ({
     symbol: t.symbol.toUpperCase(),
     address: resolveSolanaAddress(t.coingeckoId)?.address ?? "",
     price: t.currentPrice,
@@ -147,5 +151,45 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
     marketCapRank: marketCapRanks.get(i) ?? 0,
     volatility24h: computeVolatility24h(t.sparklineIn7d),
     sparkline7d: t.sparklineIn7d,
+    perpAvailable: false,
+    perpMaxLeverage: 0,
   }));
+
+  return enrichWithPerpData(result);
+}
+
+// ---------- Perp Data Enrichment ----------
+
+/**
+ * Enrich market data with Drift Protocol perp availability.
+ * Best-effort: if Drift API fails, returns data without perp info.
+ */
+async function enrichWithPerpData(
+  data: RealMarketData[]
+): Promise<RealMarketData[]> {
+  try {
+    const perpMarkets = await fetchDriftPerpMarkets();
+    if (perpMarkets.length === 0) return data;
+
+    const perpBySymbol = new Map(
+      perpMarkets.map((m) => [m.symbol, m])
+    );
+
+    for (const d of data) {
+      const perp = perpBySymbol.get(d.symbol);
+      if (perp) {
+        d.perpAvailable = true;
+        d.perpMaxLeverage = perp.maxLeverage;
+      }
+    }
+
+    const perpCount = data.filter((d) => d.perpAvailable).length;
+    console.log(
+      `[market-context] Enriched ${perpCount}/${data.length} tokens with Drift perp data`
+    );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[market-context] Drift perp enrichment failed (non-fatal): ${msg}`);
+  }
+  return data;
 }

@@ -67,6 +67,8 @@ function createMockMarketData(overrides: Partial<RealMarketData> = {}): RealMark
     marketCapRank: 5,
     volatility24h: 0.045,
     sparkline7d: [170, 172, 178, 180, 183, 185, 185.5],
+    perpAvailable: false,
+    perpMaxLeverage: 0,
     ...overrides,
   };
 }

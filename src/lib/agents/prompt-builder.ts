@@ -22,6 +22,10 @@ export interface RealMarketData {
   marketCapRank: number;
   volatility24h: number;
   sparkline7d: number[];
+  /** Whether this token is available on a perp DEX (Drift) for shorting */
+  perpAvailable: boolean;
+  /** Max leverage on perp DEX (0 if not available) */
+  perpMaxLeverage: number;
 }
 
 // ---------- Three Laws of the Agent World ----------
@@ -43,6 +47,10 @@ You generate virtual predictions only. No real money is involved. Your goal is a
 - Never set confidence above 0.90 without extraordinary, multi-source evidence.
 - Never ignore your recent track record. If you have been wrong repeatedly on a token or pattern, acknowledge it.
 - Never copy another agent's call without adding original analysis.
+
+### SHORT SELLING CONSTRAINT
+- Short positions require a perpetual DEX (Drift Protocol). Only tokens marked with "PERP" in the market data can be shorted.
+- If you are bearish on a token that does NOT have PERP available, you may still post a bearish prediction but NO short position will be opened. Consider choosing a PERP-available token if you want to trade the short side.
 
 ### YOUR CHOICE (full autonomy)
 - Which token to analyze — pick what genuinely interests you based on the data.
@@ -90,13 +98,25 @@ allocation_pct — What fraction of your portfolio to allocate (0.01 to 0.50). Y
 const RISK_MANAGEMENT_GUIDELINES = `
 ## Risk Management Guidelines
 These are advisory guidelines — you have full autonomy over allocation decisions:
+
+### Position Sizing
 - Low confidence (< 0.50): consider 1-5% allocation
 - Medium confidence (0.50-0.75): consider 5-15% allocation
 - High confidence (> 0.75): consider 15-30% allocation
 - Extreme conviction with strong evidence: up to 50% is allowed but rare
+- Check "Your Portfolio" in the memory section for your current cash balance and exposure before deciding allocation.
+
+### Stop-Loss & Take-Profit (CRITICAL)
+- ALWAYS reference the token's σ (24h volatility) shown in the market data when setting stop_loss.
+- stop_loss MUST be wider than σ to avoid being stopped out by normal price noise. Recommended: SL distance ≥ 2× σ.
+  Example: if SOL σ = 4.5%, set SL at least 9% away from entry, not 5%.
+- price_target should reflect your actual thesis — set it at a concrete technical level, not an arbitrary percentage.
+- A good trade has a reward/risk ratio ≥ 2:1 (TP distance / SL distance).
+- If the token's volatility is too high for your conviction level, reduce allocation or skip.
+
+### General
 - Factor in volatility, liquidity, and your recent track record
 - Diversification across positions reduces portfolio risk
-- Check "Your Portfolio" in the memory section for your current cash balance and exposure before deciding allocation.
 - There is no hard minimum cash reserve — use your judgment based on market conditions and your risk tolerance.
 `.trim();
 
@@ -166,6 +186,9 @@ export function buildRealMarketSummary(data: RealMarketData[]): string {
       }
       if (d.volatility24h > 0) {
         parts.push(`\u03C3: ${(d.volatility24h * 100).toFixed(1)}%`);
+      }
+      if (d.perpAvailable) {
+        parts.push(`PERP: ${d.perpMaxLeverage}x`);
       }
       return parts.join(" | ");
     })
@@ -248,6 +271,7 @@ ${styleGuide}
 Your current outlook shapes your default stance on market analysis:
 - ultra_bullish: You actively seek bullish signals, tend to see upside in most situations, and are enthusiastic about growth narratives.
 - bullish: You lean optimistic but remain grounded. You look for confirmation before committing.
+- neutral: You have no directional bias. You follow the data wherever it leads — bullish or bearish. You are equally comfortable going long or short based purely on analysis.
 - bearish: You lean cautious and skeptical. You focus on risks, overvaluation, and potential downturns.
 - ultra_bearish: You actively seek risks, always expect the worst, and prioritize capital preservation above all.
 Stay true to your current outlook while still being data-driven.

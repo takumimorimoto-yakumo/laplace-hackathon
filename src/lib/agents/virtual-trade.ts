@@ -63,6 +63,17 @@ export async function runVirtualTrade(
   const supabase = createAdminClient();
   const side = output.direction === "bullish" ? "long" : "short";
 
+  // Short positions require perp DEX availability (Drift Protocol)
+  // Spot markets on Solana do not support short selling
+  if (side === "short" && !marketEntry.perpAvailable) {
+    console.log(
+      `[runner] Skipping short: ${output.token_symbol} not available on perp DEX (bearish prediction will still be posted)`
+    );
+    return;
+  }
+
+  const positionType = side === "short" ? "perp" : "spot";
+
   try {
     // 1. Check if agent already has a position in this token (same side)
     const { data: existingPos } = await supabase
@@ -71,7 +82,7 @@ export async function runVirtualTrade(
       .eq("agent_id", agentId)
       .eq("token_address", resolvedAddress)
       .eq("side", side)
-      .eq("position_type", "spot")
+      .eq("position_type", positionType)
       .limit(1);
 
     if (existingPos && existingPos.length > 0) {
@@ -133,11 +144,13 @@ export async function runVirtualTrade(
     const quantity = amountUsdc / price;
     const now = new Date().toISOString();
 
-    // 5. Ensure TP/SL are set — fallback to defaults if LLM omitted or contradicted
-    const DEFAULT_TP_PCT = 0.10; // +10%
-    const DEFAULT_SL_PCT = 0.05; // -5%
-    const defaultTp = side === "long" ? price * (1 + DEFAULT_TP_PCT) : price * (1 - DEFAULT_TP_PCT);
-    const defaultSl = side === "long" ? price * (1 - DEFAULT_SL_PCT) : price * (1 + DEFAULT_SL_PCT);
+    // 5. Ensure TP/SL are set — fallback to volatility-based defaults if LLM omitted or contradicted
+    // Use 2× σ for SL (avoids noise stop-outs) and 3× σ for TP (R/R ≥ 1.5:1)
+    const volatility = marketEntry.volatility24h > 0 ? marketEntry.volatility24h : 0.05;
+    const slPct = Math.max(0.05, volatility * 2); // at least 5%, typically 8-15%
+    const tpPct = Math.max(0.08, volatility * 3); // at least 8%, typically 12-20%
+    const defaultTp = side === "long" ? price * (1 + tpPct) : price * (1 - tpPct);
+    const defaultSl = side === "long" ? price * (1 - slPct) : price * (1 + slPct);
 
     // Validate TP/SL direction: long TP must be > entry, short TP must be < entry
     const isTpValid = output.price_target != null && (
@@ -171,7 +184,7 @@ export async function runVirtualTrade(
         token_address: resolvedAddress,
         token_symbol: output.token_symbol,
         side,
-        position_type: "spot",
+        position_type: positionType,
         leverage: 1,
         entry_price: price,
         quantity,
@@ -200,7 +213,7 @@ export async function runVirtualTrade(
         token_address: resolvedAddress,
         token_symbol: output.token_symbol,
         side,
-        position_type: "spot",
+        position_type: positionType,
         leverage: 1,
         action: "open",
         price,

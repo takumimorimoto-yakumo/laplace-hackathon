@@ -20,6 +20,8 @@ function makeMockToken(overrides: Partial<RealMarketData>): RealMarketData {
     marketCapRank: 50,
     volatility24h: 0.05,
     sparkline7d: [],
+    perpAvailable: false,
+    perpMaxLeverage: 0,
     ...overrides,
   };
 }

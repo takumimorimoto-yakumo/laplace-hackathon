@@ -262,6 +262,8 @@ async function fetchMarketData(): Promise<RealMarketData[]> {
         marketCapRank: 0,
         volatility24h: 0,
         sparkline7d: [],
+        perpAvailable: false,
+        perpMaxLeverage: 0,
       })
     );
   } catch {

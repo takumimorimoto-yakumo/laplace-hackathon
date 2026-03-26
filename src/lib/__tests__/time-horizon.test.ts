@@ -111,7 +111,7 @@ describe("memoryLimits", () => {
   });
 
   it("returns intraday limits", () => {
-    expect(memoryLimits("intraday")).toEqual({ predictions: 8, trades: 8, bookmarks: 3 });
+    expect(memoryLimits("intraday")).toEqual({ predictions: 12, trades: 8, bookmarks: 3 });
   });
 
   it("falls back to swing defaults for undefined", () => {

@@ -81,7 +81,7 @@ export function memoryLimits(horizon?: string): {
     case "scalp":
       return { predictions: 8, trades: 8, bookmarks: 2 };
     case "intraday":
-      return { predictions: 8, trades: 8, bookmarks: 3 };
+      return { predictions: 12, trades: 8, bookmarks: 3 };
     case "swing":
       return { predictions: 10, trades: 8, bookmarks: 3 };
     case "position":

@@ -30,7 +30,8 @@ export async function runVirtualTrade(
   agentId: string,
   postId: string,
   output: AgentPostOutput,
-  existingMarketData?: RealMarketData[]
+  existingMarketData?: RealMarketData[],
+  agentTimeHorizon?: string,
 ): Promise<void> {
   // Skip neutral predictions
   if (output.direction === "neutral") {
@@ -146,9 +147,18 @@ export async function runVirtualTrade(
 
     // 5. Ensure TP/SL are set — fallback to volatility-based defaults if LLM omitted or contradicted
     // Use 2× σ for SL (avoids noise stop-outs) and 3× σ for TP (R/R ≥ 1.5:1)
+    // Scale by time_horizon: intraday agents need tighter TP/SL than swing/position agents
     const volatility = marketEntry.volatility24h > 0 ? marketEntry.volatility24h : 0.05;
-    const slPct = Math.max(0.05, volatility * 2); // at least 5%, typically 8-15%
-    const tpPct = Math.max(0.08, volatility * 3); // at least 8%, typically 12-20%
+    const horizonMultiplier: Record<string, number> = {
+      scalp: 0.4,
+      intraday: 0.6,
+      swing: 1.0,
+      position: 1.5,
+      long_term: 2.0,
+    };
+    const hMult = horizonMultiplier[agentTimeHorizon ?? "swing"] ?? 1.0;
+    const slPct = Math.max(0.02, volatility * 2 * hMult); // intraday: min 2% (swing: min 5%)
+    const tpPct = Math.max(0.03, volatility * 3 * hMult); // intraday: min 3% (swing: min 8%)
     const defaultTp = side === "long" ? price * (1 + tpPct) : price * (1 - tpPct);
     const defaultSl = side === "long" ? price * (1 - slPct) : price * (1 + slPct);
 
@@ -727,7 +737,9 @@ export async function closeExpiredPositions(
       const amountUsdc = Number(pos.amount_usdc);
       const side = pos.side as string;
 
-      // If no market price is available, treat as total loss (same as forceClose)
+      // If no market price is available, defer close to next cycle unless the position
+      // has been expired for more than 4x the expiry window (absolute cutoff).
+      // At the absolute cutoff, close at entry price (PnL = 0) to prevent limbo positions.
       let realizedPnl: number;
       let realizedPnlPct: number;
       let closePrice: number;
@@ -741,11 +753,26 @@ export async function closeExpiredPositions(
         realizedPnlPct =
           amountUsdc > 0 ? (realizedPnl / amountUsdc) * 100 : 0;
       } else {
-        closePrice = 0;
-        realizedPnl = -amountUsdc;
-        realizedPnlPct = -100;
+        // Check if position has exceeded the absolute cutoff (4x expiry window)
+        const absoluteCutoffMs = positionExpiryMs(agentTimeHorizon ?? "swing") * 4;
+        const openedAtMs = pos.opened_at
+          ? new Date(pos.opened_at as string).getTime()
+          : 0;
+        const ageMs = Date.now() - openedAtMs;
+
+        if (ageMs < absoluteCutoffMs) {
+          console.warn(
+            `[runner] No price for expired ${pos.token_symbol}, deferring close to next cycle`
+          );
+          continue; // Keep position open; price may recover next cycle
+        }
+
+        // Absolute cutoff exceeded — close at entry price (PnL = 0) to release capital
+        closePrice = entryPrice;
+        realizedPnl = 0;
+        realizedPnlPct = 0;
         console.warn(
-          `[runner] No price for expired ${pos.token_symbol} (addr: ${pos.token_address}), closing as total loss (-$${amountUsdc.toFixed(2)})`
+          `[runner] No price for ${pos.token_symbol} after absolute cutoff (${(ageMs / (24 * 60 * 60 * 1000)).toFixed(1)}d), closing at entry price (PnL=0)`
         );
       }
 

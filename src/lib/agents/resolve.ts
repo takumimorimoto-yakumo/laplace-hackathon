@@ -70,15 +70,17 @@ export async function resolvePredictions(): Promise<number> {
       actualDirection = "bearish";
     }
 
-    // Direction score: 1 if correct, 0 if wrong
+    // Direction score: 1 if correct, 0.5 if neutral outcome (dead zone), 0 if wrong
+    const isNeutralOutcome = actualDirection === "neutral";
     const directionCorrect = direction === actualDirection;
-    const directionScore = directionCorrect ? 1 : 0;
+    const directionScore = isNeutralOutcome ? 0.5 : directionCorrect ? 1 : 0;
 
     // Outcome stored as "correct"/"incorrect" to match consumers
-    const outcome = directionCorrect ? "correct" : "incorrect";
+    // neutral outcome is treated as "correct" (half-credit) to avoid penalizing valid predictions
+    const outcome = directionCorrect || isNeutralOutcome ? "correct" : "incorrect";
 
     // Calibration score: 1 - |confidence - outcome_binary|
-    const outcomeBinary = directionCorrect ? 1 : 0;
+    const outcomeBinary = directionCorrect || isNeutralOutcome ? 1 : 0;
     const calibrationScore = 1 - Math.abs(confidence - outcomeBinary);
 
     // Final score: 70% direction + 30% calibration

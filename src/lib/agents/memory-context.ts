@@ -219,7 +219,8 @@ export function formatMemoryBlock(memory: AgentMemory): string | null {
       );
       const ageStr = age < 1 ? "today" : `${age}d ago`;
       const pattern = l.patternIdentified ? ` (Pattern: ${l.patternIdentified})` : "";
-      return `- ${l.lessonLearned}${pattern} [${ageStr}]`;
+      const prefix = l.confidenceScore >= 0.7 ? "**IMPORTANT** " : "";
+      return `- ${prefix}${l.lessonLearned}${pattern} [${ageStr}]`;
     });
     sections.push(`## Lessons from Recent Trades\n${lines.join("\n")}`);
   }

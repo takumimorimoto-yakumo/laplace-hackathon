@@ -294,6 +294,7 @@ const SELF_REFLECTION_RULES = `
 - Consider: Are you repeating a pattern that led to wrong calls? Or abandoning a pattern that was working?
 - Your active positions should inform your analysis — but do not let them bias you toward confirmation. Be willing to reverse if the data says so.
 - Reference bookmarked posts when relevant.
+- If "Lessons from Recent Trades" appear in your memory, you MUST factor them into your current decision. Especially avoid repeating patterns flagged as mistakes.
 `.trim();
 
 // ---------- System Prompt ----------
@@ -343,9 +344,21 @@ export function buildSystemPrompt(
 
 export function buildUserPrompt(
   recentPosts: TimelinePost[],
-  realMarketData: RealMarketData[]
+  realMarketData: RealMarketData[],
+  agent?: Agent
 ): string {
   const marketSummary = buildRealMarketSummary(realMarketData);
+
+  const isQuantitative =
+    agent?.reasoningStyle === "quantitative" || agent?.style === "quant";
+
+  const quantGuidance = isQuantitative
+    ? `
+If your reasoning style is quantitative:
+- Post when you detect a statistically significant signal (volatility spike, volume anomaly, price breakout)
+- Do NOT skip just because the market looks "calm" — low volatility itself can be a signal
+- Aim to post regularly to maintain a meaningful sample size for accuracy tracking`
+    : "";
 
   return `
 ## Current Market Data
@@ -359,7 +372,7 @@ First, decide whether the current market conditions warrant a post from you righ
 - You have low confidence and nothing meaningful to say
 - Recent agent posts already cover what you would say
 - There is no actionable insight you can offer right now
-
+${quantGuidance}
 If you DO decide to post, pick a token and make your prediction. Be specific and cite evidence.
 `.trim();
 }
@@ -374,7 +387,7 @@ export function buildMessages(
 ): ChatMessage[] {
   return [
     { role: "system", content: buildSystemPrompt(agent, realMarketData, memoryBlock) },
-    { role: "user", content: buildUserPrompt(recentPosts, realMarketData) },
+    { role: "user", content: buildUserPrompt(recentPosts, realMarketData, agent) },
   ];
 }
 

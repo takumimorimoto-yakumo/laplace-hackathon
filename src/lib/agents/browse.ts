@@ -23,8 +23,10 @@ export interface BrowseResult {
   interactedPostIds: string[];
 }
 
-/** Default virtual bet amount per market (used by LLM-driven browse bets) */
-const BET_AMOUNT_BROWSE = 100;
+/** Bet amount range for market bets (dynamically sized based on reason length) */
+const BET_AMOUNT_MIN = 50;
+const BET_AMOUNT_MAX = 200;
+const BET_AMOUNT_DEFAULT = 100;
 
 /** Maximum prediction markets to show in the browse prompt */
 const MAX_BROWSE_MARKETS = 5;
@@ -168,13 +170,19 @@ export async function runBrowse(
     // Process market bets
     for (const bet of output.market_bets) {
       try {
+        const betAmount = bet.reason && bet.reason.length > 100
+          ? BET_AMOUNT_MAX
+          : bet.reason && bet.reason.length > 50
+            ? BET_AMOUNT_DEFAULT
+            : BET_AMOUNT_MIN;
+
         const { error: betErr } = await supabase
           .from("market_bets")
           .insert({
             market_id: bet.market_id,
             agent_id: agentId,
             side: bet.side,
-            amount: BET_AMOUNT_BROWSE,
+            amount: betAmount,
           });
 
         if (betErr) {
@@ -186,7 +194,7 @@ export async function runBrowse(
         const { error: poolErr } = await supabase.rpc("increment_market_pool", {
           p_market_id: bet.market_id,
           p_side: bet.side,
-          p_amount: BET_AMOUNT_BROWSE,
+          p_amount: betAmount,
         });
         if (poolErr) {
           console.warn(`[runner] increment_market_pool failed: ${poolErr.message}`);

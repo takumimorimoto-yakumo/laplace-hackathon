@@ -41,8 +41,10 @@ const MODULE_SCORERS: Record<
     return volScore + mcapScore;
   },
   technical: (t) => {
-    // Boost tokens with sufficient volume (>$10M)
-    return t.volume24h > 10_000_000 ? 1 : 0;
+    // Boost tokens with sufficient volume (>$10M) + volatility edge
+    const liquidityOk = t.volume24h > 10_000_000 ? 1 : 0;
+    const volatilityEdge = (t.volatility24h ?? 0) * 5;
+    return liquidityOk + volatilityEdge;
   },
   cross_chain: () => {
     // Small boost to all
@@ -94,8 +96,11 @@ const STYLE_SCORERS: Record<AgentStyle, (token: RealMarketData) => number> = {
     return 0;
   },
   quant: (t) => {
-    // Boost volume
-    return t.volume24h / 1e9;
+    // Boost volume + volatility + marketCap (log scale)
+    const volScore = t.volume24h / 1e9;
+    const volatilityScore = (t.volatility24h ?? 0) * 10;
+    const spreadScore = t.marketCap ? Math.log10(t.marketCap) / 12 : 0;
+    return volScore + volatilityScore + spreadScore;
   },
 };
 

@@ -203,8 +203,8 @@ function computeRecencyPenalty(
   let penalty = 0;
   for (let i = 0; i < recentSymbols.length; i++) {
     if (recentSymbols[i].toUpperCase() === upper) {
-      // More recent = higher penalty (index 0 = most recent)
-      penalty += 1.0 - i * 0.1;
+      // More recent = higher penalty (index 0 = most recent), capped at 0
+      penalty += Math.max(0, 1.0 - i * 0.1);
     }
   }
   return penalty;
@@ -238,16 +238,28 @@ export function selectTokensForAgent(
   // Clamp count to 15-30 range
   const safeCount = Math.max(15, Math.min(30, count));
 
-  // Score each token
-  const scored = allTokens.map((token) => {
-    const moduleScore = computeModuleScore(token, agent.modules);
-    const styleScore = computeStyleScore(token, agent.style);
-    const axisScore = computeAxisScores(token, agent);
-    const baseScore = moduleScore + styleScore + axisScore;
-    return { token, baseScore };
-  });
+  // Score each token (raw scores per dimension)
+  const rawScores = allTokens.map((token) => ({
+    token,
+    moduleScore: computeModuleScore(token, agent.modules),
+    styleScore: computeStyleScore(token, agent.style),
+    axisScore: computeAxisScores(token, agent),
+  }));
 
-  // Find max base score for noise scaling
+  // Normalize each score dimension to [0, 1] range to prevent scale mismatch
+  const maxModule = Math.max(...rawScores.map((s) => Math.abs(s.moduleScore)), 1e-9);
+  const maxStyle = Math.max(...rawScores.map((s) => Math.abs(s.styleScore)), 1e-9);
+  const maxAxis = Math.max(...rawScores.map((s) => Math.abs(s.axisScore)), 1e-9);
+
+  const scored = rawScores.map((s) => ({
+    token: s.token,
+    baseScore:
+      s.moduleScore / maxModule +
+      s.styleScore / maxStyle +
+      s.axisScore / maxAxis,
+  }));
+
+  // Find max base score for noise scaling (now in ~[0, 3] range)
   const maxBase = Math.max(...scored.map((s) => s.baseScore), 1);
 
   // Build watchlist set for boosting user-specified tokens
@@ -258,8 +270,8 @@ export function selectTokensForAgent(
   // Apply recency penalty + random noise + watchlist boost
   const final = scored.map((s) => {
     const recencyPenalty = computeRecencyPenalty(s.token.symbol, recentSymbols);
-    // Random noise: up to 30% of max base score
-    const noise = Math.random() * maxBase * 0.3;
+    // Random noise: up to 15% of max base score
+    const noise = Math.random() * maxBase * 0.15;
     // Watchlist boost: 50% of max base score for tokens on user's watchlist
     const watchlistBoost = watchlistSet?.has(s.token.symbol.toUpperCase()) ? maxBase * 0.5 : 0;
     return {

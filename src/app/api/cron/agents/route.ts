@@ -120,7 +120,8 @@ async function processAgent(
         agent.id,
         predictionResult.postId,
         predictionResult.output,
-        sharedMarketData
+        sharedMarketData,
+        agent.time_horizon as string | undefined
       );
       cycleResult.tradeExecuted = true;
     } catch (err: unknown) {

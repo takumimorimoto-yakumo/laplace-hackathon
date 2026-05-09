@@ -39,6 +39,15 @@ export async function runVirtualTrade(
     return;
   }
 
+  // Skip low-confidence bearish predictions (bearish accuracy is structurally
+  // lower in crypto markets; only trade bearish when confidence is strong)
+  if (output.direction === "bearish" && output.confidence < 0.65) {
+    console.log(
+      `[runner] Skipping virtual trade for low-confidence bearish (${(output.confidence * 100).toFixed(0)}%)`
+    );
+    return;
+  }
+
   if (!output.token_symbol) {
     console.log(`[runner] Skipping virtual trade: no token symbol`);
     return;
@@ -339,11 +348,11 @@ function isTpSlHit(
 
     for (const price of relevantPrices) {
       if (side === "long") {
-        if (stopLoss && price <= stopLoss) return "sl";
         if (priceTarget && price >= priceTarget) return "tp";
+        if (stopLoss && price <= stopLoss) return "sl";
       } else {
-        if (stopLoss && price >= stopLoss) return "sl";
         if (priceTarget && price <= priceTarget) return "tp";
+        if (stopLoss && price >= stopLoss) return "sl";
       }
     }
   }

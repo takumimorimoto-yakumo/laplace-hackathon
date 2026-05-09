@@ -109,7 +109,15 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
         "Both CoinGecko and DB cache returned empty"
       );
     }
-    const cachedResult = cachedTokens.map((t) => ({
+    // Compute ranks from cached data (same logic as live path)
+    const cachedVolumeRanks = assignRanks(
+      cachedTokens.map((t, i) => ({ index: i, value: t.volume24h }))
+    );
+    const cachedMarketCapRanks = assignRanks(
+      cachedTokens.map((t, i) => ({ index: i, value: t.marketCap }))
+    );
+
+    const cachedResult = cachedTokens.map((t, i) => ({
       symbol: t.symbol.toUpperCase(),
       address: t.address,
       price: t.price,
@@ -119,9 +127,9 @@ export async function fetchMarketContext(): Promise<RealMarketData[]> {
       marketCap: t.marketCap,
       coingeckoId: "",
       name: t.name,
-      volumeRank: 0,
-      marketCapRank: 0,
-      volatility24h: 0,
+      volumeRank: cachedVolumeRanks.get(i) ?? 0,
+      marketCapRank: cachedMarketCapRanks.get(i) ?? 0,
+      volatility24h: t.sparkline7d.length >= 2 ? computeVolatility24h(t.sparkline7d) : 0,
       sparkline7d: t.sparkline7d,
       perpAvailable: false,
       perpMaxLeverage: 0,
